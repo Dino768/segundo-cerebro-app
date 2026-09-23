@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { FormTarea, type Edicion } from './componentes/FormTarea';
 import { ProveedorDatos, useDatos } from './estado/datos';
 import { Ajustes } from './pantallas/Ajustes';
+import { Calendario } from './pantallas/Calendario';
 import { Hoy } from './pantallas/Hoy';
 import { Tareas } from './pantallas/Tareas';
 
@@ -9,6 +10,7 @@ type Pantalla = 'hoy' | 'calendario' | 'tareas' | 'proyectos' | 'ajustes';
 
 const PESTANAS: { id: Pantalla; nombre: string }[] = [
   { id: 'hoy', nombre: 'Hoy' },
+  { id: 'calendario', nombre: 'Calendario' },
   { id: 'tareas', nombre: 'Tareas' },
   { id: 'ajustes', nombre: 'Ajustes' },
 ];
@@ -53,6 +55,7 @@ function Contenido() {
       ))}
       <main>
         {actual === 'hoy' && <Hoy editar={editar} />}
+        {actual === 'calendario' && <Calendario editar={editar} />}
         {actual === 'tareas' && <Tareas editar={editar} />}
         {actual === 'ajustes' && <Ajustes />}
       </main>

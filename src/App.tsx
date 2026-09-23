@@ -1,3 +1,60 @@
+import { useState } from 'react';
+import { ProveedorDatos, useDatos } from './estado/datos';
+import { Ajustes } from './pantallas/Ajustes';
+
+type Pantalla = 'hoy' | 'calendario' | 'tareas' | 'proyectos' | 'ajustes';
+
+const PESTANAS: { id: Pantalla; nombre: string }[] = [{ id: 'ajustes', nombre: 'Ajustes' }];
+
 export default function App() {
-  return <h1>Segundo cerebro</h1>;
+  return (
+    <ProveedorDatos>
+      <Contenido />
+    </ProveedorDatos>
+  );
+}
+
+function Contenido() {
+  const { estado, aviso, cerrarAviso, datos, recargar } = useDatos();
+  const [pantalla, setPantalla] = useState<Pantalla>('ajustes');
+  const forzarAjustes = estado === 'sin-config' || estado === 'error-token';
+  const actual: Pantalla = forzarAjustes ? 'ajustes' : pantalla;
+
+  return (
+    <div className="app">
+      <header className="cabecera">
+        <h1>Segundo cerebro</h1>
+        {estado === 'cargando' && <span className="cargando">Cargando…</span>}
+      </header>
+      {estado === 'sin-conexion' && (
+        <div className="banner aviso">
+          Sin conexión: estás viendo los últimos datos guardados y no puedes hacer cambios.
+          <button onClick={() => void recargar()}>Reintentar</button>
+        </div>
+      )}
+      {aviso && (
+        <div className="banner error">
+          {aviso} <button onClick={cerrarAviso}>Cerrar</button>
+        </div>
+      )}
+      {datos.errores.map((e) => (
+        <div key={e.archivo} className="banner error">
+          Error en <code>{e.archivo}</code>: {e.message}. No se puede editar este archivo hasta que se arregle (pídeselo a Claude).
+        </div>
+      ))}
+      <main>{actual === 'ajustes' && <Ajustes />}</main>
+      <nav className="navegacion">
+        {PESTANAS.map((p) => (
+          <button
+            key={p.id}
+            className={actual === p.id ? 'activa' : ''}
+            disabled={forzarAjustes && p.id !== 'ajustes'}
+            onClick={() => setPantalla(p.id)}
+          >
+            {p.nombre}
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
 }

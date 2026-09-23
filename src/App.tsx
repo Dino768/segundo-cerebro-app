@@ -1,10 +1,15 @@
 import { useState } from 'react';
+import { FormTarea, type Edicion } from './componentes/FormTarea';
 import { ProveedorDatos, useDatos } from './estado/datos';
 import { Ajustes } from './pantallas/Ajustes';
+import { Hoy } from './pantallas/Hoy';
 
 type Pantalla = 'hoy' | 'calendario' | 'tareas' | 'proyectos' | 'ajustes';
 
-const PESTANAS: { id: Pantalla; nombre: string }[] = [{ id: 'ajustes', nombre: 'Ajustes' }];
+const PESTANAS: { id: Pantalla; nombre: string }[] = [
+  { id: 'hoy', nombre: 'Hoy' },
+  { id: 'ajustes', nombre: 'Ajustes' },
+];
 
 export default function App() {
   return (
@@ -16,9 +21,11 @@ export default function App() {
 
 function Contenido() {
   const { estado, aviso, cerrarAviso, datos, recargar } = useDatos();
-  const [pantalla, setPantalla] = useState<Pantalla>('ajustes');
+  const [pantalla, setPantalla] = useState<Pantalla>('hoy');
+  const [edicion, setEdicion] = useState<Edicion | null>(null);
   const forzarAjustes = estado === 'sin-config' || estado === 'error-token';
   const actual: Pantalla = forzarAjustes ? 'ajustes' : pantalla;
+  const editar = (e: Edicion) => setEdicion(e);
 
   return (
     <div className="app">
@@ -42,7 +49,10 @@ function Contenido() {
           Error en <code>{e.archivo}</code>: {e.message}. No se puede editar este archivo hasta que se arregle (pídeselo a Claude).
         </div>
       ))}
-      <main>{actual === 'ajustes' && <Ajustes />}</main>
+      <main>
+        {actual === 'hoy' && <Hoy editar={editar} />}
+        {actual === 'ajustes' && <Ajustes />}
+      </main>
       <nav className="navegacion">
         {PESTANAS.map((p) => (
           <button
@@ -55,6 +65,7 @@ function Contenido() {
           </button>
         ))}
       </nav>
+      {edicion && <FormTarea edicion={edicion} cerrar={() => setEdicion(null)} />}
     </div>
   );
 }

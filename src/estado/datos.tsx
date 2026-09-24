@@ -1,13 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ErrorIdeaCambiada } from '../agenda/ideas';
+import type { Asignatura } from '../datos/asignaturas';
 import type { Linea } from '../datos/ideas';
 import { parseProyecto, serializarProyecto, type Proyecto } from '../datos/proyectos';
-import { RUTA_AREAS, RUTA_TAREAS } from '../datos/rutas';
+import { RUTA_AREAS, RUTA_ASIGNATURAS, RUTA_TAREAS } from '../datos/rutas';
 import type { Tarea } from '../datos/tareas';
 import { ErrorDatos } from '../datos/yaml';
 import { ErrorGitHub, type Config } from '../github/cliente';
 import {
-  cargarAgenda, cargarTodo, guardarProyecto as guardarProyectoRemoto, modificarBandeja, modificarTareas, type Datos,
+  cargarAgenda, cargarTodo, guardarProyecto as guardarProyectoRemoto, modificarAsignaturas, modificarBandeja, modificarTareas, type Datos,
 } from '../repositorio';
 import { borrarCache, guardarCache, leerCache } from './cache';
 import { crearCola } from './cola';
@@ -29,9 +30,10 @@ export interface ValorDatos {
   cambiarTareas(cambio: (ts: Tarea[]) => Tarea[], mensaje: string): Promise<boolean>;
   cambiarIdeas(cambio: (ls: Linea[]) => Linea[], mensaje: string): Promise<boolean>;
   guardarProyecto(p: Proyecto, original: Proyecto | null): Promise<boolean>;
+  cambiarAsignaturas(cambio: (l: Asignatura[]) => Asignatura[], mensaje: string): Promise<boolean>;
 }
 
-const VACIO: Datos = { tareas: [], areas: [], proyectos: [], ideas: [], errores: [] };
+const VACIO: Datos = { tareas: [], areas: [], proyectos: [], ideas: [], asignaturas: [], errores: [] };
 const Contexto = createContext<ValorDatos | null>(null);
 
 export function ProveedorDatos({ children }: { children: ReactNode }) {
@@ -95,7 +97,8 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
       tareas: agenda.tareas,
       areas: agenda.areas,
       ideas: agenda.ideas,
-      errores: [...d.errores.filter((x) => x.archivo !== RUTA_TAREAS && x.archivo !== RUTA_AREAS), ...agenda.errores],
+      asignaturas: agenda.asignaturas,
+      errores: [...d.errores.filter((x) => x.archivo !== RUTA_TAREAS && x.archivo !== RUTA_AREAS && x.archivo !== RUTA_ASIGNATURAS), ...agenda.errores],
     }));
   }, []);
 
@@ -153,6 +156,23 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
     [config, alFallar, encolar, traerAgenda],
   );
 
+  const cambiarAsignaturas = useCallback(
+    (cambio: (l: Asignatura[]) => Asignatura[], mensaje: string) =>
+      encolar(async () => {
+        if (!config) return false;
+        try {
+          const asignaturas = await modificarAsignaturas(config, cambio, mensaje);
+          setDatos((d) => ({ ...d, asignaturas, errores: d.errores.filter((x) => x.archivo !== RUTA_ASIGNATURAS) }));
+          setEstado('listo');
+          return true;
+        } catch (e) {
+          alFallar(e, false);
+          return false;
+        }
+      }),
+    [config, alFallar, encolar],
+  );
+
   const guardarProyecto = useCallback(
     async (p: Proyecto, original: Proyecto | null) => {
       if (!config) return false;
@@ -196,8 +216,9 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
       cambiarTareas,
       cambiarIdeas,
       guardarProyecto,
+      cambiarAsignaturas,
     }),
-    [estado, datos, config, aviso, recargar, conectar, desconectar, cambiarTareas, cambiarIdeas, guardarProyecto],
+    [estado, datos, config, aviso, recargar, conectar, desconectar, cambiarTareas, cambiarIdeas, guardarProyecto, cambiarAsignaturas],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

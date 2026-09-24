@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as cliente from './github/cliente';
 import { parseProyecto } from './datos/proyectos';
 import { ErrorDatos } from './datos/yaml';
-import { cargarAgenda, cargarTodo, guardarProyecto, modificarBandeja, modificarTareas } from './repositorio';
+import { cargarAgenda, cargarTodo, guardarProyecto, modificarAsignaturas, modificarBandeja, modificarTareas } from './repositorio';
 import { anadirIdea, ErrorIdeaCambiada, quitarIdea } from './agenda/ideas';
 import { ideasDe } from './datos/ideas';
 
@@ -30,6 +30,7 @@ beforeEach(() => vi.resetAllMocks());
 describe('cargarTodo', () => {
   it('carga lo que puede y aparta los archivos rotos', async () => {
     leer.mockImplementation(async (_cfg, ruta) => {
+      if (ruta === 'estudios/asignaturas.yaml') throw new cliente.ErrorGitHub('no-existe', 'no', 404);
       if (ruta === 'ideas/bandeja.md') throw new cliente.ErrorGitHub('no-existe', 'no', 404);
       if (ruta === 'agenda/tareas.yaml') throw new cliente.ErrorGitHub('no-existe', 'no', 404);
       if (ruta === 'agenda/areas.yaml') return { texto: '- id: uni\n  nombre: [roto\n', sha: 'a' };
@@ -49,6 +50,7 @@ describe('cargarTodo', () => {
 describe('cargarAgenda', () => {
   it('lee solo tareas y áreas, sin tocar los proyectos', async () => {
     leer.mockImplementation(async (_cfg, ruta) => {
+      if (ruta === 'estudios/asignaturas.yaml') throw new cliente.ErrorGitHub('no-existe', 'no', 404);
       if (ruta === 'ideas/bandeja.md') return { texto: '# Bandeja\n- 2026-09-24: Idea\n', sha: 'b' };
       if (ruta === 'agenda/tareas.yaml') return { texto: '- id: a\n  titulo: A\n  area: uni\n', sha: 't' };
       if (ruta === 'agenda/areas.yaml') return { texto: '- id: uni\n  nombre: [roto\n', sha: 'a' };
@@ -125,5 +127,23 @@ describe('guardarProyecto', () => {
   it('no pisa un proyecto existente al crear uno nuevo', async () => {
     simularRemoto(texto);
     await expect(guardarProyecto(cfg, original, null)).rejects.toMatchObject({ tipo: 'conflicto' });
+  });
+});
+
+describe('asignaturas', () => {
+  it('cargarAgenda lee las asignaturas', async () => {
+    leer.mockImplementation(async (_cfg, ruta) => {
+      if (ruta === 'estudios/asignaturas.yaml')
+        return { texto: 'asignaturas:\n  - id: fisica\n    nombre: Física\n    color: "#3d7bb8"\n', sha: 's' };
+      throw new cliente.ErrorGitHub('no-existe', 'no', 404);
+    });
+    expect((await cargarAgenda(cfg)).asignaturas).toEqual([{ id: 'fisica', nombre: 'Física', color: '#3d7bb8' }]);
+  });
+  it('modificarAsignaturas aplica el cambio sobre lo que hay en GitHub', async () => {
+    const escrito = simularRemoto(null);
+    const r = await modificarAsignaturas(cfg, (l) => [...l, { id: 'fisica', nombre: 'Física', color: '#3d7bb8' }], 'Añadir asignatura');
+    expect(r).toHaveLength(1);
+    expect(escrito()).toContain('asignaturas:');
+    expect(escrito()).toContain('id: fisica');
   });
 });

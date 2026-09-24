@@ -26,3 +26,18 @@ export function useHoy(): ISODate {
 
   return hoy;
 }
+
+// La hora actual, que avanza sola cada minuto (justo al cambiar de minuto).
+export function useAhora(): Date {
+  const [ahora, setAhora] = useState(() => new Date());
+  useEffect(() => {
+    let temporizador: ReturnType<typeof setTimeout>;
+    const siguiente = () => {
+      setAhora(new Date());
+      temporizador = setTimeout(siguiente, 60_000 - (Date.now() % 60_000) + 50);
+    };
+    temporizador = setTimeout(siguiente, 60_000 - (Date.now() % 60_000) + 50);
+    return () => clearTimeout(temporizador);
+  }, []);
+  return ahora;
+}

@@ -10,9 +10,9 @@ import type { Destino } from '../componentes/navegacion';
 import { dondeLoDejamos } from '../datos/proyectos';
 import type { Tarea } from '../datos/tareas';
 import { useDatos } from '../estado/datos';
-import { useHoy } from '../estado/hoy';
+import { useAhora, useHoy } from '../estado/hoy';
 import {
-  cuadriculaMes, DIAS, diaDeSemana, diasSemana, formatoLargo, fromISO, nombreMes, saludo, type ISODate,
+  cuadriculaMes, DIAS, horaCorta, diaDeSemana, diasSemana, formatoLargo, fromISO, nombreMes, saludo, type ISODate,
 } from '../fechas';
 
 interface Props {
@@ -23,6 +23,7 @@ interface Props {
 export function Inicio({ editar, ir }: Props) {
   const { datos } = useDatos();
   const hoy = useHoy();
+  const ahora = useAhora();
   const retrasadas = atrasadas(datos.tareas, hoy);
   const deHoy = tareasDelDia(datos.tareas, hoy);
   const top = topSinFecha(datos.tareas);
@@ -56,7 +57,7 @@ export function Inicio({ editar, ir }: Props) {
     <section className="inicio">
       <header className="saludo">
         <h1>{saludo(new Date().getHours())}, Diego</h1>
-        <p>{formatoLargo(hoy)}</p>
+        <p>{formatoLargo(hoy)} · {horaCorta(ahora)}</p>
       </header>
       <Captura />
       <div className="rejilla-inicio">

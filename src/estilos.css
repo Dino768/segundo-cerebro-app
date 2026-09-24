@@ -125,7 +125,7 @@ fieldset { border: 1px solid var(--borde); border-radius: 8px; display: flex; fl
 .lateral { display: none; }
 @media (min-width: 900px) {
   .app { display: flex; }
-  main { flex: 1; min-width: 0; padding: 28px 40px 40px; }
+  main { flex: 1; min-width: 0; padding: 28px 40px 40px; margin: 0; }
   .navegacion { display: none; }
   .lateral { display: flex; flex-direction: column; gap: 2px; width: 240px; flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--lateral); border-right: 1px solid var(--borde); padding: 18px 12px; }
 }

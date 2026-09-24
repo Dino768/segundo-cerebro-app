@@ -219,3 +219,30 @@ main.ancho { max-width: none; }
 .boton-adjuntar { flex-direction: row; cursor: pointer; font-size: 20px; padding: 6px; color: var(--texto); }
 .chat-aviso { margin: 0 14px 10px; }
 @media (max-width: 899px) { .estudio-local { height: calc(100vh - 230px); } }
+
+/* Pizarra */
+.pizarra { position: relative; height: 100%; min-height: 0; display: flex; flex-direction: column; }
+.lienzo { position: relative; flex: 1; min-height: 0; overflow: hidden; touch-action: none; cursor: grab; outline: none; background-color: #fdfbf6; background-image: radial-gradient(#e6dccb 1px, transparent 1px); background-size: 22px 22px; }
+.lienzo:active { cursor: grabbing; }
+.mundo { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.flechas { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.etiqueta-flecha { font-size: 13px; fill: var(--suave); }
+.pieza { position: absolute; background: var(--superficie); border: 1px solid var(--borde); border-radius: 12px; padding: 10px 14px; box-shadow: 0 1px 3px rgb(60 40 20 / 0.08); user-select: none; overflow-wrap: anywhere; }
+.pieza.seleccionada { outline: 2px solid var(--acento); outline-offset: 2px; }
+.pieza-nota { background: #fff4c2; border-color: #ecd98a; }
+.pieza-dibujo, .pieza-imagen, .pieza-grafica { padding: 6px; }
+.pieza-formula { text-align: center; padding: 6px 14px; }
+.pieza img { display: block; width: 100%; border-radius: 6px; }
+.dibujo svg { display: block; width: 100%; height: auto; }
+.markdown-pieza > :first-child { margin-top: 0; }
+.markdown-pieza > :last-child { margin-bottom: 0; }
+.texto-nota { margin: 0; white-space: pre-wrap; }
+.editor-nota { position: absolute; width: 240px; min-height: 90px; background: #fff4c2; border: 2px solid var(--acento); }
+.pizarra-vacia { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 20px; margin: 0; color: var(--suave); pointer-events: none; }
+.controles-pizarra { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding: 8px 10px; border-top: 1px solid var(--borde); background: var(--superficie); }
+.grafica svg { display: block; }
+.rejilla { stroke: #efe7d9; }
+.eje { stroke: #b9a68f; }
+.numero-eje, .etiqueta-grafica { font-size: 11px; fill: var(--suave); }
+.leyenda { display: flex; gap: 10px; flex-wrap: wrap; font-size: 13px; margin-top: 4px; }
+.error-grafica { color: var(--peligro); }

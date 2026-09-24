@@ -1,5 +1,6 @@
 import type { Estado, Proyecto } from '../datos/proyectos';
-import { compararPrioridad } from './tareas';
+import type { Tarea } from '../datos/tareas';
+import { compararPrioridad, esRepetida } from './tareas';
 
 export const LIMITE_ACTIVOS = 2;
 
@@ -18,4 +19,10 @@ export function ordenarProyectos(ps: Proyecto[]): Proyecto[] {
       compararPrioridad(a, b) ||
       a.titulo.localeCompare(b.titulo, 'es'),
   );
+}
+
+// Progreso = tareas normales del proyecto hechas / total. Las que se repiten cada semana no cuentan.
+export function progresoProyecto(ts: Tarea[], id: string): { hechas: number; total: number } {
+  const delProyecto = ts.filter((t) => t.proyecto === id && !esRepetida(t));
+  return { hechas: delProyecto.filter((t) => t.hecha).length, total: delProyecto.length };
 }

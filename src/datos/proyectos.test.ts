@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { idProyectoDesdeTitulo, parseProyecto, serializarProyecto } from './proyectos';
+import { dondeLoDejamos, idProyectoDesdeTitulo, parseProyecto, serializarProyecto } from './proyectos';
 import { ErrorDatos } from './yaml';
 
 const TEXTO = '---\nestado: activo\narea: videojuegos\nprioridad: alta\nextra: 1\n---\n# Juego de plataformas\n\nNotas con ñ.\n';
@@ -52,5 +52,20 @@ describe('idProyectoDesdeTitulo', () => {
     expect(idProyectoDesdeTitulo('Juego de Plataformas ñ!', [])).toBe('juego-de-plataformas-n');
     expect(idProyectoDesdeTitulo('Juego', ['juego', 'juego-2'])).toBe('juego-3');
     expect(idProyectoDesdeTitulo('!!!', [])).toBe('proyecto');
+  });
+});
+
+describe('dondeLoDejamos', () => {
+  it('devuelve la última línea no vacía de la sección', () => {
+    const cuerpo =
+      '# Segundo cerebro\n\n## Dónde lo dejamos\n2026-09-22: creada la estructura.\n2026-09-23: fase 1 terminada.\n\n\n## Siguiente\nAlgo\n';
+    expect(dondeLoDejamos(cuerpo)).toBe('2026-09-23: fase 1 terminada.');
+  });
+  it('funciona si la sección es la última y quita el guion de lista', () => {
+    expect(dondeLoDejamos('# P\n## Dónde lo dejamos\n- Probando el menú\n')).toBe('Probando el menú');
+  });
+  it('sin la sección, o con la sección vacía, no devuelve nada', () => {
+    expect(dondeLoDejamos('# P\n\nNotas\n')).toBeUndefined();
+    expect(dondeLoDejamos('# P\n## Dónde lo dejamos\n\n## Otra\nx\n')).toBeUndefined();
   });
 });

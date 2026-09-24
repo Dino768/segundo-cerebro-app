@@ -1,4 +1,6 @@
 import { CABECERA_BANDEJA, parseBandeja, type Idea, type Linea } from '../datos/ideas';
+import { idProyectoDesdeTitulo, type Proyecto } from '../datos/proyectos';
+import type { ISODate } from '../fechas';
 
 export class ErrorIdeaCambiada extends Error {
   constructor() {
@@ -38,4 +40,18 @@ export function vincularIdea(lineas: Linea[], idea: Idea, proyecto: string | und
 export function quitarIdea(lineas: Linea[], idea: Idea): Linea[] {
   const i = posicion(lineas, idea);
   return lineas.filter((_, j) => j !== i);
+}
+
+export function proyectoDesdeIdea(
+  idea: Idea, nombre: string, area: string | undefined, existentes: string[], hoy: ISODate,
+): Proyecto {
+  const titulo = nombre.trim();
+  return {
+    id: idProyectoDesdeTitulo(titulo, existentes),
+    estado: 'idea',
+    area,
+    titulo,
+    cuerpo: `# ${titulo}\n\n## Qué es\n${idea.texto}\n\n## Dónde lo dejamos\n${hoy}: creado desde la bandeja de ideas.\n`,
+    meta: {},
+  };
 }

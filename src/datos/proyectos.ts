@@ -73,3 +73,16 @@ export function idProyectoDesdeTitulo(titulo: string, existentes: string[]): str
   for (let n = 2; existentes.includes(id); n++) id = `${base}-${n}`;
   return id;
 }
+
+export function dondeLoDejamos(cuerpo: string): string | undefined {
+  const lineas = cuerpo.replace(/\r\n/g, '\n').split('\n');
+  const inicio = lineas.findIndex((l) => /^##\s+d[oó]nde lo dejamos\s*$/i.test(l.trim()));
+  if (inicio === -1) return undefined;
+  let ultima: string | undefined;
+  for (const l of lineas.slice(inicio + 1)) {
+    if (/^#{1,2}\s/.test(l)) break;
+    const limpia = l.trim().replace(/^[-*]\s+/, '');
+    if (limpia) ultima = limpia;
+  }
+  return ultima;
+}

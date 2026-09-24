@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Proyecto } from '../datos/proyectos';
-import { necesitaAvisoActivos, ordenarProyectos } from './proyectos';
+import type { Tarea } from '../datos/tareas';
+import { necesitaAvisoActivos, ordenarProyectos, progresoProyecto } from './proyectos';
 
 const p = (x: Partial<Proyecto> & { id: string }): Proyecto => ({
   estado: 'idea', titulo: x.id, cuerpo: '', meta: {}, ...x,
@@ -33,5 +34,22 @@ describe('ordenarProyectos', () => {
       p({ id: 'parado', estado: 'parado' }),
     ]);
     expect(r.map((x) => x.id)).toEqual(['urgente', 'alfa', 'zeta', 'parado', 'idea', 'fin']);
+  });
+});
+
+describe('progresoProyecto', () => {
+  const t = (x: Partial<Tarea> & { id: string }): Tarea => ({ titulo: x.id, area: 'uni', ...x });
+  it('cuenta las tareas normales del proyecto y cuántas están hechas', () => {
+    const ts = [
+      t({ id: 'a', proyecto: 'juego', hecha: true }),
+      t({ id: 'b', proyecto: 'juego' }),
+      t({ id: 'c', proyecto: 'juego', repetir: ['lun'], hechas: ['2026-09-21'] }),
+      t({ id: 'd', proyecto: 'otro', hecha: true }),
+      t({ id: 'e' }),
+    ];
+    expect(progresoProyecto(ts, 'juego')).toEqual({ hechas: 1, total: 2 });
+  });
+  it('un proyecto sin tareas da 0 de 0', () => {
+    expect(progresoProyecto([], 'juego')).toEqual({ hechas: 0, total: 0 });
   });
 });

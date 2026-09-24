@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CABECERA_BANDEJA, ideasDe, parseBandeja, serializarBandeja } from '../datos/ideas';
-import { anadirIdea, ErrorIdeaCambiada, quitarIdea, vincularIdea } from './ideas';
+import { parseProyecto, serializarProyecto } from '../datos/proyectos';
+import { anadirIdea, ErrorIdeaCambiada, proyectoDesdeIdea, quitarIdea, vincularIdea } from './ideas';
 
 const base = parseBandeja('# Bandeja\n\n- 2026-09-22: Vieja\n');
 const vieja = { fecha: '2026-09-22', texto: 'Vieja' };
@@ -50,5 +51,26 @@ describe('quitarIdea', () => {
   it('distingue una idea vinculada de la misma sin vincular', () => {
     const ls = parseBandeja('- 2026-09-22 [juego]: Vieja\n');
     expect(() => quitarIdea(ls, vieja)).toThrow(ErrorIdeaCambiada);
+  });
+});
+
+describe('proyectoDesdeIdea', () => {
+  const idea = { fecha: '2026-09-20', texto: 'Juego de naves con hielo' };
+  it('crea un proyecto en estado idea con la idea dentro', () => {
+    const p = proyectoDesdeIdea(idea, 'Juego de naves', 'videojuegos', [], '2026-09-24');
+    expect(p.id).toBe('juego-de-naves');
+    expect(p.estado).toBe('idea');
+    expect(p.area).toBe('videojuegos');
+    expect(p.titulo).toBe('Juego de naves');
+    expect(p.cuerpo).toBe(
+      '# Juego de naves\n\n## Qué es\nJuego de naves con hielo\n\n## Dónde lo dejamos\n2026-09-24: creado desde la bandeja de ideas.\n',
+    );
+    const vuelta = parseProyecto(p.id, serializarProyecto(p));
+    expect(vuelta).toMatchObject({ estado: 'idea', area: 'videojuegos', titulo: 'Juego de naves' });
+  });
+  it('no repite un id existente y funciona sin área', () => {
+    const p = proyectoDesdeIdea(idea, 'Juego de naves', undefined, ['juego-de-naves'], '2026-09-24');
+    expect(p.id).toBe('juego-de-naves-2');
+    expect(p.area).toBeUndefined();
   });
 });

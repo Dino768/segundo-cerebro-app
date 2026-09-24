@@ -7,10 +7,10 @@ import { ESTADOS, idProyectoDesdeTitulo, serializarProyecto, type Estado, type P
 import { useDatos } from '../estado/datos';
 import { PaginaProyecto } from './PaginaProyecto';
 
-export function Proyectos({ editar }: { editar(e: Edicion): void }) {
+export function Proyectos({ editar, abiertoInicial }: { editar(e: Edicion): void; abiertoInicial?: string }) {
   const { datos, soloLectura, guardarProyecto } = useDatos();
   const [filtro, setFiltro] = useState<Estado | 'todos'>('todos');
-  const [abierto, setAbierto] = useState<string | null>(null);
+  const [abierto, setAbierto] = useState<string | null>(abiertoInicial ?? null);
 
   const proyectoAbierto = datos.proyectos.find((p) => p.id === abierto);
   if (proyectoAbierto)

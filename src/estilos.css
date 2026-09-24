@@ -113,11 +113,9 @@ fieldset { border: 1px solid var(--borde); border-radius: 8px; display: flex; fl
 .cal-dia .numero { font-size: 12px; color: var(--suave); }
 .cal-dia.hoy .numero { color: var(--acento); font-weight: 700; }
 .cal-dia.seleccionado { border: 2px solid var(--acento); }
-.cal-tarea { font-size: 0.72rem; color: #fff; border-radius: 4px; padding: 1px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cal-tarea.hecha { opacity: 0.5; text-decoration: line-through; }
 @media (max-width: 600px) {
   .cal-dia { min-height: 56px; }
-  .cal-semana.mes .cal-tarea { font-size: 0; height: 5px; padding: 0; }
+  .cal-semana.mes .etiqueta-tarea { font-size: 0; height: 5px; padding: 0; }
   .cal-semana.semana { grid-template-columns: 1fr; }
   .cal-semana.semana .cal-dia { min-height: 0; }
   .cal-cabecera.semana { display: none; }

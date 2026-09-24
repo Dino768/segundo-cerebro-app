@@ -55,7 +55,7 @@ function Contenido() {
           </div>
         ))}
         {actual === 'inicio' && <Inicio editar={editar} ir={ir} />}
-        {actual === 'calendario' && <Calendario key={visita} editar={editar} />}
+        {actual === 'calendario' && <Calendario key={visita} editar={editar} diaInicial={destino.dia} />}
         {actual === 'tareas' && <Tareas editar={editar} />}
         {actual === 'proyectos' && <Proyectos key={visita} editar={editar} abiertoInicial={destino.proyecto} />}
         {actual === 'ideas' && <p className="vacio">Ideas: llega en la Task 11.</p>}

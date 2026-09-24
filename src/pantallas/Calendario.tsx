@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { hechaEl, tareasDelDia } from '../agenda/tareas';
-import { colorDeArea } from '../componentes/areas';
+import { alternarArea, filtrarPorAreas, hayOtrasAreas, OTRAS, tareasDelDia } from '../agenda/tareas';
+import { EtiquetaTarea } from '../componentes/EtiquetaTarea';
 import { FilaTarea } from '../componentes/FilaTarea';
 import type { Edicion } from '../componentes/FormTarea';
 import { useDatos } from '../estado/datos';
@@ -12,11 +12,46 @@ import {
 
 type Vista = 'mes' | 'semana';
 
-export function Calendario({ editar }: { editar(e: Edicion): void }) {
+// El filtro de áreas se recuerda en cada dispositivo. Si el navegador no deja guardarlo, se empieza con todas.
+const CLAVE_AREAS = 'sc-calendario-areas';
+
+function leerAreas(): string[] {
+  try {
+    const v: unknown = JSON.parse(localStorage.getItem(CLAVE_AREAS) ?? '[]');
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function guardarAreas(areas: string[]): void {
+  try {
+    localStorage.setItem(CLAVE_AREAS, JSON.stringify(areas));
+  } catch {
+    // sin almacenamiento: no se recuerda el filtro
+  }
+}
+
+export function Calendario({ editar, diaInicial }: { editar(e: Edicion): void; diaInicial?: ISODate }) {
   const { datos, soloLectura, tareasBloqueadas } = useDatos();
   const hoy = useHoy();
   const [vista, setVista] = useState<Vista>('mes');
-  const [seleccionado, setSeleccionado] = useState<ISODate>(hoy);
+  const [seleccionado, setSeleccionado] = useState<ISODate>(diaInicial ?? hoy);
+  const [encendidas, setEncendidas] = useState<string[]>(leerAreas);
+
+  const conocidas = datos.areas.map((a) => a.id);
+  const botones = [
+    ...datos.areas.map((a) => ({ id: a.id, nombre: a.nombre, color: a.color })),
+    ...(hayOtrasAreas(datos.tareas, conocidas) ? [{ id: OTRAS, nombre: 'Otras', color: '#9ca3af' }] : []),
+  ];
+  const todas = botones.map((b) => b.id);
+  const validas = encendidas.filter((a) => todas.includes(a));
+  const estaEncendida = (id: string) => validas.length === 0 || validas.includes(id);
+  const tareas = filtrarPorAreas(datos.tareas, encendidas, conocidas);
+  const cambiarAreas = (nuevas: string[]) => {
+    setEncendidas(nuevas);
+    guardarAreas(nuevas);
+  };
 
   const fecha = fromISO(seleccionado);
   const semanas = vista === 'mes' ? cuadriculaMes(fecha.getFullYear(), fecha.getMonth() + 1) : [diasSemana(seleccionado)];
@@ -35,6 +70,22 @@ export function Calendario({ editar }: { editar(e: Edicion): void }) {
           {vista === 'mes' ? 'Ver semana' : 'Ver mes'}
         </button>
       </div>
+      <div className="filtros-areas" aria-label="Calendarios">
+        <button className={`pastilla${validas.length === 0 ? ' encendida' : ''}`} onClick={() => cambiarAreas([])}>
+          Todo
+        </button>
+        {botones.map((b) => (
+          <button
+            key={b.id}
+            className={`pastilla${estaEncendida(b.id) ? ' encendida' : ''}`}
+            aria-pressed={estaEncendida(b.id)}
+            onClick={() => cambiarAreas(alternarArea(encendidas, b.id, todas))}
+          >
+            <span className="punto" style={{ background: b.color }} />
+            {b.nombre}
+          </button>
+        ))}
+      </div>
       <div className={`cal-cabecera ${vista}`}>
         {DIAS.map((d) => (
           <span key={d}>{d}</span>
@@ -43,7 +94,7 @@ export function Calendario({ editar }: { editar(e: Edicion): void }) {
       {semanas.map((semana) => (
         <div key={semana[0]} className={`cal-semana ${vista}`}>
           {semana.map((dia) => {
-            const ts = tareasDelDia(datos.tareas, dia);
+            const ts = tareasDelDia(tareas, dia);
             const fuera = vista === 'mes' && fromISO(dia).getMonth() !== fecha.getMonth();
             const clases = ['cal-dia', dia === hoy && 'hoy', dia === seleccionado && 'seleccionado', fuera && 'fuera']
               .filter(Boolean)
@@ -54,14 +105,7 @@ export function Calendario({ editar }: { editar(e: Edicion): void }) {
                   {vista === 'semana' ? `${diaDeSemana(dia)} ${fromISO(dia).getDate()}` : fromISO(dia).getDate()}
                 </span>
                 {ts.slice(0, maximo).map((t) => (
-                  <span
-                    key={t.id}
-                    className={`cal-tarea${hechaEl(t, dia) ? ' hecha' : ''}`}
-                    style={{ background: colorDeArea(datos.areas, t.area) }}
-                  >
-                    {t.hora ? `${t.hora} ` : ''}
-                    {t.titulo}
-                  </span>
+                  <EtiquetaTarea key={t.id} tarea={t} dia={dia} />
                 ))}
                 {ts.length > maximo && <span className="mas">+{ts.length - maximo}</span>}
               </button>
@@ -76,7 +120,7 @@ export function Calendario({ editar }: { editar(e: Edicion): void }) {
         </button>
       </div>
       <ul className="lista">
-        {tareasDelDia(datos.tareas, seleccionado).map((t) => (
+        {tareasDelDia(tareas, seleccionado).map((t) => (
           <FilaTarea key={t.id} tarea={t} dia={seleccionado} alEditar={(x) => editar({ tarea: x })} />
         ))}
       </ul>

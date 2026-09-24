@@ -193,3 +193,29 @@ fieldset { border: 1px solid var(--borde); border-radius: 8px; display: flex; fl
 a { color: var(--acento); }
 details summary { cursor: pointer; font-weight: 600; }
 @media (max-width: 600px) { .fila-progreso { width: 100%; order: 5; } }
+
+/* Estudio */
+main.ancho { max-width: none; }
+.pestanas-asignaturas { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 12px; }
+.editar-asignatura { margin-left: 2px; padding: 0 4px; border-radius: 6px; color: var(--suave); }
+.editar-asignatura:hover { background: var(--hover); color: var(--texto); }
+.estudio-local { display: grid; grid-template-columns: minmax(0, 1fr); height: calc(100vh - 190px); min-height: 420px; border: 1px solid var(--borde); border-radius: 14px; background: var(--superficie); overflow: hidden; }
+.chat, .lista-conversaciones { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.lista-conversaciones { overflow-y: auto; }
+.lista-conversaciones > h3, .lista-conversaciones > .lista, .lista-conversaciones > p { margin-left: 14px; margin-right: 14px; }
+.chat-cabecera { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--borde); }
+.titulo-chat { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--suave); font-size: 14px; }
+.chat-mensajes { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.burbuja-diego { align-self: flex-end; max-width: 85%; background: var(--acento-suave); padding: 8px 12px; border-radius: 12px 12px 4px 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.markdown.burbuja-claude { border: none; background: none; padding: 0 2px; }
+.linea-herramienta { color: var(--suave); font-size: 13px; margin: 0; }
+.miniaturas { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.miniaturas img { height: 64px; border-radius: 6px; border: 1px solid var(--borde); display: block; }
+.chat-adjuntos { padding: 6px 12px 0; margin: 0; }
+.miniatura-adjunta { padding: 0; border: none; background: none; }
+.chat-escribir { display: flex; gap: 8px; align-items: flex-end; padding: 10px; border-top: 1px solid var(--borde); }
+.chat-escribir textarea { flex: 1; resize: none; min-height: 42px; max-height: 160px; }
+.chat-escribir.arrastrando { background: var(--acento-suave); }
+.boton-adjuntar { flex-direction: row; cursor: pointer; font-size: 20px; padding: 6px; color: var(--texto); }
+.chat-aviso { margin: 0 14px 10px; }
+@media (max-width: 899px) { .estudio-local { height: calc(100vh - 230px); } }

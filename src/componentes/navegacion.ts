@@ -1,6 +1,6 @@
 import type { ISODate } from '../fechas';
 
-export type Pantalla = 'inicio' | 'calendario' | 'tareas' | 'proyectos' | 'ideas' | 'ajustes';
+export type Pantalla = 'inicio' | 'calendario' | 'tareas' | 'proyectos' | 'ideas' | 'estudio' | 'ajustes';
 
 // A dónde ir: una pantalla y, si hace falta, el día del calendario o el proyecto que abrir.
 export interface Destino {
@@ -15,6 +15,7 @@ export const SECCIONES: { id: Pantalla; nombre: string; icono: string }[] = [
   { id: 'tareas', nombre: 'Tareas', icono: '✅' },
   { id: 'proyectos', nombre: 'Proyectos', icono: '📁' },
   { id: 'ideas', nombre: 'Ideas', icono: '💡' },
+  { id: 'estudio', nombre: 'Estudio', icono: '📚' },
   { id: 'ajustes', nombre: 'Ajustes', icono: '⚙️' },
 ];
 

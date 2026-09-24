@@ -7,6 +7,7 @@ import { ProveedorDatos, useDatos } from './estado/datos';
 import { crearGuardian } from './estado/guardian';
 import { Ajustes } from './pantallas/Ajustes';
 import { Calendario } from './pantallas/Calendario';
+import { Estudio } from './pantallas/Estudio';
 import { Ideas } from './pantallas/Ideas';
 import { Inicio } from './pantallas/Inicio';
 import { Proyectos } from './pantallas/Proyectos';
@@ -50,7 +51,7 @@ function Contenido() {
   return (
     <div className="app">
       <Lateral actual={actual} ir={ir} bloqueado={forzarAjustes} />
-      <main>
+      <main className={actual === 'estudio' ? 'ancho' : undefined}>
         {estado === 'cargando' && <p className="cargando">Cargando…</p>}
         {estado === 'sin-conexion' && (
           <div className="banner aviso">
@@ -73,6 +74,7 @@ function Contenido() {
         {actual === 'tareas' && <Tareas editar={editar} />}
         {actual === 'proyectos' && <Proyectos key={visita} editar={editar} ir={ir} guardian={guardian} abiertoInicial={destino.proyecto} />}
         {actual === 'ideas' && <Ideas editar={editar} ir={ir} />}
+        {actual === 'estudio' && <Estudio />}
         {actual === 'ajustes' && <Ajustes />}
       </main>
       <MenuMovil actual={actual} ir={ir} bloqueado={forzarAjustes} />

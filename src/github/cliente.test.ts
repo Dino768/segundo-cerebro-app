@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { actualizarArchivo, escribirArchivo, leerArchivo, listarCarpeta } from './cliente';
+import { actualizarArchivo, escribirArchivo, escribirBase64, leerArchivo, leerBinario, listarCarpeta } from './cliente';
 
 const cfg = { owner: 'diego', repo: 'my-context', token: 'secreto' };
 const fetchMock = vi.fn();
@@ -101,5 +101,19 @@ describe('actualizarArchivo', () => {
     const escrito = await actualizarArchivo(cfg, 'a', (t) => (t === null ? 'nuevo' : 'mal'), 'm');
     expect(escrito).toBe('nuevo');
     expect(cuerpoDe(1).sha).toBeUndefined();
+  });
+});
+
+describe('binarios', () => {
+  it('escribirBase64 manda el base64 tal cual', async () => {
+    fetchMock.mockResolvedValueOnce(json(201, { content: { sha: 'n1' } }));
+    expect(await escribirBase64(cfg, 'estudios/fisica/pizarras/imagenes/a.png', 'QUJD', null, 'Imagen')).toBe('n1');
+    expect(cuerpoDe(0)).toEqual({ message: 'Imagen', content: 'QUJD' });
+  });
+  it('leerBinario pide el archivo en crudo', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
+    const blob = await leerBinario(cfg, 'estudios/fisica/pizarras/imagenes/a.png');
+    expect([...new Uint8Array(await blob.arrayBuffer())]).toEqual([1, 2, 3]);
+    expect(fetchMock.mock.calls[0][1].headers.Accept).toBe('application/vnd.github.raw+json');
   });
 });

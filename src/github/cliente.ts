@@ -28,10 +28,14 @@ function base64ATexto(b64: string): string {
   return new TextDecoder().decode(Uint8Array.from(binario, (c) => c.charCodeAt(0)));
 }
 
-function textoABase64(texto: string): string {
+function bytesABase64(bytes: Uint8Array): string {
   let binario = '';
-  for (const byte of new TextEncoder().encode(texto)) binario += String.fromCharCode(byte);
+  for (const byte of bytes) binario += String.fromCharCode(byte);
   return btoa(binario);
+}
+
+function textoABase64(texto: string): string {
+  return bytesABase64(new TextEncoder().encode(texto));
 }
 
 async function peticion(cfg: Config, ruta: string, init: RequestInit = {}): Promise<Response> {
@@ -43,6 +47,7 @@ async function peticion(cfg: Config, ruta: string, init: RequestInit = {}): Prom
       cache: 'no-store',
       headers: {
         Accept: 'application/vnd.github+json',
+        ...(init.headers as Record<string, string> | undefined),
         Authorization: `Bearer ${cfg.token}`,
         'X-GitHub-Api-Version': '2022-11-28',
         ...(init.body ? { 'Content-Type': 'application/json' } : {}),
@@ -77,14 +82,26 @@ export async function listarCarpeta(cfg: Config, ruta: string): Promise<string[]
   }
 }
 
-export async function escribirArchivo(
-  cfg: Config, ruta: string, texto: string, sha: string | null, mensaje: string,
+export async function escribirBase64(
+  cfg: Config, ruta: string, base64: string, sha: string | null, mensaje: string,
 ): Promise<string> {
   const res = await peticion(cfg, ruta, {
     method: 'PUT',
-    body: JSON.stringify({ message: mensaje, content: textoABase64(texto), ...(sha ? { sha } : {}) }),
+    body: JSON.stringify({ message: mensaje, content: base64, ...(sha ? { sha } : {}) }),
   });
   return (await res.json()).content.sha;
+}
+
+export async function escribirArchivo(
+  cfg: Config, ruta: string, texto: string, sha: string | null, mensaje: string,
+): Promise<string> {
+  return escribirBase64(cfg, ruta, textoABase64(texto), sha, mensaje);
+}
+
+// Para imágenes: GitHub las da en crudo (así funciona aunque pesen más de 1 MB).
+export async function leerBinario(cfg: Config, ruta: string): Promise<Blob> {
+  const res = await peticion(cfg, ruta, { headers: { Accept: 'application/vnd.github.raw+json' } });
+  return res.blob();
 }
 
 export async function actualizarArchivo(

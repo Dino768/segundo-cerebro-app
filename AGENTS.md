@@ -46,7 +46,10 @@ El token se guarda en el `localStorage` del navegador, y ese almacenamiento es c
 - **Versión 1 terminada y publicada** en https://dino768.github.io/segundo-cerebro-app/. Diego la tiene instalada en el PC, el portátil y el iPhone, con un token por dispositivo. Tasks 0 a 15 del plan hechas.
 - **Arreglos de la revisión final hechos** (2026-09-24): casilla que "fija" en vez de alternar, con cola (`src/estado/cola.ts`); editar una tarea solo aplica los campos cambiados (`aplicarEdicion`) y tareas/áreas se refrescan al volver a la app; "hoy" cambia a medianoche (`src/estado/hoy.ts`); aviso del token en Ajustes.
 - Detalles, decisiones y los arreglos menores aplazados: `.superpowers/sdd/plan-v1/progress.md` (líneas `Final:`).
-- **Versión 1.1 (rediseño del PC) hecha en la rama `rediseno-pc`**, a falta de probarla con Diego y publicarla: tema «papel cálido», barra lateral, Inicio tipo panel de Notion, calendarios por área, sección Ideas (`ideas/bandeja.md`) y progreso de proyectos. Diseño: `docs/superpowers/specs/2026-09-24-rediseno-pc-design.md`. Plan: `docs/superpowers/plans/2026-09-24-rediseno-pc.md`. Registro: `.superpowers/sdd/2026-09-24-rediseno-pc/progress.md`.
-- **Siguiente: ronda del móvil.** Diego contará los fallos de la versión del móvil. Más adelante: sección de estudio con chat (apuntada en `ideas/bandeja.md`).
+- **Versión 1.1 (rediseño del PC) publicada** (2026-09-24), probada por Diego con sus datos: tema «papel cálido», barra lateral, Inicio tipo panel de Notion, calendarios por área, sección Ideas (`ideas/bandeja.md`) y progreso de proyectos. Diseño: `docs/superpowers/specs/2026-09-24-rediseno-pc-design.md`. Plan: `docs/superpowers/plans/2026-09-24-rediseno-pc.md`. Registro: `.superpowers/sdd/2026-09-24-rediseno-pc/progress.md`.
+- **Siguiente, en orden:**
+  1. Pulir el PC: Diego cuenta sus "tonterías" y se juntan con los arreglos menores aplazados de la revisión (líneas `Final: minor (deferred)` del registro de la v1.1).
+  2. Ronda del móvil: Diego cuenta los fallos del iPhone.
+  3. Más adelante: sección de estudio con chat (apuntada en `ideas/bandeja.md`).
 
 Mantén esta sección al día cuando avances.

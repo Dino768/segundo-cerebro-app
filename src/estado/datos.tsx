@@ -1,10 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ErrorIdeaCambiada } from '../agenda/ideas';
+import type { Linea } from '../datos/ideas';
 import { parseProyecto, serializarProyecto, type Proyecto } from '../datos/proyectos';
 import { RUTA_AREAS, RUTA_TAREAS } from '../datos/rutas';
 import type { Tarea } from '../datos/tareas';
 import { ErrorDatos } from '../datos/yaml';
 import { ErrorGitHub, type Config } from '../github/cliente';
-import { cargarAgenda, cargarTodo, guardarProyecto as guardarProyectoRemoto, modificarTareas, type Datos } from '../repositorio';
+import {
+  cargarAgenda, cargarTodo, guardarProyecto as guardarProyectoRemoto, modificarBandeja, modificarTareas, type Datos,
+} from '../repositorio';
 import { borrarCache, guardarCache, leerCache } from './cache';
 import { crearCola } from './cola';
 import { borrarConfig, guardarConfig, leerConfig } from './config';
@@ -23,6 +27,7 @@ export interface ValorDatos {
   conectar(c: Config): void;
   desconectar(): void;
   cambiarTareas(cambio: (ts: Tarea[]) => Tarea[], mensaje: string): Promise<boolean>;
+  cambiarIdeas(cambio: (ls: Linea[]) => Linea[], mensaje: string): Promise<boolean>;
   guardarProyecto(p: Proyecto, original: Proyecto | null): Promise<boolean>;
 }
 
@@ -82,21 +87,26 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
     if (estado === 'listo') guardarCache(datos);
   }, [datos, estado]);
 
-  // Al volver a la app (cambiar de pestaña, desbloquear el móvil) trae lo que haya cambiado Claude
-  // u otro dispositivo. Solo tareas y áreas: refrescar proyectos borraría el texto de una página abierta.
+  // Trae tareas, áreas e ideas (no proyectos: refrescarlos borraría el texto de una página abierta).
+  const traerAgenda = useCallback(async (cfg: Config) => {
+    const agenda = await cargarAgenda(cfg);
+    setDatos((d) => ({
+      ...d,
+      tareas: agenda.tareas,
+      areas: agenda.areas,
+      ideas: agenda.ideas,
+      errores: [...d.errores.filter((x) => x.archivo !== RUTA_TAREAS && x.archivo !== RUTA_AREAS), ...agenda.errores],
+    }));
+  }, []);
+
+  // Al volver a la app (cambiar de pestaña, desbloquear el móvil) trae lo que haya cambiado Claude u otro dispositivo.
   useEffect(() => {
     if (!config) return;
     const alVolver = () => {
       if (document.visibilityState !== 'visible' || estadoActual.current !== 'listo') return;
       void encolar(async () => {
         try {
-          const agenda = await cargarAgenda(config);
-          setDatos((d) => ({
-            ...d,
-            tareas: agenda.tareas,
-            areas: agenda.areas,
-            errores: [...d.errores.filter((x) => x.archivo !== RUTA_TAREAS && x.archivo !== RUTA_AREAS), ...agenda.errores],
-          }));
+          await traerAgenda(config);
         } catch (e) {
           // Sin conexión u otro fallo pasajero: se sigue con lo que hay, sin molestar.
           if (e instanceof ErrorGitHub && e.tipo === 'token') setEstado('error-token');
@@ -105,7 +115,7 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
     };
     document.addEventListener('visibilitychange', alVolver);
     return () => document.removeEventListener('visibilitychange', alVolver);
-  }, [config, encolar]);
+  }, [config, encolar, traerAgenda]);
 
   const cambiarTareas = useCallback(
     (cambio: (ts: Tarea[]) => Tarea[], mensaje: string) =>
@@ -122,6 +132,25 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
         }
       }),
     [config, alFallar, encolar],
+  );
+
+  const cambiarIdeas = useCallback(
+    (cambio: (ls: Linea[]) => Linea[], mensaje: string) =>
+      encolar(async () => {
+        if (!config) return false;
+        try {
+          const ideas = await modificarBandeja(config, cambio, mensaje);
+          setDatos((d) => ({ ...d, ideas }));
+          setEstado('listo');
+          return true;
+        } catch (e) {
+          alFallar(e, false);
+          // La idea cambió (quizá la movió Claude): se recarga la bandeja para ver cómo está ahora.
+          if (e instanceof ErrorIdeaCambiada) await traerAgenda(config).catch(() => undefined);
+          return false;
+        }
+      }),
+    [config, alFallar, encolar, traerAgenda],
   );
 
   const guardarProyecto = useCallback(
@@ -165,9 +194,10 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
       conectar,
       desconectar,
       cambiarTareas,
+      cambiarIdeas,
       guardarProyecto,
     }),
-    [estado, datos, config, aviso, recargar, conectar, desconectar, cambiarTareas, guardarProyecto],
+    [estado, datos, config, aviso, recargar, conectar, desconectar, cambiarTareas, cambiarIdeas, guardarProyecto],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

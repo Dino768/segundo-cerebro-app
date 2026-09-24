@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { URL_USO_CLAUDE } from '../componentes/navegacion';
 import { useDatos } from '../estado/datos';
+import { confirmar } from '../estado/dialogos';
 
 export function Ajustes() {
   const { config, conectar, desconectar, estado } = useDatos();
@@ -66,7 +67,7 @@ export function Ajustes() {
         <a href={URL_USO_CLAUDE} target="_blank" rel="noreferrer">📊 Ver el uso de Claude</a>
       </p>
       {config && (
-        <button className="peligro" onClick={() => confirm('¿Olvidar la llave en este dispositivo?') && desconectar()}>
+        <button className="peligro" onClick={() => void confirmar('¿Olvidar la llave en este dispositivo?', { aceptar: 'Olvidar', peligro: true }).then((si) => si && desconectar())}>
           Olvidar la llave en este dispositivo
         </button>
       )}

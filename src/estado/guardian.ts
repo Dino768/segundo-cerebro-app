@@ -7,9 +7,9 @@ export function crearGuardian() {
       cambios = hay;
     },
     hayCambios: () => cambios,
-    puedeSalir(preguntar: () => boolean): boolean {
+    async puedeSalir(preguntar: () => Promise<boolean>): Promise<boolean> {
       if (!cambios) return true;
-      if (!preguntar()) return false;
+      if (!(await preguntar())) return false;
       cambios = false;
       return true;
     },

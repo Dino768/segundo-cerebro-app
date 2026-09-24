@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { EventoPizarra } from '../src/estudio/tipos.ts';
-import { crearPizarra, interpretarCambio, leerPizarra, listarPizarras, operarPizarra, pizarrasNoValidas, rutaPizarra, vigilarPizarras } from './pizarras.ts';
+import { borrarPizarra, crearPizarra, interpretarCambio, leerPizarra, listarPizarras, operarPizarra, pizarrasNoValidas, rutaPizarra, vigilarPizarras } from './pizarras.ts';
 
 const ID = 'be5aa0c6-9c71-4e9d-8d54-4930d67f1ff3';
 const carpetaNueva = () => mkdtempSync(path.join(os.tmpdir(), 'pizarras-'));
@@ -40,6 +40,25 @@ describe('pizarras en el disco', () => {
     const antes = Date.now() - 5000;
     expect(await pizarrasNoValidas(c, antes)).toEqual([{ n: 1, error: e.error }]);
     expect(await pizarrasNoValidas(c, Date.now() + 5000)).toEqual([]);
+  });
+  it('borrar una pizarra quita su archivo y deja las demás con su número', async () => {
+    const c = carpetaNueva();
+    await crearPizarra(c);
+    await crearPizarra(c);
+    await crearPizarra(c);
+    await borrarPizarra(c, 2);
+    expect((await listarPizarras(c)).map((e) => e.n)).toEqual([1, 3]);
+    await borrarPizarra(c, 2); // ya no estaba: no pasa nada
+    expect(await crearPizarra(c)).toBe(4);
+  });
+  it('una pizarra borrada no reaparece con su última versión buena', async () => {
+    const c = carpetaNueva();
+    await crearPizarra(c);
+    await operarPizarra(c, 1, { tipo: 'nota', id: null, x: 0, y: 0, contenido: 'Vieja' });
+    await borrarPizarra(c, 1);
+    expect(await crearPizarra(c)).toBe(1);
+    writeFileSync(rutaPizarra(c, 1), '{ roto');
+    expect((await leerPizarra(c, 1)).pizarra).toBeNull();
   });
 });
 

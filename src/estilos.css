@@ -91,6 +91,11 @@ h3.atrasadas { color: var(--peligro); }
   .fondo-modal { align-items: center; }
   .modal { border-radius: 16px; }
 }
+/* Preguntas cortas (en vez de las ventanas del navegador): encima de cualquier otra ventana */
+.fondo-modal.dialogo { z-index: 20; }
+.dialogo .modal { max-width: 420px; }
+.mensaje-dialogo { margin: 0; font-size: 1.05rem; line-height: 1.4; }
+.botones-dialogo { display: flex; justify-content: flex-end; gap: 8px; }
 .nota-form { background: var(--acento-suave); padding: 8px 12px; border-radius: 8px; font-size: 0.9rem; margin: 0; }
 .fila-campos { display: flex; gap: 10px; flex-wrap: wrap; }
 .fila-campos > label { flex: 1; min-width: 140px; }
@@ -255,6 +260,12 @@ main.ancho { max-width: none; }
 .pestanas-pizarra { display: flex; gap: 4px; padding: 8px 10px; border-bottom: 1px solid var(--borde); overflow-x: auto; }
 .pestanas-pizarra button { padding: 4px 12px; font-size: 14px; white-space: nowrap; }
 .pestanas-pizarra button.encendida { border-color: var(--acento); background: var(--acento-suave); }
+/* Cada pestaña: nombre y × para borrarla, pegados como un solo botón */
+.pestana-pizarra { display: inline-flex; flex-shrink: 0; }
+.pestana-pizarra button:first-child { border-radius: 8px 0 0 8px; border-right: none; }
+.pestana-pizarra .cerrar-pizarra { border-radius: 0 8px 8px 0; padding: 4px 8px; color: var(--suave); }
+.pestana-pizarra .cerrar-pizarra:hover:not(:disabled) { color: var(--peligro); }
+.pestana-pizarra.encendida button { border-color: var(--acento); background: var(--acento-suave); }
 .aviso-pizarra { margin: 8px 10px 0; font-size: 13px; }
 @media (max-width: 899px) {
   .estudio-local.con-pizarra { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: minmax(0, 1fr) minmax(0, 1.2fr); }

@@ -1,5 +1,5 @@
 import { watch, type FSWatcher } from 'node:fs';
-import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { aplicarOperacion, ErrorPizarra, pizarraVacia, serializarPizarra, validarPizarra, type Operacion, type Pizarra } from '../src/estudio/pizarra.ts';
 import type { EstadoPizarra, EventoPizarra } from '../src/estudio/tipos.ts';
@@ -66,6 +66,19 @@ export function operarPizarra(carpeta: string, n: number, op: Operacion): Promis
       await escribirAtomico(ruta, serializarPizarra(nueva));
       ultimasBuenas.set(ruta, nueva);
       return nueva;
+    });
+  colas.set(ruta, siguiente);
+  return siguiente;
+}
+
+// Borra la pizarra de la conversación (la copia del historial, si la hay, se queda). Las demás no cambian de número.
+export function borrarPizarra(carpeta: string, n: number): Promise<void> {
+  const ruta = rutaPizarra(carpeta, n);
+  const siguiente = (colas.get(ruta) ?? Promise.resolve())
+    .catch(() => undefined)
+    .then(async () => {
+      await rm(ruta, { force: true });
+      ultimasBuenas.delete(ruta);
     });
   colas.set(ruta, siguiente);
   return siguiente;

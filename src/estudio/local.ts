@@ -135,5 +135,9 @@ export async function nuevaPizarra(asignatura: string, id: string): Promise<numb
   return (await pedir<{ n: number }>('pizarra/nueva', enviarJson({ asignatura, id }))).n;
 }
 
+export async function borrarPizarra(asignatura: string, id: string, n: number): Promise<void> {
+  await pedir<{ ok: true }>('pizarra/borrar', enviarJson({ asignatura, id, n }));
+}
+
 export const operarPizarra = (asignatura: string, id: string, n: number, op: Operacion) =>
   pedir<Pizarra>('pizarra/operacion', enviarJson({ asignatura, id, n, op }));

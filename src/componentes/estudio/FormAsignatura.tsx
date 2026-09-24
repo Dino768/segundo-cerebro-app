@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { anadirAsignatura, COLORES_ASIGNATURA, editarAsignatura, quitarAsignatura } from '../../agenda/asignaturas';
 import type { Asignatura } from '../../datos/asignaturas';
 import { useDatos } from '../../estado/datos';
+import { confirmar } from '../../estado/dialogos';
 
 interface Props {
   asignatura: Asignatura | null; // null = nueva
@@ -28,7 +29,11 @@ export function FormAsignatura({ asignatura, cerrar, alQuitar }: Props) {
   }
 
   async function quitar() {
-    if (!asignatura || !confirm(`¿Quitar «${asignatura.nombre}» de la lista? Sus pizarras guardadas no se borran.`)) return;
+    if (
+      !asignatura ||
+      !(await confirmar(`¿Quitar «${asignatura.nombre}» de la lista? Sus pizarras guardadas no se borran.`, { aceptar: 'Quitar', peligro: true }))
+    )
+      return;
     setGuardando(true);
     const ok = await cambiarAsignaturas((l) => quitarAsignatura(l, asignatura.id), `Quitar asignatura: ${asignatura.nombre}`);
     setGuardando(false);

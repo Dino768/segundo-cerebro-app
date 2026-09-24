@@ -7,6 +7,7 @@ import type { Edicion } from '../componentes/FormTarea';
 import type { Destino } from '../componentes/navegacion';
 import { ESTADOS, idProyectoDesdeTitulo, serializarProyecto, type Estado, type Proyecto } from '../datos/proyectos';
 import { useDatos } from '../estado/datos';
+import { pedirTexto } from '../estado/dialogos';
 import type { Guardian } from '../estado/guardian';
 import { PaginaProyecto } from './PaginaProyecto';
 
@@ -39,7 +40,7 @@ export function Proyectos({ editar, ir, guardian, abiertoInicial, alCambiarAbier
     );
 
   async function crear() {
-    const titulo = prompt('Nombre del proyecto')?.trim();
+    const titulo = await pedirTexto('Nombre del proyecto', { aceptar: 'Crear' });
     if (!titulo) return;
     const id = idProyectoDesdeTitulo(titulo, datos.proyectos.map((p) => p.id));
     const nuevo: Proyecto = { id, estado: 'idea', titulo, cuerpo: `# ${titulo}\n\n`, meta: {} };

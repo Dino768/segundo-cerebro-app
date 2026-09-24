@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { Dialogos } from './componentes/Dialogos';
 import { FormTarea, type Edicion } from './componentes/FormTarea';
 import { Lateral } from './componentes/Lateral';
 import { MenuMovil } from './componentes/MenuMovil';
 import type { Destino } from './componentes/navegacion';
 import { ProveedorDatos, useDatos } from './estado/datos';
+import { confirmar } from './estado/dialogos';
 import { crearGuardian } from './estado/guardian';
 import { Ajustes } from './pantallas/Ajustes';
 import { Calendario } from './pantallas/Calendario';
@@ -42,8 +44,8 @@ function Contenido() {
     return () => window.removeEventListener('beforeunload', alSalir);
   }, [guardian]);
 
-  const ir = (d: Destino) => {
-    if (!guardian.puedeSalir(() => confirm('Tienes cambios sin guardar. ¿Salir igualmente?'))) return;
+  const ir = async (d: Destino) => {
+    if (!(await guardian.puedeSalir(() => confirmar('Tienes cambios sin guardar. ¿Salir igualmente?', { aceptar: 'Salir' })))) return;
     setDestino(d);
     setVisita((v) => v + 1);
     window.scrollTo(0, 0);
@@ -80,6 +82,7 @@ function Contenido() {
       </main>
       <MenuMovil actual={actual} ir={ir} bloqueado={forzarAjustes} />
       {edicion && <FormTarea edicion={edicion} cerrar={() => setEdicion(null)} />}
+      <Dialogos />
     </div>
   );
 }

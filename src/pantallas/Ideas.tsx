@@ -5,6 +5,7 @@ import { FormProyectoDesdeIdea } from '../componentes/FormProyectoDesdeIdea';
 import type { Destino } from '../componentes/navegacion';
 import { ideasDe, type Idea } from '../datos/ideas';
 import { useDatos } from '../estado/datos';
+import { confirmar } from '../estado/dialogos';
 import { useHoy } from '../estado/hoy';
 import { formatoCorto } from '../fechas';
 
@@ -56,8 +57,8 @@ export function Ideas({ editar, ir }: Props) {
       alGuardar: () => conCandado(idea, () => cambiarIdeas((ls) => quitarIdea(ls, idea), `Idea pasada a tarea: ${idea.texto}`)),
     });
 
-  const borrar = (idea: Idea) => {
-    if (confirm(`¿Borrar la idea «${idea.texto}»?`))
+  const borrar = async (idea: Idea) => {
+    if (await confirmar(`¿Borrar la idea «${idea.texto}»?`, { aceptar: 'Borrar', peligro: true }))
       void conCandado(idea, () => cambiarIdeas((ls) => quitarIdea(ls, idea), `Borrar idea: ${idea.texto}`));
   };
 
@@ -102,7 +103,7 @@ export function Ideas({ editar, ir }: Props) {
               </select>
               <button disabled={soloLectura || tareasBloqueadas || ocupada(idea)} onClick={() => aTarea(idea)}>→ Tarea</button>
               <button disabled={soloLectura || ocupada(idea)} onClick={() => setConvirtiendo(idea)}>→ Proyecto</button>
-              <button className="peligro" disabled={soloLectura || ocupada(idea)} onClick={() => borrar(idea)}>Borrar</button>
+              <button className="peligro" disabled={soloLectura || ocupada(idea)} onClick={() => void borrar(idea)}>Borrar</button>
             </li>
           ))}
         </ul>

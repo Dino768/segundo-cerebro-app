@@ -7,7 +7,7 @@ import { ErrorPizarra, validarOperacion, type Operacion } from '../src/estudio/p
 import type { EventoChat, EventoPizarra } from '../src/estudio/tipos.ts';
 import { lanzarClaude, type Comando, type Proceso } from './claude.ts';
 import { avisoCarpetaConversaciones, carpetaConversaciones, leerConversacionDe, listarConversaciones } from './conversaciones.ts';
-import { crearPizarra, listarPizarras, operarPizarra, pizarrasNoValidas, vigilarPizarras } from './pizarras.ts';
+import { borrarPizarra, crearPizarra, listarPizarras, operarPizarra, pizarrasNoValidas, vigilarPizarras } from './pizarras.ts';
 import { esIdAsignatura, esIdConversacion, esNombreImagen, hostPermitido, origenPermitido, rutaDentro } from './seguridad.ts';
 
 export interface OpcionesServidor {
@@ -215,6 +215,16 @@ export function crearServidor(o: OpcionesServidor) {
     'POST pizarra/nueva': async (req, res) => {
       const b = await leerJson(req);
       enviarJson(res, 200, { n: await crearPizarra(carpetaDe(asignaturaDe(b.asignatura), conversacionDe(b.id))) });
+    },
+
+    'POST pizarra/borrar': async (req, res) => {
+      const b = await leerJson(req);
+      const id = conversacionDe(b.id);
+      const n = numeroPizarra(b.n);
+      // Mientras Claude contesta podría estar escribiendo esa pizarra.
+      if (activos.has(id)) throw new ErrorPeticion(409, 'Espera a que Claude termine de contestar');
+      await borrarPizarra(carpetaDe(asignaturaDe(b.asignatura), id), n);
+      enviarJson(res, 200, { ok: true });
     },
 
     'POST pizarra/operacion': async (req, res) => {

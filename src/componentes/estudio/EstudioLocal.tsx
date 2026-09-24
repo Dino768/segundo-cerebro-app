@@ -2,12 +2,13 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'rea
 import type { Asignatura } from '../../datos/asignaturas';
 import { aplicarEvento } from '../../estudio/chat';
 import { useDatos } from '../../estado/datos';
+import { confirmar, pedirTexto } from '../../estado/dialogos';
 import { useHoy } from '../../estado/hoy';
 import { guardarYMarcar } from '../../estudio/guardado';
 import type { EntradaHistorial } from '../../estudio/historial';
 import { subirAlHistorial } from '../../estudio/historialRemoto';
 import {
-  enviarMensaje, leerArchivoBase64, leerConversacion, leerPizarras, listarConversaciones, nuevaPizarra, operarPizarra, pararRespuesta,
+  borrarPizarra, enviarMensaje, leerArchivoBase64, leerConversacion, leerPizarras, listarConversaciones, nuevaPizarra, operarPizarra, pararRespuesta,
   urlArchivo,
 } from '../../estudio/local';
 import type { Operacion } from '../../estudio/pizarra';
@@ -186,10 +187,30 @@ export function EstudioLocal({ asignatura, local }: Props) {
     subiendo.current.delete(n);
   }
 
-  function pedirTitulo(n: number) {
+  async function pedirTitulo(n: number) {
     const p = pizarras.find((e) => e.n === n)?.pizarra;
-    const titulo = prompt('Título de la pizarra', p?.titulo ?? '')?.trim();
+    const titulo = await pedirTexto('Título de la pizarra', { inicial: p?.titulo ?? '' });
     if (titulo) void guardarEnHistorial(n, titulo);
+  }
+
+  // Borra la pizarra de esta conversación; la copia del historial, si la hay, se queda.
+  async function quitarPizarra(n: number) {
+    if (!conv || enviando) return;
+    const guardada = pizarras.find((e) => e.n === n)?.pizarra?.guardadaEn;
+    const aviso = guardada ? ' La copia guardada en el historial se queda.' : '';
+    if (!(await confirmar(`¿Borrar la pizarra ${n}?${aviso}`, { aceptar: 'Borrar', peligro: true }))) return;
+    try {
+      await borrarPizarra(asignatura.id, conv.id, n);
+    } catch (e) {
+      setAvisoPizarra(e instanceof Error ? e.message : String(e));
+      return;
+    }
+    // Una pizarra nueva podría volver a usar este número: que no herede su estado de guardado.
+    rutasSubidas.current.delete(n);
+    pendientes.current.delete(n);
+    setGuardado(({ [n]: _, ...resto }) => resto);
+    if (abierta === n) setAbierta(null);
+    await recargarPizarras(conv.id);
   }
 
   // Si Claude ha pedido guardar una pizarra (guardarComo), se sube sola.
@@ -259,9 +280,20 @@ export function EstudioLocal({ asignatura, local }: Props) {
           <div className="zona-pizarra">
             <div className="pestanas-pizarra">
               {pizarras.map((e) => (
-                <button key={e.n} className={e.n === actual?.n ? 'encendida' : ''} onClick={() => setAbierta(e.n)}>
-                  {e.pizarra?.titulo && e.pizarra.titulo !== `Pizarra ${e.n}` ? `${e.n}. ${e.pizarra.titulo}` : `Pizarra ${e.n}`}
-                </button>
+                <span key={e.n} className={`pestana-pizarra${e.n === actual?.n ? ' encendida' : ''}`}>
+                  <button onClick={() => setAbierta(e.n)}>
+                    {e.pizarra?.titulo && e.pizarra.titulo !== `Pizarra ${e.n}` ? `${e.n}. ${e.pizarra.titulo}` : `Pizarra ${e.n}`}
+                  </button>
+                  <button
+                    className="cerrar-pizarra"
+                    disabled={enviando}
+                    title={enviando ? 'Espera a que Claude termine de contestar' : `Borrar la pizarra ${e.n}`}
+                    aria-label={`Borrar la pizarra ${e.n}`}
+                    onClick={() => void quitarPizarra(e.n)}
+                  >
+                    ×
+                  </button>
+                </span>
               ))}
               <button onClick={() => void crearPizarra()}>+ nueva</button>
             </div>
@@ -278,7 +310,7 @@ export function EstudioLocal({ asignatura, local }: Props) {
                 <button
                   className={actual.pizarra.guardadaEn && guardado[actual.n] !== 'pendiente' ? '' : 'principal'}
                   disabled={!config || guardado[actual.n] === 'subiendo'}
-                  onClick={() => pedirTitulo(actual.n)}
+                  onClick={() => void pedirTitulo(actual.n)}
                 >
                   {textoGuardar(actual.n, actual.pizarra.guardadaEn)}
                 </button>

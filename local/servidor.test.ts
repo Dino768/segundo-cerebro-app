@@ -161,6 +161,15 @@ describe('pizarras', () => {
     expect(lista[0]).toMatchObject({ n: 1, error: null });
     expect((await post('pizarra/operacion', { asignatura: 'fisica', id, n: 1, op: { tipo: 'volar' } })).status).toBe(400);
   });
+  it('borrar una pizarra', async () => {
+    const otra = '77777777-7777-4777-8777-777777777777';
+    await post('pizarra/nueva', { asignatura: 'fisica', id: otra });
+    await post('pizarra/nueva', { asignatura: 'fisica', id: otra });
+    expect((await post('pizarra/borrar', { asignatura: 'fisica', id: otra, n: 1 })).status).toBe(200);
+    const lista = await (await fetch(`${API}pizarras?asignatura=fisica&id=${otra}`)).json();
+    expect(lista.map((e: { n: number }) => e.n)).toEqual([2]);
+    expect((await post('pizarra/borrar', { asignatura: 'fisica', id: otra, n: 'x' })).status).toBe(400);
+  });
   it('si Claude deja una pizarra mal escrita, se le pide que la arregle una vez', async () => {
     const otra = '66666666-6666-4666-8666-666666666666';
     const r = await post('mensaje', { asignatura: 'fisica', id: otra, nueva: true, texto: 'PIZARRA-MALA', imagenes: [] });

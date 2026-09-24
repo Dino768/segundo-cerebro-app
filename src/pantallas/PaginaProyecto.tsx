@@ -9,6 +9,7 @@ import { ideasDe } from '../datos/ideas';
 import { ESTADOS, tituloDesdeCuerpo, type Estado, type Proyecto } from '../datos/proyectos';
 import { PRIORIDADES, type Prioridad } from '../datos/tareas';
 import { useDatos } from '../estado/datos';
+import { confirmar } from '../estado/dialogos';
 import type { Guardian } from '../estado/guardian';
 import { useHoy } from '../estado/hoy';
 import { formatoCorto } from '../fechas';
@@ -37,10 +38,13 @@ export function PaginaProyecto({ proyecto, volver, editar, ir, guardian }: Props
     prioridad !== (proyecto.prioridad ?? 'media') ||
     cuerpo !== proyecto.cuerpo;
 
-  function cambiarEstado(nuevo: Estado) {
+  async function cambiarEstado(nuevo: Estado) {
     if (
       necesitaAvisoActivos(datos.proyectos, proyecto.id, nuevo) &&
-      !confirm(`Ya tienes ${LIMITE_ACTIVOS} proyectos activos. ¿Seguro que quieres activar otro? Terminar uno antes te ayudará a acabar las cosas.`)
+      !(await confirmar(
+        `Ya tienes ${LIMITE_ACTIVOS} proyectos activos. ¿Seguro que quieres activar otro? Terminar uno antes te ayudará a acabar las cosas.`,
+        { aceptar: 'Activar' },
+      ))
     )
       return;
     setEstado(nuevo);
@@ -60,8 +64,8 @@ export function PaginaProyecto({ proyecto, volver, editar, ir, guardian }: Props
     setGuardando(false);
   }
 
-  function salir() {
-    if (!cambiado || confirm('Tienes cambios sin guardar. ¿Salir igualmente?')) volver();
+  async function salir() {
+    if (!cambiado || (await confirmar('Tienes cambios sin guardar. ¿Salir igualmente?', { aceptar: 'Salir' }))) volver();
   }
 
   // Avisa a la app de que hay cambios sin guardar: así pregunta antes de ir a otra pantalla desde el menú.
@@ -75,7 +79,7 @@ export function PaginaProyecto({ proyecto, volver, editar, ir, guardian }: Props
   return (
     <section>
       <div className="barra">
-        <button onClick={salir}>‹ Proyectos</button>
+        <button onClick={() => void salir()}>‹ Proyectos</button>
         <h2>{proyecto.titulo}</h2>
       </div>
       <div className="progreso-proyecto">
@@ -84,7 +88,7 @@ export function PaginaProyecto({ proyecto, volver, editar, ir, guardian }: Props
       <div className="fila-campos">
         <label>
           Estado
-          <select value={estado} onChange={(e) => cambiarEstado(e.target.value as Estado)} disabled={soloLectura}>
+          <select value={estado} onChange={(e) => void cambiarEstado(e.target.value as Estado)} disabled={soloLectura}>
             {ESTADOS.map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}

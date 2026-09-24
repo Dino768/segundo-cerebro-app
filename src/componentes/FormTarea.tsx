@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { aplicarEdicion, borrarDeLista, type TareaSinId } from '../agenda/tareas';
 import { PRIORIDADES, type Prioridad, type Tarea } from '../datos/tareas';
 import { useDatos } from '../estado/datos';
+import { confirmar } from '../estado/dialogos';
 import { DIAS, type Dia, type ISODate } from '../fechas';
 
 export type Edicion = ({ tarea: Tarea } | { nueva: { fecha?: ISODate; proyecto?: string; titulo?: string } }) & {
@@ -56,7 +57,7 @@ export function FormTarea({ edicion, cerrar }: Props) {
   }
 
   async function borrar() {
-    if (!original || !confirm(`¿Borrar «${original.titulo}»?`)) return;
+    if (!original || !(await confirmar(`¿Borrar «${original.titulo}»?`, { aceptar: 'Borrar', peligro: true }))) return;
     setGuardando(true);
     const ok = await cambiarTareas((ts) => borrarDeLista(ts, original.id), `Borrar tarea: ${original.titulo}`);
     setGuardando(false);

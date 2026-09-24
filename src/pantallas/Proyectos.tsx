@@ -7,9 +7,17 @@ import type { Edicion } from '../componentes/FormTarea';
 import type { Destino } from '../componentes/navegacion';
 import { ESTADOS, idProyectoDesdeTitulo, serializarProyecto, type Estado, type Proyecto } from '../datos/proyectos';
 import { useDatos } from '../estado/datos';
+import type { Guardian } from '../estado/guardian';
 import { PaginaProyecto } from './PaginaProyecto';
 
-export function Proyectos({ editar, ir, abiertoInicial }: { editar(e: Edicion): void; ir(d: Destino): void; abiertoInicial?: string }) {
+interface Props {
+  editar(e: Edicion): void;
+  ir(d: Destino): void;
+  guardian: Guardian;
+  abiertoInicial?: string;
+}
+
+export function Proyectos({ editar, ir, guardian, abiertoInicial }: Props) {
   const { datos, soloLectura, guardarProyecto } = useDatos();
   const [filtro, setFiltro] = useState<Estado | 'todos'>('todos');
   const [abierto, setAbierto] = useState<string | null>(abiertoInicial ?? null);
@@ -23,6 +31,7 @@ export function Proyectos({ editar, ir, abiertoInicial }: { editar(e: Edicion): 
         volver={() => setAbierto(null)}
         editar={editar}
         ir={ir}
+        guardian={guardian}
       />
     );
 

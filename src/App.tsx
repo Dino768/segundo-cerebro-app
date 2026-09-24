@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FormTarea, type Edicion } from './componentes/FormTarea';
 import { Lateral } from './componentes/Lateral';
 import { MenuMovil } from './componentes/MenuMovil';
 import type { Destino } from './componentes/navegacion';
 import { ProveedorDatos, useDatos } from './estado/datos';
+import { crearGuardian } from './estado/guardian';
 import { Ajustes } from './pantallas/Ajustes';
 import { Calendario } from './pantallas/Calendario';
 import { Ideas } from './pantallas/Ideas';
@@ -27,8 +28,20 @@ function Contenido() {
   const [edicion, setEdicion] = useState<Edicion | null>(null);
   const forzarAjustes = estado === 'sin-config' || estado === 'error-token';
   const actual = forzarAjustes ? 'ajustes' : destino.pantalla;
+  const [guardian] = useState(crearGuardian);
   const editar = (e: Edicion) => setEdicion(e);
+
+  // Si hay cambios sin guardar (p. ej. en un proyecto), el navegador avisa antes de cerrar o recargar la pestaña.
+  useEffect(() => {
+    const alSalir = (e: BeforeUnloadEvent) => {
+      if (guardian.hayCambios()) e.preventDefault();
+    };
+    window.addEventListener('beforeunload', alSalir);
+    return () => window.removeEventListener('beforeunload', alSalir);
+  }, [guardian]);
+
   const ir = (d: Destino) => {
+    if (!guardian.puedeSalir(() => confirm('Tienes cambios sin guardar. ¿Salir igualmente?'))) return;
     setDestino(d);
     setVisita((v) => v + 1);
     window.scrollTo(0, 0);
@@ -58,7 +71,7 @@ function Contenido() {
         {actual === 'inicio' && <Inicio editar={editar} ir={ir} />}
         {actual === 'calendario' && <Calendario key={visita} editar={editar} diaInicial={destino.dia} />}
         {actual === 'tareas' && <Tareas editar={editar} />}
-        {actual === 'proyectos' && <Proyectos key={visita} editar={editar} ir={ir} abiertoInicial={destino.proyecto} />}
+        {actual === 'proyectos' && <Proyectos key={visita} editar={editar} ir={ir} guardian={guardian} abiertoInicial={destino.proyecto} />}
         {actual === 'ideas' && <Ideas editar={editar} ir={ir} />}
         {actual === 'ajustes' && <Ajustes />}
       </main>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { LIMITE_ACTIVOS, necesitaAvisoActivos, progresoProyecto } from '../agenda/proyectos';
 import { BarraProgreso } from '../componentes/BarraProgreso';
 import { FilaTarea } from '../componentes/FilaTarea';
@@ -9,6 +9,7 @@ import { ideasDe } from '../datos/ideas';
 import { ESTADOS, tituloDesdeCuerpo, type Estado, type Proyecto } from '../datos/proyectos';
 import { PRIORIDADES, type Prioridad } from '../datos/tareas';
 import { useDatos } from '../estado/datos';
+import type { Guardian } from '../estado/guardian';
 import { useHoy } from '../estado/hoy';
 import { formatoCorto } from '../fechas';
 
@@ -17,9 +18,10 @@ interface Props {
   volver(): void;
   editar(e: Edicion): void;
   ir(d: Destino): void;
+  guardian: Guardian;
 }
 
-export function PaginaProyecto({ proyecto, volver, editar, ir }: Props) {
+export function PaginaProyecto({ proyecto, volver, editar, ir, guardian }: Props) {
   const { datos, soloLectura, tareasBloqueadas, guardarProyecto, recargar } = useDatos();
   const [estado, setEstado] = useState<Estado>(proyecto.estado);
   const [area, setArea] = useState(proyecto.area ?? '');
@@ -62,9 +64,12 @@ export function PaginaProyecto({ proyecto, volver, editar, ir }: Props) {
     if (!cambiado || confirm('Tienes cambios sin guardar. ¿Salir igualmente?')) volver();
   }
 
-  const irA = (d: Destino) => {
-    if (!cambiado || confirm('Tienes cambios sin guardar. ¿Salir igualmente?')) ir(d);
-  };
+  // Avisa a la app de que hay cambios sin guardar: así pregunta antes de ir a otra pantalla desde el menú.
+  useEffect(() => {
+    guardian.marcar(cambiado);
+    return () => guardian.marcar(false);
+  }, [guardian, cambiado]);
+
   const ideasProyecto = ideasDe(datos.ideas).filter((i) => i.proyecto === proyecto.id);
 
   return (
@@ -143,7 +148,7 @@ export function PaginaProyecto({ proyecto, volver, editar, ir }: Props) {
         <section className="tarjeta">
           <h2 className="titulo-seccion">
             Ideas de este proyecto
-            <button className="enlace" onClick={() => irA({ pantalla: 'ideas' })}>Ver en Ideas →</button>
+            <button className="enlace" onClick={() => ir({ pantalla: 'ideas' })}>Ver en Ideas →</button>
           </h2>
           <ul className="lista">
             {ideasProyecto.map((i, n) => (

@@ -12,7 +12,8 @@ export const CABECERA_BANDEJA =
   '# Bandeja de ideas\n\nAquí van las ideas nuevas, para no dejar lo que estoy haciendo. Una línea por idea, con la fecha. Ya las revisaremos.\n\n';
 
 // - 2026-09-24: texto   o   - 2026-09-24 [id-proyecto]: texto
-const PATRON = /^- (\d{4}-\d{2}-\d{2})(?: \[([a-z0-9-]+)\])?: (.+)$/;
+// El id es el nombre del archivo del proyecto: cualquier cosa sin espacios ni corchetes.
+const PATRON = /^- (\d{4}-\d{2}-\d{2})(?: \[([^\]\s]+)\])?: (.+)$/;
 
 export function parseBandeja(texto: string): Linea[] {
   const normal = texto.replace(/\r\n/g, '\n');

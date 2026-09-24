@@ -122,7 +122,9 @@ export function hayOtrasAreas(ts: Tarea[], conocidas: string[]): boolean {
 }
 
 export function filtrarPorAreas(ts: Tarea[], encendidas: string[], conocidas: string[]): Tarea[] {
-  const validas = encendidas.filter((a) => conocidas.includes(a) || a === OTRAS);
+  // «Otras» solo cuenta si de verdad hay tareas con áreas desconocidas; si no, el calendario saldría vacío.
+  const hayOtras = hayOtrasAreas(ts, conocidas);
+  const validas = encendidas.filter((a) => conocidas.includes(a) || (a === OTRAS && hayOtras));
   if (validas.length === 0) return ts;
   return ts.filter((t) => validas.includes(conocidas.includes(t.area) ? t.area : OTRAS));
 }

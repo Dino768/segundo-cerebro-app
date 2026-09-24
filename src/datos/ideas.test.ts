@@ -49,3 +49,10 @@ describe('ideasDe', () => {
     expect(ideasDe(ls).map((i) => i.texto)).toEqual(['b', 'c', 'a']);
   });
 });
+
+describe('parseBandeja: ids de proyecto', () => {
+  it('acepta cualquier nombre de archivo de proyecto sin espacios entre corchetes', () => {
+    const [l] = parseBandeja('- 2026-09-24 [Juego_Nave]: Piloto\n');
+    expect(l).toEqual({ tipo: 'idea', idea: { fecha: '2026-09-24', proyecto: 'Juego_Nave', texto: 'Piloto' } });
+  });
+});

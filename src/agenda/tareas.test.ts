@@ -197,3 +197,10 @@ describe('filtro por áreas', () => {
     expect(alternarArea(['borrada'], 'uni', todas)).toEqual(['personal', OTRAS]);
   });
 });
+
+describe('filtro por áreas: «otras» sin tareas desconocidas', () => {
+  it('si «otras» estaba guardada pero ya no hay áreas desconocidas, se ve todo', () => {
+    const ts = [t({ id: 'u', area: 'uni' }), t({ id: 'p', area: 'personal' })];
+    expect(ids(filtrarPorAreas(ts, [OTRAS], ['uni', 'personal']))).toEqual(['u', 'p']);
+  });
+});

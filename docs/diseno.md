@@ -116,6 +116,7 @@ prioridad: alta       # opcional, por defecto media
 # Título del proyecto
 Notas...
 ```
+El título es el primer encabezado `#`. Si no hay ninguno, se usa el `id`.
 
 ### Ideas: `ideas/bandeja.md`
 
@@ -128,7 +129,20 @@ Un archivo Markdown. Cada idea es una línea con esta forma:
 - Una idea ocupa una sola línea.
 - Las demás líneas (título, explicaciones) la app las conserva tal cual.
 - Las ideas nuevas van al final. La app las muestra de la más nueva a la más antigua.
-El título es el primer encabezado `#`. Si no hay ninguno, se usa el `id`.
+
+### Estudio: `estudios/asignaturas.yaml`
+```yaml
+asignaturas:
+  - id: fisica          # minúsculas, números y guiones; «general» está reservado
+    nombre: Física
+    color: "#3d7bb8"    # entre comillas
+```
+«General» siempre existe y no va en el archivo. Quitar una asignatura no borra su carpeta ni su historial.
+
+### Estudio: pizarras
+- En curso (solo en el ordenador, git las ignora): `estudios/<asignatura>/.en-curso/<id-conversación>/pizarra-<n>.json` y sus capturas en `…/imagenes/`.
+- Historial (se sincroniza): `estudios/<asignatura>/pizarras/AAAA-MM-DD-<titulo>.json` y `…/pizarras/imagenes/`.
+- Formato: `{ "version": 1, "titulo", "piezas": [...], "flechas": [...], "guardarComo": null, "guardadaEn": null }`. Cada pieza lleva `id`, `tipo`, `x`, `y`, `ancho` (entre 40 y 2000), `contenido` y, opcional, `color`. Tipos: `texto` (Markdown con `$…$`), `formula` (LaTeX), `grafica` (`{x:[min,max], y:[min,max], curvas:[{expr, etiqueta?, color?}], puntos:[{x,y,etiqueta?}]}`), `dibujo` (SVG), `imagen` (`imagenes/<nombre>`) y `nota` (de Diego). Las flechas son `{id, de, a, etiqueta?}`. Detalle en `docs/superpowers/specs/2026-09-24-zona-de-estudio-design.md`, sección 6.
 
 ## 4. Arquitectura
 

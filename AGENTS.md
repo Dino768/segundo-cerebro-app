@@ -26,6 +26,7 @@ Node está en `C:\Program Files\nodejs`. En la terminal Bash de Claude Code pued
 - `npm run dev`: app en local, en http://localhost:5173/segundo-cerebro-app/
 - `npm test`: pruebas automáticas (Vitest)
 - `npm run build`: compila y revisa los tipos
+- `npm run local`: zona de estudio en el PC (compila la app y arranca el programa local en http://127.0.0.1:5174/segundo-cerebro-app/). Necesita Claude Code instalado y `my-context` al lado. Guía para otro ordenador: `docs/portatil.md`.
 
 ## Estructura del código
 - `src/fechas.ts`: fechas locales, días de la semana, cuadrícula del calendario.
@@ -36,7 +37,9 @@ Node está en `C:\Program Files\nodejs`. En la terminal Bash de Claude Code pued
 - `src/estado/`: estado de la app en React (conexión, llave, caché para cuando no hay internet).
 - `src/agenda/ideas.ts`: operaciones con ideas (añadir, vincular a un proyecto, quitar, convertir en proyecto).
 - `src/componentes/navegacion.ts`, `Lateral.tsx`, `MenuMovil.tsx`: navegación (barra lateral en el PC, menú abajo en el móvil).
-- `src/pantallas/` y `src/componentes/`: Inicio, Calendario, Tareas, Proyectos, Ideas y Ajustes. Estilos: `src/estilos.css` (tema «papel cálido»).
+- `src/pantallas/` y `src/componentes/`: Inicio, Calendario, Tareas, Proyectos, Ideas, Estudio y Ajustes. Estilos: `src/estilos.css` (tema «papel cálido»).
+- `local/`: programa local de la zona de estudio (servidor, Claude Code, conversaciones, pizarras). Node lo ejecuta sin compilar: imports con `.ts`.
+- `src/estudio/`: lógica de la zona de estudio (pizarra, expresiones, historial, cliente local). `tipos.ts`, `contexto.ts`, `expresion.ts` y `pizarra.ts` los usa también `local/` (imports con `.ts`). `src/componentes/estudio/`: chat, pizarra e historial.
 
 ## Seguridad del token
 El token se guarda en el `localStorage` del navegador, y ese almacenamiento es compartido por todo el dominio `https://dino768.github.io`. Cualquier otra web que Diego publique con GitHub Pages en su cuenta (un juego, un portfolio…) podría leerlo. Recuérdaselo si va a publicar otra web y recomiéndale tokens con caducidad corta (90 días o menos). La alternativa gratuita es mover la app a una organización de GitHub propia, con su propio dominio: está pendiente de proponérselo.
@@ -60,7 +63,7 @@ El token se guarda en el `localStorage` del navegador, y ese almacenamiento es c
     - Las pizarras que Diego pida guardar van a un **historial de pizarras** en `my-context`, visible en todos los dispositivos.
   - **Diseño completo aprobado por Diego parte por parte y escrito** en `docs/superpowers/specs/2026-09-24-zona-de-estudio-design.md` (v1.2): programa local `npm run local`, chat por asignatura (+ «General»), pizarra con piezas (texto, fórmula, gráfica, dibujo, imagen, nota), capturas de pantalla, historial vía API de GitHub y pulidos pendientes como etapa 4.
   - Spec aprobado por Diego. **Plan escrito:** `docs/superpowers/plans/2026-09-24-zona-de-estudio.md` (19 tareas en 4 etapas, rama `zona-de-estudio`). Comprobado con Claude Code 2.1.281: `claude -p` recibe el mensaje por stdin, `--session-id`/`--resume` funcionan y `--restricted` bloquea escribir fuera de la carpeta.
-  - **Siguiente:** que Diego revise el plan y elija cómo ejecutarlo; luego empezar por la Tarea 1. Los pulidos pendientes ya están en el spec (sección 10) y en el plan (Tareas 16-18):
+  - **Ejecución en modo directo (elegido por Diego), rama local `zona-de-estudio`.** Registro: `.superpowers/sdd/2026-09-24-zona-de-estudio/progress.md` (las tareas con `Task N: complete` están hechas). Etapas 1-3 (Tareas 1-15) implementadas; pendientes las Tareas 16-19 (pulidos, revisión final y publicación). Las pruebas a mano con Diego se hacen juntas al final. Los pulidos pendientes ya están en el spec (sección 10) y en el plan (Tareas 16-18):
   1. **Casillas más rápidas**: ahora cada cambio espera a GitHub (leer y escribir: 1-3 s) y va en cola, y la casilla se queda desactivada mientras tanto. Propuesta: actualizar la lista local al instante (optimista), guardar en segundo plano sin desactivar la casilla y deshacer con aviso si falla.
   2. **Probar contenido pegado a la izquierda** (más cerca de la barra lateral) en vez de centrado en el PC (`main { max-width: 1180px; margin: 0 auto }`). Diego no sabe si le gustará: enseñárselo para que elija.
   3. **Probar la hora actual** junto a la fecha, bajo el saludo del Inicio. También a prueba.

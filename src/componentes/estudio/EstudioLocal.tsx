@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react';
 import type { Asignatura } from '../../datos/asignaturas';
 import { aplicarEvento } from '../../estudio/chat';
-import { enviarMensaje, leerConversacion, listarConversaciones, pararRespuesta } from '../../estudio/local';
+import {
+  enviarMensaje, leerConversacion, leerPizarras, listarConversaciones, nuevaPizarra, operarPizarra, pararRespuesta, urlArchivo,
+} from '../../estudio/local';
+import type { Operacion } from '../../estudio/pizarra';
 import { guardarPreferencia, leerPreferencia } from '../../estudio/preferencias';
-import type { Mensaje } from '../../estudio/tipos';
+import type { EstadoPizarra, Mensaje } from '../../estudio/tipos';
 import type { useLocal } from '../../estudio/useLocal';
 import { Chat, type ErrorChat } from './Chat';
 import { ListaConversaciones } from './ListaConversaciones';
+import { Pizarra } from './Pizarra';
 
 interface Props {
   asignatura: Asignatura;
@@ -19,14 +23,30 @@ interface Conversacion {
 }
 
 const claveUltima = (asig: string) => `sc-estudio-conversacion-${asig}`;
+const CLAVE_ANCHO = 'sc-estudio-ancho-chat';
 
-export function EstudioLocal({ asignatura }: Props) {
+export function EstudioLocal({ asignatura, local }: Props) {
   const [vista, setVista] = useState<'chat' | 'lista'>('chat');
   const [conv, setConv] = useState<Conversacion | null>(null);
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<ErrorChat | null>(null);
   const [ultimoEnvio, setUltimoEnvio] = useState<{ texto: string; imagenes: string[] } | null>(null);
+  const [pizarras, setPizarras] = useState<EstadoPizarra[]>([]);
+  const [abierta, setAbierta] = useState<number | null>(null);
+  const [avisoPizarra, setAvisoPizarra] = useState<string | null>(null);
+  const [anchoChat, setAnchoChat] = useState(() => Number(leerPreferencia(CLAVE_ANCHO)) || 36);
+  const contenedor = useRef<HTMLDivElement>(null);
+  const cuantas = useRef(0);
+
+  const recargarPizarras = useCallback(async (id: string) => {
+    const lista = await leerPizarras(asignatura.id, id).catch(() => null);
+    if (!lista) return;
+    setPizarras(lista);
+    // Si Claude crea una pizarra nueva, se abre sola.
+    if (lista.length > cuantas.current) setAbierta(lista.at(-1)!.n);
+    cuantas.current = lista.length;
+  }, [asignatura.id]);
 
   const abrir = useCallback(
     async (id: string) => {
@@ -35,25 +55,41 @@ export function EstudioLocal({ asignatura }: Props) {
       const ms = await leerConversacion(asignatura.id, id).catch(() => [] as Mensaje[]);
       setConv({ id, nueva: ms.length === 0 });
       setMensajes(ms);
+      cuantas.current = 0;
+      setPizarras([]);
+      setAbierta(null);
       guardarPreferencia(claveUltima(asignatura.id), id);
+      await recargarPizarras(id);
     },
-    [asignatura.id],
+    [asignatura.id, recargarPizarras],
   );
 
   const nueva = useCallback(() => {
     setVista('chat');
     setError(null);
     setMensajes([]);
+    setPizarras([]);
+    setAbierta(null);
+    cuantas.current = 0;
     setConv({ id: crypto.randomUUID(), nueva: true });
   }, []);
 
-  // Al entrar, se abre la última conversación de esta asignatura (si sigue existiendo).
   useEffect(() => {
     const ultima = leerPreferencia(claveUltima(asignatura.id));
     listarConversaciones(asignatura.id)
       .then((lista) => (ultima && lista.some((c) => c.id === ultima) ? abrir(ultima) : nueva()))
       .catch(nueva);
   }, [asignatura.id, abrir, nueva]);
+
+  // Avisos del programa local: una pizarra de esta conversación ha cambiado.
+  const { suscribir } = local;
+  const idConv = conv?.id;
+  useEffect(() => {
+    if (!idConv) return;
+    return suscribir((e) => {
+      if (e.asignatura === asignatura.id && e.conversacion === idConv) void recargarPizarras(idConv);
+    });
+  }, [suscribir, idConv, asignatura.id, recargarPizarras]);
 
   async function enviar(texto: string, imagenes: string[]) {
     if (!conv || enviando) return;
@@ -62,26 +98,72 @@ export function EstudioLocal({ asignatura }: Props) {
     setEnviando(true);
     setMensajes((ms) => [...ms, imagenes.length ? { rol: 'diego', texto, imagenes } : { rol: 'diego', texto }]);
     await enviarMensaje(
-      { asignatura: asignatura.id, id: conv.id, nueva: conv.nueva, texto, imagenes, pizarraAbierta: null },
+      { asignatura: asignatura.id, id: conv.id, nueva: conv.nueva, texto, imagenes, pizarraAbierta: abierta },
       (e) => {
         if (e.tipo === 'error') setError({ mensaje: e.mensaje, uso: e.uso });
         else setMensajes((ms) => aplicarEvento(ms, e));
       },
     );
     setEnviando(false);
-    // Se relee lo que guardó Claude Code: así la conversación queda igual que en la terminal.
     const guardados = await leerConversacion(asignatura.id, conv.id).catch(() => [] as Mensaje[]);
     if (guardados.length) {
       setMensajes(guardados);
       setConv({ id: conv.id, nueva: false });
       guardarPreferencia(claveUltima(asignatura.id), conv.id);
     }
+    await recargarPizarras(conv.id);
+  }
+
+  async function operar(n: number, op: Operacion) {
+    if (!conv) return;
+    try {
+      const p = await operarPizarra(asignatura.id, conv.id, n, op);
+      setPizarras((ps) => ps.map((e) => (e.n === n ? { ...e, pizarra: p, error: null } : e)));
+    } catch (e) {
+      setAvisoPizarra(e instanceof Error ? e.message : String(e));
+      await recargarPizarras(conv.id);
+    }
+  }
+
+  async function crearPizarra() {
+    if (!conv) return;
+    const n = await nuevaPizarra(asignatura.id, conv.id).catch(() => null);
+    if (n !== null) {
+      await recargarPizarras(conv.id);
+      setAbierta(n);
+    }
+  }
+
+  // La línea entre el chat y la pizarra se puede arrastrar.
+  function arrastrarSeparador(e: PointerEvent<HTMLDivElement>) {
+    const caja = contenedor.current?.getBoundingClientRect();
+    if (!caja) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const mover = (ev: globalThis.PointerEvent) => {
+      const pct = Math.min(70, Math.max(20, ((ev.clientX - caja.left) / caja.width) * 100));
+      setAnchoChat(pct);
+    };
+    const soltar = (ev: globalThis.PointerEvent) => {
+      window.removeEventListener('pointermove', mover);
+      window.removeEventListener('pointerup', soltar);
+      guardarPreferencia(CLAVE_ANCHO, String(Math.round(Math.min(70, Math.max(20, ((ev.clientX - caja.left) / caja.width) * 100)))));
+    };
+    window.addEventListener('pointermove', mover);
+    window.addEventListener('pointerup', soltar);
   }
 
   if (!conv) return <p className="cargando">Cargando…</p>;
 
+  const actual = pizarras.find((e) => e.n === abierta) ?? pizarras.at(-1) ?? null;
+  const conPizarra = pizarras.length > 0;
+  const imagen = (ruta: string) => Promise.resolve(urlArchivo(asignatura.id, conv.id, ruta));
+
   return (
-    <div className="estudio-local sin-pizarra">
+    <div
+      ref={contenedor}
+      className={`estudio-local ${conPizarra ? 'con-pizarra' : 'sin-pizarra'}`}
+      style={conPizarra ? { gridTemplateColumns: `${anchoChat}% 6px minmax(0, 1fr)` } : undefined}
+    >
       {vista === 'lista' ? (
         <ListaConversaciones asignatura={asignatura.id} alAbrir={(id) => void abrir(id)} alNueva={nueva} alVolver={() => setVista('chat')} />
       ) : (
@@ -98,6 +180,34 @@ export function EstudioLocal({ asignatura }: Props) {
           alVerLista={() => setVista('lista')}
           alNueva={nueva}
         />
+      )}
+      {conPizarra && (
+        <>
+          <div className="separador" onPointerDown={arrastrarSeparador} role="separator" aria-label="Cambiar el ancho del chat" />
+          <div className="zona-pizarra">
+            <div className="pestanas-pizarra">
+              {pizarras.map((e) => (
+                <button key={e.n} className={e.n === actual?.n ? 'encendida' : ''} onClick={() => setAbierta(e.n)}>
+                  {e.pizarra?.titulo && e.pizarra.titulo !== `Pizarra ${e.n}` ? `${e.n}. ${e.pizarra.titulo}` : `Pizarra ${e.n}`}
+                </button>
+              ))}
+              <button onClick={() => void crearPizarra()}>+ nueva</button>
+            </div>
+            {actual?.error && (
+              <div className="banner aviso aviso-pizarra">
+                ⚠️ Esta pizarra tiene un error ({actual.error}). {actual.pizarra ? 'Ves la última versión buena.' : ''}
+              </div>
+            )}
+            {avisoPizarra && (
+              <div className="banner error aviso-pizarra">{avisoPizarra} <button onClick={() => setAvisoPizarra(null)}>Cerrar</button></div>
+            )}
+            {actual?.pizarra ? (
+              <Pizarra key={`${conv.id}-${actual.n}`} pizarra={actual.pizarra} imagen={imagen} alOperar={(op) => void operar(actual.n, op)} />
+            ) : (
+              <p className="cargando">Esperando a que la pizarra esté lista…</p>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

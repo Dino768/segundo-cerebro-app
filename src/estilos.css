@@ -246,3 +246,16 @@ main.ancho { max-width: none; }
 .numero-eje, .etiqueta-grafica { font-size: 11px; fill: var(--suave); }
 .leyenda { display: flex; gap: 10px; flex-wrap: wrap; font-size: 13px; margin-top: 4px; }
 .error-grafica { color: var(--peligro); }
+
+/* Chat + pizarra */
+.separador { cursor: col-resize; background: var(--borde-suave); touch-action: none; }
+.separador:hover { background: var(--acento-suave); }
+.zona-pizarra { display: flex; flex-direction: column; min-width: 0; min-height: 0; border-left: 1px solid var(--borde); }
+.pestanas-pizarra { display: flex; gap: 4px; padding: 8px 10px; border-bottom: 1px solid var(--borde); overflow-x: auto; }
+.pestanas-pizarra button { padding: 4px 12px; font-size: 14px; white-space: nowrap; }
+.pestanas-pizarra button.encendida { border-color: var(--acento); background: var(--acento-suave); }
+.aviso-pizarra { margin: 8px 10px 0; font-size: 13px; }
+@media (max-width: 899px) {
+  .estudio-local.con-pizarra { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: minmax(0, 1fr) minmax(0, 1.2fr); }
+  .separador { display: none; }
+}

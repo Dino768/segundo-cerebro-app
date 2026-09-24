@@ -1,4 +1,5 @@
-import type { EventoChat, Mensaje, ResumenConversacion } from './tipos';
+import type { Operacion, Pizarra } from './pizarra';
+import type { EstadoPizarra, EventoChat, Mensaje, ResumenConversacion } from './tipos';
 
 // Habla con el programa local (npm run local). En la web publicada no existe y todo falla en silencio.
 const BASE = `${import.meta.env.BASE_URL}api/local`;
@@ -127,3 +128,12 @@ export async function leerArchivoBase64(asignatura: string, id: string, ruta: st
   for (const b of bytes) binario += String.fromCharCode(b);
   return btoa(binario);
 }
+
+export const leerPizarras = (asignatura: string, id: string) => pedir<EstadoPizarra[]>(`pizarras?${consulta({ asignatura, id })}`);
+
+export async function nuevaPizarra(asignatura: string, id: string): Promise<number> {
+  return (await pedir<{ n: number }>('pizarra/nueva', enviarJson({ asignatura, id }))).n;
+}
+
+export const operarPizarra = (asignatura: string, id: string, n: number, op: Operacion) =>
+  pedir<Pizarra>('pizarra/operacion', enviarJson({ asignatura, id, n, op }));

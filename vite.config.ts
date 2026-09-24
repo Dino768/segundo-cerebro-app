@@ -8,6 +8,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // El service worker nunca contesta por el programa local.
+      workbox: { navigateFallbackDenylist: [/\/api\//] },
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
         name: 'Segundo cerebro',

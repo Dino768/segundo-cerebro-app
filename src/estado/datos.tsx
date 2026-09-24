@@ -12,6 +12,7 @@ import {
 } from '../repositorio';
 import { borrarCache, guardarCache, leerCache } from './cache';
 import { crearCola } from './cola';
+import { crearOptimista } from './optimista';
 import { borrarConfig, guardarConfig, leerConfig } from './config';
 
 export type EstadoConexion = 'sin-config' | 'cargando' | 'listo' | 'sin-conexion' | 'error-token';
@@ -28,6 +29,7 @@ export interface ValorDatos {
   conectar(c: Config): void;
   desconectar(): void;
   cambiarTareas(cambio: (ts: Tarea[]) => Tarea[], mensaje: string): Promise<boolean>;
+  cambiarTareasAlInstante(cambio: (ts: Tarea[]) => Tarea[], deshacer: (ts: Tarea[]) => Tarea[], mensaje: string): Promise<boolean>;
   cambiarIdeas(cambio: (ls: Linea[]) => Linea[], mensaje: string): Promise<boolean>;
   guardarProyecto(p: Proyecto, original: Proyecto | null): Promise<boolean>;
   cambiarAsignaturas(cambio: (l: Asignatura[]) => Asignatura[], mensaje: string): Promise<boolean>;
@@ -137,6 +139,23 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
     [config, alFallar, encolar],
   );
 
+  const [optimista] = useState(() => crearOptimista<Tarea[]>((f) => setDatos((d) => ({ ...d, tareas: f(d.tareas) }))));
+  const cambiarTareasAlInstante = useCallback(
+    (cambio: (ts: Tarea[]) => Tarea[], deshacer: (ts: Tarea[]) => Tarea[], mensaje: string) => {
+      if (!config) return Promise.resolve(false);
+      return optimista.cambiar(
+        cambio,
+        deshacer,
+        () => encolar(() => modificarTareas(config, cambio, mensaje)),
+        (e) => {
+          alFallar(e, false);
+          setAviso((a) => `${a ?? 'No se ha podido guardar.'} Se ha deshecho «${mensaje}».`);
+        },
+      );
+    },
+    [config, alFallar, encolar, optimista],
+  );
+
   const cambiarIdeas = useCallback(
     (cambio: (ls: Linea[]) => Linea[], mensaje: string) =>
       encolar(async () => {
@@ -214,11 +233,12 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
       conectar,
       desconectar,
       cambiarTareas,
+      cambiarTareasAlInstante,
       cambiarIdeas,
       guardarProyecto,
       cambiarAsignaturas,
     }),
-    [estado, datos, config, aviso, recargar, conectar, desconectar, cambiarTareas, cambiarIdeas, guardarProyecto, cambiarAsignaturas],
+    [estado, datos, config, aviso, recargar, conectar, desconectar, cambiarTareas, cambiarTareasAlInstante, cambiarIdeas, guardarProyecto, cambiarAsignaturas],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

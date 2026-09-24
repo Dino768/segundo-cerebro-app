@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { anadirIdea, quitarIdea, vincularIdea } from '../agenda/ideas';
+import { anadirIdea, mismaIdea, quitarIdea, vincularIdea } from '../agenda/ideas';
 import type { Edicion } from '../componentes/FormTarea';
 import { FormProyectoDesdeIdea } from '../componentes/FormProyectoDesdeIdea';
 import type { Destino } from '../componentes/navegacion';
@@ -18,31 +18,47 @@ export function Ideas({ editar, ir }: Props) {
   const hoy = useHoy();
   const [texto, setTexto] = useState('');
   const [convirtiendo, setConvirtiendo] = useState<Idea | null>(null);
+  const [apuntando, setApuntando] = useState(false);
+  // Ideas que se están guardando: su fila se bloquea hasta que termine.
+  const [ocupadas, setOcupadas] = useState<Idea[]>([]);
   const ideas = ideasDe(datos.ideas);
+  const ocupada = (idea: Idea) => ocupadas.some((x) => mismaIdea(x, idea));
+
+  async function conCandado(idea: Idea, accion: () => Promise<unknown>) {
+    if (ocupada(idea)) return;
+    setOcupadas((os) => [...os, idea]);
+    try {
+      await accion();
+    } finally {
+      setOcupadas((os) => os.filter((x) => !mismaIdea(x, idea)));
+    }
+  }
 
   async function apuntar(e: { preventDefault(): void }) {
     e.preventDefault();
     const limpio = texto.trim();
-    if (!limpio) return;
-    if (await cambiarIdeas((ls) => anadirIdea(ls, { fecha: hoy, texto: limpio }), `Apuntar idea: ${limpio}`)) setTexto('');
+    if (!limpio || apuntando) return;
+    setApuntando(true);
+    const ok = await cambiarIdeas((ls) => anadirIdea(ls, { fecha: hoy, texto: limpio }), `Apuntar idea: ${limpio}`);
+    setApuntando(false);
+    if (ok) setTexto('');
   }
 
   const vincular = (idea: Idea, proyecto: string) =>
-    void cambiarIdeas(
-      (ls) => vincularIdea(ls, idea, proyecto || undefined),
-      proyecto ? `Vincular idea a ${proyecto}` : 'Desvincular idea',
+    void conCandado(idea, () =>
+      cambiarIdeas((ls) => vincularIdea(ls, idea, proyecto || undefined), proyecto ? `Vincular idea a ${proyecto}` : 'Desvincular idea'),
     );
 
   const aTarea = (idea: Idea) =>
     editar({
       nueva: { titulo: idea.texto, proyecto: idea.proyecto },
       nota: 'Al guardar la tarea, la idea sale de la bandeja.',
-      alGuardar: () => cambiarIdeas((ls) => quitarIdea(ls, idea), `Idea pasada a tarea: ${idea.texto}`),
+      alGuardar: () => conCandado(idea, () => cambiarIdeas((ls) => quitarIdea(ls, idea), `Idea pasada a tarea: ${idea.texto}`)),
     });
 
   const borrar = (idea: Idea) => {
     if (confirm(`¿Borrar la idea «${idea.texto}»?`))
-      void cambiarIdeas((ls) => quitarIdea(ls, idea), `Borrar idea: ${idea.texto}`);
+      void conCandado(idea, () => cambiarIdeas((ls) => quitarIdea(ls, idea), `Borrar idea: ${idea.texto}`));
   };
 
   return (
@@ -58,7 +74,7 @@ export function Ideas({ editar, ir }: Props) {
           aria-label="Nueva idea"
           disabled={soloLectura}
         />
-        <button type="submit" className="principal" disabled={!texto.trim() || soloLectura}>
+        <button type="submit" className="principal" disabled={!texto.trim() || soloLectura || apuntando}>
           Apuntar idea
         </button>
       </form>
@@ -67,13 +83,13 @@ export function Ideas({ editar, ir }: Props) {
       ) : (
         <ul className="lista tarjeta">
           {ideas.map((idea, i) => (
-            <li key={`${i}-${idea.fecha}-${idea.texto}`} className="fila-idea">
+            <li key={`${i}-${idea.fecha}-${idea.texto}`} className={`fila-idea${ocupada(idea) ? ' guardando' : ''}`}>
               <span className="detalle fecha-idea">{formatoCorto(idea.fecha)}</span>
               <span className="texto-idea">{idea.texto}</span>
               <select
                 aria-label="Proyecto de la idea"
                 value={idea.proyecto ?? ''}
-                disabled={soloLectura}
+                disabled={soloLectura || ocupada(idea)}
                 onChange={(e) => vincular(idea, e.target.value)}
               >
                 <option value="">(ningún proyecto)</option>
@@ -84,9 +100,9 @@ export function Ideas({ editar, ir }: Props) {
                   <option value={idea.proyecto}>{idea.proyecto}</option>
                 )}
               </select>
-              <button disabled={soloLectura || tareasBloqueadas} onClick={() => aTarea(idea)}>→ Tarea</button>
-              <button disabled={soloLectura} onClick={() => setConvirtiendo(idea)}>→ Proyecto</button>
-              <button className="peligro" disabled={soloLectura} onClick={() => borrar(idea)}>Borrar</button>
+              <button disabled={soloLectura || tareasBloqueadas || ocupada(idea)} onClick={() => aTarea(idea)}>→ Tarea</button>
+              <button disabled={soloLectura || ocupada(idea)} onClick={() => setConvirtiendo(idea)}>→ Proyecto</button>
+              <button className="peligro" disabled={soloLectura || ocupada(idea)} onClick={() => borrar(idea)}>Borrar</button>
             </li>
           ))}
         </ul>

@@ -8,7 +8,7 @@ import type { Tarea } from '../datos/tareas';
 import { ErrorDatos } from '../datos/yaml';
 import { ErrorGitHub, type Config } from '../github/cliente';
 import {
-  cargarAgenda, cargarTodo, guardarProyecto as guardarProyectoRemoto, modificarAsignaturas, modificarBandeja, modificarTareas, type Datos,
+  cargarAgenda, cargarTodo, guardarProyecto as guardarProyectoRemoto, listarIdsProyectos, modificarAsignaturas, modificarBandeja, modificarTareas, type Datos,
 } from '../repositorio';
 import { borrarCache, guardarCache, leerCache } from './cache';
 import { crearCola } from './cola';
@@ -32,6 +32,7 @@ export interface ValorDatos {
   cambiarTareasAlInstante(cambio: (ts: Tarea[]) => Tarea[], deshacer: (ts: Tarea[]) => Tarea[], mensaje: string): Promise<boolean>;
   cambiarIdeas(cambio: (ls: Linea[]) => Linea[], mensaje: string): Promise<boolean>;
   guardarProyecto(p: Proyecto, original: Proyecto | null): Promise<boolean>;
+  idsProyectos(): Promise<string[]>;
   cambiarAsignaturas(cambio: (l: Asignatura[]) => Asignatura[], mensaje: string): Promise<boolean>;
 }
 
@@ -208,6 +209,14 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
     [config, alFallar],
   );
 
+  // Ids de proyectos que hay en GitHub ahora mismo (puede haber alguno nuevo de Claude sin refrescar).
+  const idsProyectos = useCallback(async () => {
+    const locales = datos.proyectos.map((p) => p.id);
+    if (!config) return locales;
+    const remotos = await listarIdsProyectos(config).catch(() => [] as string[]);
+    return [...new Set([...locales, ...remotos])];
+  }, [config, datos.proyectos]);
+
   const conectar = useCallback((c: Config) => {
     guardarConfig(c);
     setConfig(c);
@@ -236,9 +245,10 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
       cambiarTareasAlInstante,
       cambiarIdeas,
       guardarProyecto,
+      idsProyectos,
       cambiarAsignaturas,
     }),
-    [estado, datos, config, aviso, recargar, conectar, desconectar, cambiarTareas, cambiarTareasAlInstante, cambiarIdeas, guardarProyecto, cambiarAsignaturas],
+    [estado, datos, config, aviso, recargar, conectar, desconectar, cambiarTareas, cambiarTareasAlInstante, cambiarIdeas, guardarProyecto, idsProyectos, cambiarAsignaturas],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

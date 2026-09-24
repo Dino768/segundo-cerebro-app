@@ -1,7 +1,7 @@
 import { parseAreas, type Area } from './datos/areas';
 import { parseAsignaturas, serializarAsignaturas, type Asignatura } from './datos/asignaturas';
 import { parseProyecto, serializarProyecto, type Proyecto } from './datos/proyectos';
-import { parseBandeja, serializarBandeja, type Linea } from './datos/ideas';
+import { mismoFinDeLinea, parseBandeja, serializarBandeja, type Linea } from './datos/ideas';
 import { CARPETA_PROYECTOS, RUTA_AREAS, RUTA_ASIGNATURAS, RUTA_BANDEJA, RUTA_TAREAS } from './datos/rutas';
 import { parseTareas, serializarTareas, type Tarea } from './datos/tareas';
 import { ErrorDatos } from './datos/yaml';
@@ -78,7 +78,7 @@ export async function modificarBandeja(
   let resultado: Linea[] = [];
   await actualizarArchivo(cfg, RUTA_BANDEJA, (texto) => {
     resultado = cambio(texto === null ? [] : parseBandeja(texto));
-    return serializarBandeja(resultado);
+    return mismoFinDeLinea(serializarBandeja(resultado), texto);
   }, mensaje);
   return resultado;
 }
@@ -116,4 +116,8 @@ export async function modificarAsignaturas(
     return serializarAsignaturas(resultado);
   }, mensaje);
   return resultado;
+}
+
+export async function listarIdsProyectos(cfg: Config): Promise<string[]> {
+  return (await listarCarpeta(cfg, CARPETA_PROYECTOS)).filter((n) => n.endsWith('.md')).map((n) => n.slice(0, -3));
 }

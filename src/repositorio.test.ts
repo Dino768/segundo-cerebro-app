@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as cliente from './github/cliente';
 import { parseProyecto } from './datos/proyectos';
 import { ErrorDatos } from './datos/yaml';
-import { cargarAgenda, cargarTodo, guardarProyecto, modificarAsignaturas, modificarBandeja, modificarTareas } from './repositorio';
+import { cargarAgenda, cargarTodo, guardarProyecto, listarIdsProyectos, modificarAsignaturas, modificarBandeja, modificarTareas } from './repositorio';
 import { anadirIdea, ErrorIdeaCambiada, quitarIdea } from './agenda/ideas';
 import { ideasDe } from './datos/ideas';
 
@@ -145,5 +145,17 @@ describe('asignaturas', () => {
     expect(r).toHaveLength(1);
     expect(escrito()).toContain('asignaturas:');
     expect(escrito()).toContain('id: fisica');
+  });
+});
+
+describe('arreglos menores', () => {
+  it('modificarBandeja conserva CRLF', async () => {
+    const escrito = simularRemoto('# Bandeja\r\n- 2026-09-24: Una\r\n');
+    await modificarBandeja(cfg, (ls) => anadirIdea(ls, { fecha: '2026-09-25', texto: 'Otra' }), 'x');
+    expect(escrito()).toBe('# Bandeja\r\n- 2026-09-24: Una\r\n- 2026-09-25: Otra\r\n');
+  });
+  it('listarIdsProyectos lee los ids de GitHub', async () => {
+    listar.mockResolvedValue(['juego.md', 'notas.txt', 'app.md']);
+    expect(await listarIdsProyectos(cfg)).toEqual(['juego', 'app']);
   });
 });

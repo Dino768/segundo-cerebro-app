@@ -27,6 +27,7 @@ function Contenido() {
   // Cuenta las veces que se navega: sirve de `key` para abrir de nuevo una pantalla aunque sea la misma.
   const [visita, setVisita] = useState(0);
   const [edicion, setEdicion] = useState<Edicion | null>(null);
+  const [proyectoAbierto, setProyectoAbierto] = useState<string | null>(null);
   const forzarAjustes = estado === 'sin-config' || estado === 'error-token';
   const actual = forzarAjustes ? 'ajustes' : destino.pantalla;
   const [guardian] = useState(crearGuardian);
@@ -50,7 +51,7 @@ function Contenido() {
 
   return (
     <div className="app">
-      <Lateral actual={actual} ir={ir} bloqueado={forzarAjustes} />
+      <Lateral actual={actual} ir={ir} bloqueado={forzarAjustes} proyectoAbierto={actual === 'proyectos' ? proyectoAbierto : null} />
       <main className={actual === 'estudio' ? 'ancho' : undefined}>
         {estado === 'cargando' && <p className="cargando">Cargando…</p>}
         {estado === 'sin-conexion' && (
@@ -72,7 +73,7 @@ function Contenido() {
         {actual === 'inicio' && <Inicio editar={editar} ir={ir} />}
         {actual === 'calendario' && <Calendario key={visita} editar={editar} diaInicial={destino.dia} />}
         {actual === 'tareas' && <Tareas editar={editar} />}
-        {actual === 'proyectos' && <Proyectos key={visita} editar={editar} ir={ir} guardian={guardian} abiertoInicial={destino.proyecto} />}
+        {actual === 'proyectos' && <Proyectos key={visita} editar={editar} ir={ir} guardian={guardian} abiertoInicial={destino.proyecto} alCambiarAbierto={setProyectoAbierto} />}
         {actual === 'ideas' && <Ideas editar={editar} ir={ir} />}
         {actual === 'estudio' && <Estudio />}
         {actual === 'ajustes' && <Ajustes />}

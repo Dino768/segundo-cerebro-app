@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ordenarProyectos, progresoProyecto } from '../agenda/proyectos';
 import { prioridadDe } from '../agenda/tareas';
 import { colorDeArea } from '../componentes/areas';
@@ -15,12 +15,15 @@ interface Props {
   ir(d: Destino): void;
   guardian: Guardian;
   abiertoInicial?: string;
+  alCambiarAbierto?(id: string | null): void;
 }
 
-export function Proyectos({ editar, ir, guardian, abiertoInicial }: Props) {
+export function Proyectos({ editar, ir, guardian, abiertoInicial, alCambiarAbierto }: Props) {
   const { datos, soloLectura, guardarProyecto } = useDatos();
   const [filtro, setFiltro] = useState<Estado | 'todos'>('todos');
   const [abierto, setAbierto] = useState<string | null>(abiertoInicial ?? null);
+  // La barra lateral resalta el proyecto abierto.
+  useEffect(() => alCambiarAbierto?.(abierto), [abierto, alCambiarAbierto]);
 
   const proyectoAbierto = datos.proyectos.find((p) => p.id === abierto);
   if (proyectoAbierto)

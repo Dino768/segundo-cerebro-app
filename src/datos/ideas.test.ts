@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ideasDe, parseBandeja, serializarBandeja, type Linea } from './ideas';
+import { ideasDe, mismoFinDeLinea, parseBandeja, serializarBandeja, type Linea } from './ideas';
 
 const REAL =
   '# Bandeja de ideas\n\nAquí van las ideas nuevas. Una línea por idea, con la fecha.\n\n' +
@@ -54,5 +54,16 @@ describe('parseBandeja: ids de proyecto', () => {
   it('acepta cualquier nombre de archivo de proyecto sin espacios entre corchetes', () => {
     const [l] = parseBandeja('- 2026-09-24 [Juego_Nave]: Piloto\n');
     expect(l).toEqual({ tipo: 'idea', idea: { fecha: '2026-09-24', proyecto: 'Juego_Nave', texto: 'Piloto' } });
+  });
+});
+
+describe('fin de línea y BOM', () => {
+  it('un BOM al principio no esconde la primera idea', () => {
+    expect(ideasDe(parseBandeja('\uFEFF- 2026-09-24: Primera\n'))).toEqual([{ fecha: '2026-09-24', texto: 'Primera' }]);
+  });
+  it('si el archivo usaba CRLF, se conserva', () => {
+    expect(mismoFinDeLinea('a\nb\n', 'x\r\ny\r\n')).toBe('a\r\nb\r\n');
+    expect(mismoFinDeLinea('a\nb\n', 'x\ny\n')).toBe('a\nb\n');
+    expect(mismoFinDeLinea('a\nb\n', null)).toBe('a\nb\n');
   });
 });

@@ -10,9 +10,10 @@ interface Props {
   actual: Pantalla;
   ir(d: Destino): void;
   bloqueado: boolean;
+  proyectoAbierto: string | null;
 }
 
-export function Lateral({ actual, ir, bloqueado }: Props) {
+export function Lateral({ actual, ir, bloqueado, proyectoAbierto }: Props) {
   const { datos } = useDatos();
   const activos = ordenarProyectos(datos.proyectos).filter((p) => p.estado === 'activo');
   const numeros: Partial<Record<Pantalla, number>> = {
@@ -45,7 +46,7 @@ export function Lateral({ actual, ir, bloqueado }: Props) {
             activos.map((p) => (
               <button
                 key={p.id}
-                className="item-lateral sub"
+                className={`item-lateral sub${proyectoAbierto === p.id ? ' activo' : ''}`}
                 disabled={bloqueado}
                 onClick={() => ir({ pantalla: 'proyectos', proyecto: p.id })}
               >

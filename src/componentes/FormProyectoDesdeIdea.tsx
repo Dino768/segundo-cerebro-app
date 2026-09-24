@@ -11,7 +11,7 @@ interface Props {
 }
 
 export function FormProyectoDesdeIdea({ idea, cerrar, alCrear }: Props) {
-  const { datos, guardarProyecto, cambiarIdeas } = useDatos();
+  const { datos, guardarProyecto, cambiarIdeas, idsProyectos } = useDatos();
   const hoy = useHoy();
   const [nombre, setNombre] = useState(idea.texto.slice(0, 60).trim());
   const [area, setArea] = useState(datos.proyectos.find((p) => p.id === idea.proyecto)?.area ?? '');
@@ -21,7 +21,7 @@ export function FormProyectoDesdeIdea({ idea, cerrar, alCrear }: Props) {
     e.preventDefault();
     if (!nombre.trim()) return;
     setGuardando(true);
-    const p = proyectoDesdeIdea(idea, nombre, area || undefined, datos.proyectos.map((x) => x.id), hoy);
+    const p = proyectoDesdeIdea(idea, nombre, area || undefined, await idsProyectos(), hoy);
     // Primero se crea el proyecto y después se quita la idea: si algo falla, la idea no se pierde.
     const ok = await guardarProyecto(p, null);
     if (ok) await cambiarIdeas((ls) => quitarIdea(ls, idea), `Idea convertida en proyecto: ${p.titulo}`);

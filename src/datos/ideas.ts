@@ -16,7 +16,7 @@ export const CABECERA_BANDEJA =
 const PATRON = /^- (\d{4}-\d{2}-\d{2})(?: \[([^\]\s]+)\])?: (.+)$/;
 
 export function parseBandeja(texto: string): Linea[] {
-  const normal = texto.replace(/\r\n/g, '\n');
+  const normal = texto.replace(/^﻿/, '').replace(/\r\n/g, '\n');
   if (normal === '') return [];
   const lineas = (normal.endsWith('\n') ? normal.slice(0, -1) : normal).split('\n');
   return lineas.map((l): Linea => {
@@ -34,6 +34,11 @@ export function lineaDeIdea(idea: Idea): string {
 export function serializarBandeja(lineas: Linea[]): string {
   if (lineas.length === 0) return '';
   return lineas.map((l) => (l.tipo === 'idea' ? lineaDeIdea(l.idea) : l.texto)).join('\n') + '\n';
+}
+
+// Si el archivo original usaba fin de línea de Windows (CRLF), se conserva al escribirlo.
+export function mismoFinDeLinea(nuevo: string, original: string | null): string {
+  return original?.includes('\r\n') ? nuevo.replace(/\r?\n/g, '\r\n') : nuevo;
 }
 
 export function ideasDe(lineas: Linea[]): Idea[] {

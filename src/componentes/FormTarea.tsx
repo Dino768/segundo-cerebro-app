@@ -4,7 +4,11 @@ import { PRIORIDADES, type Prioridad, type Tarea } from '../datos/tareas';
 import { useDatos } from '../estado/datos';
 import { DIAS, type Dia, type ISODate } from '../fechas';
 
-export type Edicion = { tarea: Tarea } | { nueva: { fecha?: ISODate; proyecto?: string } };
+export type Edicion = ({ tarea: Tarea } | { nueva: { fecha?: ISODate; proyecto?: string; titulo?: string } }) & {
+  // Aviso que se muestra en el formulario y acción extra tras guardar bien (p. ej. quitar la idea de la bandeja).
+  nota?: string;
+  alGuardar?(): Promise<unknown>;
+};
 
 interface Props {
   edicion: Edicion;
@@ -15,7 +19,7 @@ export function FormTarea({ edicion, cerrar }: Props) {
   const { datos, cambiarTareas } = useDatos();
   const original = 'tarea' in edicion ? edicion.tarea : null;
   const nueva = 'nueva' in edicion ? edicion.nueva : {};
-  const [titulo, setTitulo] = useState(original?.titulo ?? '');
+  const [titulo, setTitulo] = useState(original?.titulo ?? nueva.titulo ?? '');
   const [area, setArea] = useState(original?.area ?? datos.areas[0]?.id ?? 'personal');
   const [prioridad, setPrioridad] = useState<Prioridad>(original?.prioridad ?? 'media');
   const [fecha, setFecha] = useState(original?.fecha ?? nueva.fecha ?? '');
@@ -44,6 +48,7 @@ export function FormTarea({ edicion, cerrar }: Props) {
       (ts) => aplicarEdicion(ts, original, tarea, new Date()),
       `${original ? 'Editar' : 'Crear'} tarea: ${tarea.titulo}`,
     );
+    if (ok) await edicion.alGuardar?.();
     setGuardando(false);
     if (ok) cerrar();
   }
@@ -62,6 +67,7 @@ export function FormTarea({ edicion, cerrar }: Props) {
     <div className="fondo-modal">
       <form className="modal" onSubmit={guardar}>
         <h2>{original ? 'Editar tarea' : 'Nueva tarea'}</h2>
+        {edicion.nota && <p className="nota-form">{edicion.nota}</p>}
         <label>
           Título
           <input value={titulo} onChange={(e) => setTitulo(e.target.value)} required autoFocus />

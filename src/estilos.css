@@ -178,3 +178,10 @@ fieldset { border: 1px solid var(--borde); border-radius: 8px; display: flex; fl
   .sem-dia, .sem-rejilla.mes .sem-dia { min-height: 60px; padding: 4px; }
   .etiqueta-tarea { font-size: 0; height: 5px; padding: 0; }
 }
+
+/* Ideas */
+.lista.tarjeta { padding: 8px 20px; }
+.fecha-idea { min-width: 56px; }
+.texto-idea { flex: 1; min-width: 200px; }
+.fila-idea select { width: auto; max-width: 200px; padding: 4px 8px; font-size: 14px; }
+.fila-idea button { padding: 4px 10px; font-size: 14px; }

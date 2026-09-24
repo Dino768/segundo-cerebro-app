@@ -6,6 +6,7 @@ import type { Destino } from './componentes/navegacion';
 import { ProveedorDatos, useDatos } from './estado/datos';
 import { Ajustes } from './pantallas/Ajustes';
 import { Calendario } from './pantallas/Calendario';
+import { Ideas } from './pantallas/Ideas';
 import { Inicio } from './pantallas/Inicio';
 import { Proyectos } from './pantallas/Proyectos';
 import { Tareas } from './pantallas/Tareas';
@@ -58,7 +59,7 @@ function Contenido() {
         {actual === 'calendario' && <Calendario key={visita} editar={editar} diaInicial={destino.dia} />}
         {actual === 'tareas' && <Tareas editar={editar} />}
         {actual === 'proyectos' && <Proyectos key={visita} editar={editar} abiertoInicial={destino.proyecto} />}
-        {actual === 'ideas' && <p className="vacio">Ideas: llega en la Task 11.</p>}
+        {actual === 'ideas' && <Ideas editar={editar} ir={ir} />}
         {actual === 'ajustes' && <Ajustes />}
       </main>
       <MenuMovil actual={actual} ir={ir} bloqueado={forzarAjustes} />

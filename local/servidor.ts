@@ -3,9 +3,11 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import path from 'node:path';
 import { conContexto } from '../src/estudio/contexto.ts';
+import { ErrorPizarra, validarOperacion, type Operacion } from '../src/estudio/pizarra.ts';
 import type { EventoChat, EventoPizarra } from '../src/estudio/tipos.ts';
 import { lanzarClaude, type Comando, type Proceso } from './claude.ts';
 import { carpetaConversaciones, leerConversacionDe, listarConversaciones } from './conversaciones.ts';
+import { crearPizarra, listarPizarras, operarPizarra, pizarrasNoValidas, vigilarPizarras } from './pizarras.ts';
 import { esIdAsignatura, esIdConversacion, esNombreImagen, hostPermitido, origenPermitido, rutaDentro } from './seguridad.ts';
 
 export interface OpcionesServidor {
@@ -69,6 +71,11 @@ export function asignaturaDe(v: unknown): string {
 
 export function conversacionDe(v: unknown): string {
   if (typeof v !== 'string' || !esIdConversacion(v)) throw new ErrorPeticion(400, 'Conversación no válida');
+  return v;
+}
+
+function numeroPizarra(v: unknown): number {
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < 1) throw new ErrorPeticion(400, 'Número de pizarra no válido');
   return v;
 }
 
@@ -154,7 +161,17 @@ export function crearServidor(o: OpcionesServidor) {
       };
       const conCabecera = (t: string) =>
         conContexto({ asignatura: asig, carpeta, pizarraAbierta: abierta, imagenes: imagenes.map((n) => path.join(carpeta, 'imagenes', n)) }, t);
-      await conversar(asig, id, b.nueva === true, conCabecera(texto || 'Mira la captura.'), emitir, res);
+      const inicio = Date.now() - 50;
+      const ok = await conversar(asig, id, b.nueva === true, conCabecera(texto || 'Mira la captura.'), emitir, res);
+      // Si Claude ha dejado alguna pizarra mal escrita, se le pide una sola vez que la arregle.
+      if (ok && !res.destroyed) {
+        const malas = await pizarrasNoValidas(carpeta, inicio);
+        if (malas.length) {
+          emitir({ tipo: 'herramienta', texto: `⚠️ La pizarra ${malas.map((m) => m.n).join(', ')} no era válida: la estoy arreglando` });
+          const aviso = malas.map((m) => `La pizarra ${m.n} no es válida: ${m.error}. Arréglala.`).join('\n');
+          await conversar(asig, id, false, conCabecera(aviso), emitir, res);
+        }
+      }
       res.end();
     },
 
@@ -183,6 +200,35 @@ export function crearServidor(o: OpcionesServidor) {
       const ruta = rutaDentro(carpetaDe(asig, id), url.searchParams.get('ruta') ?? '');
       if (!ruta) throw new ErrorPeticion(400, 'Ruta no válida');
       await enviarArchivo(res, ruta);
+    },
+
+    'GET pizarras': async (_req, res, url) => {
+      const asig = asignaturaDe(url.searchParams.get('asignatura'));
+      const id = conversacionDe(url.searchParams.get('id'));
+      enviarJson(res, 200, await listarPizarras(carpetaDe(asig, id)));
+    },
+
+    'POST pizarra/nueva': async (req, res) => {
+      const b = await leerJson(req);
+      enviarJson(res, 200, { n: await crearPizarra(carpetaDe(asignaturaDe(b.asignatura), conversacionDe(b.id))) });
+    },
+
+    'POST pizarra/operacion': async (req, res) => {
+      const b = await leerJson(req);
+      const carpeta = carpetaDe(asignaturaDe(b.asignatura), conversacionDe(b.id));
+      const n = numeroPizarra(b.n);
+      let op: Operacion;
+      try {
+        op = validarOperacion(b.op);
+      } catch (e) {
+        throw new ErrorPeticion(400, e instanceof Error ? e.message : String(e));
+      }
+      try {
+        enviarJson(res, 200, await operarPizarra(carpeta, n, op));
+      } catch (e) {
+        if (e instanceof ErrorPizarra) throw new ErrorPeticion(409, e.message);
+        throw e;
+      }
     },
 
     'GET eventos': async (req, res) => {
@@ -237,5 +283,7 @@ export function crearServidor(o: OpcionesServidor) {
   }
 
   const servidor = http.createServer((req, res) => void manejar(req, res));
+  const pararVigia = vigilarPizarras(o.estudios, emitirATodos);
+  servidor.on('close', pararVigia);
   return { servidor, emitirATodos, rutas, carpetaDe, conversar };
 }

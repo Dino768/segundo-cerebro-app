@@ -149,3 +149,29 @@ describe('eventos', () => {
     control.abort();
   });
 });
+
+describe('pizarras', () => {
+  const id = '55555555-5555-4555-8555-555555555555';
+  it('nueva, operación y lista', async () => {
+    const { n } = await (await post('pizarra/nueva', { asignatura: 'fisica', id })).json();
+    expect(n).toBe(1);
+    const p = await (await post('pizarra/operacion', { asignatura: 'fisica', id, n: 1, op: { tipo: 'nota', id: null, x: 1, y: 2, contenido: 'Hola' } })).json();
+    expect(p.piezas).toHaveLength(1);
+    const lista = await (await fetch(`${API}pizarras?asignatura=fisica&id=${id}`)).json();
+    expect(lista[0]).toMatchObject({ n: 1, error: null });
+    expect((await post('pizarra/operacion', { asignatura: 'fisica', id, n: 1, op: { tipo: 'volar' } })).status).toBe(400);
+  });
+  it('si Claude deja una pizarra mal escrita, se le pide que la arregle una vez', async () => {
+    const otra = '66666666-6666-4666-8666-666666666666';
+    const r = await post('mensaje', { asignatura: 'fisica', id: otra, nueva: true, texto: 'PIZARRA-MALA', imagenes: [] });
+    const evs = await eventos(r);
+    expect(evs.some((e) => e.tipo === 'herramienta' && e.texto.startsWith('⚠️'))).toBe(true);
+    const lista = await (await fetch(`${API}pizarras?asignatura=fisica&id=${otra}`)).json();
+    expect(lista[0]).toMatchObject({ n: 1, error: null });
+    expect(lista[0].pizarra.titulo).toBe('Arreglada');
+    const llamadas = registrado().filter((x) => x.entrada.includes(otra) || x.args.includes(otra));
+    expect(llamadas).toHaveLength(2);
+    expect(llamadas[1].args).toContain('--resume');
+    expect(llamadas[1].entrada).toContain('no es válida');
+  });
+});

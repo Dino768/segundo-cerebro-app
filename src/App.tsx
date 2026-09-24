@@ -6,7 +6,7 @@ import type { Destino } from './componentes/navegacion';
 import { ProveedorDatos, useDatos } from './estado/datos';
 import { Ajustes } from './pantallas/Ajustes';
 import { Calendario } from './pantallas/Calendario';
-import { Hoy } from './pantallas/Hoy';
+import { Inicio } from './pantallas/Inicio';
 import { Proyectos } from './pantallas/Proyectos';
 import { Tareas } from './pantallas/Tareas';
 
@@ -54,7 +54,7 @@ function Contenido() {
             Error en <code>{e.archivo}</code>: {e.message}. No se puede editar este archivo hasta que se arregle (pídeselo a Claude).
           </div>
         ))}
-        {actual === 'inicio' && <Hoy editar={editar} />}
+        {actual === 'inicio' && <Inicio editar={editar} ir={ir} />}
         {actual === 'calendario' && <Calendario key={visita} editar={editar} />}
         {actual === 'tareas' && <Tareas editar={editar} />}
         {actual === 'proyectos' && <Proyectos key={visita} editar={editar} abiertoInicial={destino.proyecto} />}

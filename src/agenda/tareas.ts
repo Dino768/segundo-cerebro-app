@@ -109,3 +109,27 @@ export function borrarDeLista(ts: Tarea[], id: string): Tarea[] {
 export function fijarEnLista(ts: Tarea[], id: string, dia: ISODate, valor: boolean): Tarea[] {
   return ts.map((t) => (t.id === id ? fijarHecha(t, dia, valor) : t));
 }
+
+export function contarPendientes(ts: Tarea[]): number {
+  return ts.filter((t) => !esRepetida(t) && !t.hecha).length;
+}
+
+// Filtro de "calendarios" por área. `encendidas` vacía = todas. OTRAS agrupa las áreas que no están en areas.yaml.
+export const OTRAS = 'otras';
+
+export function hayOtrasAreas(ts: Tarea[], conocidas: string[]): boolean {
+  return ts.some((t) => !conocidas.includes(t.area));
+}
+
+export function filtrarPorAreas(ts: Tarea[], encendidas: string[], conocidas: string[]): Tarea[] {
+  const validas = encendidas.filter((a) => conocidas.includes(a) || a === OTRAS);
+  if (validas.length === 0) return ts;
+  return ts.filter((t) => validas.includes(conocidas.includes(t.area) ? t.area : OTRAS));
+}
+
+export function alternarArea(encendidas: string[], area: string, todas: string[]): string[] {
+  const validas = encendidas.filter((a) => todas.includes(a));
+  const actuales = validas.length ? validas : todas;
+  const nuevas = actuales.includes(area) ? actuales.filter((a) => a !== area) : [...actuales, area];
+  return nuevas.length === 0 || todas.every((a) => nuevas.includes(a)) ? [] : nuevas;
+}

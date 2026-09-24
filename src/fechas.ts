@@ -68,3 +68,9 @@ export function msHastaMedianoche(ahora: Date): number {
   const manana = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() + 1);
   return manana.getTime() - ahora.getTime();
 }
+
+export function saludo(hora: number): string {
+  if (hora >= 6 && hora < 14) return 'Buenos días';
+  if (hora >= 14 && hora < 21) return 'Buenas tardes';
+  return 'Buenas noches';
+}

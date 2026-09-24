@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  addDays, cuadriculaMes, diaDeSemana, diasSemana, fromISO, isHora, isISODate, msHastaMedianoche, sumarMeses, toISO,
+  addDays, cuadriculaMes, diaDeSemana, diasSemana, fromISO, isHora, isISODate, msHastaMedianoche, saludo, sumarMeses, toISO,
 } from './fechas';
 
 describe('fechas', () => {
@@ -67,5 +67,17 @@ describe('msHastaMedianoche', () => {
     expect(msHastaMedianoche(new Date(2026, 8, 23, 23, 59, 30))).toBe(30_000);
     expect(msHastaMedianoche(new Date(2026, 8, 23, 0, 0, 0))).toBe(24 * 3600_000);
     expect(msHastaMedianoche(new Date(2026, 11, 31, 23, 0, 0))).toBe(3600_000);
+  });
+});
+
+describe('saludo', () => {
+  it('depende de la hora', () => {
+    expect(saludo(6)).toBe('Buenos días');
+    expect(saludo(13)).toBe('Buenos días');
+    expect(saludo(14)).toBe('Buenas tardes');
+    expect(saludo(20)).toBe('Buenas tardes');
+    expect(saludo(21)).toBe('Buenas noches');
+    expect(saludo(0)).toBe('Buenas noches');
+    expect(saludo(5)).toBe('Buenas noches');
   });
 });

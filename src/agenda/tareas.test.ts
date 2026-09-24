@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Tarea } from '../datos/tareas';
 import {
-  aplicarEdicion, atrasadas, borrarDeLista, fijarEnLista, fijarHecha, hechaEl, nuevoIdTarea,
+  alternarArea, aplicarEdicion, atrasadas, borrarDeLista, contarPendientes, filtrarPorAreas, fijarEnLista, fijarHecha,
+  hayOtrasAreas, hechaEl, nuevoIdTarea, OTRAS,
   ocurreEl, proximas, repetidas, sinFecha, tareasDelDia, topSinFecha,
 } from './tareas';
 
@@ -146,5 +147,53 @@ describe('cambios sobre la lista', () => {
     expect(r[0].hecha).toBeUndefined();
     expect(r[1].hecha).toBe(true);
     expect(fijarEnLista(r, 'b', '2026-09-23', true)[1].hecha).toBe(true);
+  });
+});
+
+describe('contarPendientes', () => {
+  it('cuenta las tareas normales sin hacer', () => {
+    const ts = [
+      t({ id: 'a' }),
+      t({ id: 'b', fecha: '2026-09-20' }),
+      t({ id: 'c', hecha: true }),
+      t({ id: 'r', repetir: ['lun'] }),
+    ];
+    expect(contarPendientes(ts)).toBe(2);
+  });
+});
+
+describe('filtro por áreas', () => {
+  const ts = [t({ id: 'u', area: 'uni' }), t({ id: 'p', area: 'personal' }), t({ id: 'x', area: 'rara' })];
+  const conocidas = ['uni', 'personal'];
+  const todas = ['uni', 'personal', OTRAS];
+
+  it('sin áreas encendidas se ve todo', () => {
+    expect(ids(filtrarPorAreas(ts, [], conocidas))).toEqual(['u', 'p', 'x']);
+  });
+  it('se ven solo las áreas encendidas, y «otras» son las desconocidas', () => {
+    expect(ids(filtrarPorAreas(ts, ['uni'], conocidas))).toEqual(['u']);
+    expect(ids(filtrarPorAreas(ts, ['personal', OTRAS], conocidas))).toEqual(['p', 'x']);
+  });
+  it('un área guardada que ya no existe se ignora y, si no queda ninguna, se ve todo', () => {
+    expect(ids(filtrarPorAreas(ts, ['borrada'], conocidas))).toEqual(['u', 'p', 'x']);
+    expect(ids(filtrarPorAreas(ts, ['borrada', 'uni'], conocidas))).toEqual(['u']);
+  });
+  it('hayOtrasAreas detecta tareas con un área desconocida', () => {
+    expect(hayOtrasAreas(ts, conocidas)).toBe(true);
+    expect(hayOtrasAreas(ts.slice(0, 2), conocidas)).toBe(false);
+  });
+  it('alternarArea apaga un área cuando están todas encendidas', () => {
+    expect(alternarArea([], 'uni', todas)).toEqual(['personal', OTRAS]);
+  });
+  it('alternarArea enciende y apaga', () => {
+    expect(alternarArea(['uni'], 'personal', todas)).toEqual(['uni', 'personal']);
+    expect(alternarArea(['uni', 'personal'], 'uni', todas)).toEqual(['personal']);
+  });
+  it('alternarArea vuelve a «todas» si se apagarían todas o se encienden todas', () => {
+    expect(alternarArea(['uni'], 'uni', todas)).toEqual([]);
+    expect(alternarArea(['uni', 'personal'], OTRAS, todas)).toEqual([]);
+  });
+  it('alternarArea ignora áreas guardadas que ya no existen', () => {
+    expect(alternarArea(['borrada'], 'uni', todas)).toEqual(['personal', OTRAS]);
   });
 });

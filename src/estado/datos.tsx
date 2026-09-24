@@ -26,7 +26,7 @@ export interface ValorDatos {
   guardarProyecto(p: Proyecto, original: Proyecto | null): Promise<boolean>;
 }
 
-const VACIO: Datos = { tareas: [], areas: [], proyectos: [], errores: [] };
+const VACIO: Datos = { tareas: [], areas: [], proyectos: [], ideas: [], errores: [] };
 const Contexto = createContext<ValorDatos | null>(null);
 
 export function ProveedorDatos({ children }: { children: ReactNode }) {

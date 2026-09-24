@@ -1,6 +1,7 @@
 import { parseAreas, type Area } from './datos/areas';
 import { parseProyecto, serializarProyecto, type Proyecto } from './datos/proyectos';
-import { CARPETA_PROYECTOS, RUTA_AREAS, RUTA_TAREAS } from './datos/rutas';
+import { parseBandeja, serializarBandeja, type Linea } from './datos/ideas';
+import { CARPETA_PROYECTOS, RUTA_AREAS, RUTA_BANDEJA, RUTA_TAREAS } from './datos/rutas';
 import { parseTareas, serializarTareas, type Tarea } from './datos/tareas';
 import { ErrorDatos } from './datos/yaml';
 import { actualizarArchivo, ErrorGitHub, leerArchivo, listarCarpeta, type Config } from './github/cliente';
@@ -9,6 +10,7 @@ export interface Datos {
   tareas: Tarea[];
   areas: Area[];
   proyectos: Proyecto[];
+  ideas: Linea[];
   errores: ErrorDatos[];
 }
 
@@ -37,14 +39,20 @@ export type Agenda = Omit<Datos, 'proyectos'>;
 
 export async function cargarAgenda(cfg: Config): Promise<Agenda> {
   const errores: ErrorDatos[] = [];
-  const [textoTareas, textoAreas] = await Promise.all([leerOpcional(cfg, RUTA_TAREAS), leerOpcional(cfg, RUTA_AREAS)]);
+  const [textoTareas, textoAreas, textoBandeja] = await Promise.all([
+    leerOpcional(cfg, RUTA_TAREAS),
+    leerOpcional(cfg, RUTA_AREAS),
+    leerOpcional(cfg, RUTA_BANDEJA),
+  ]);
   const tareas = intentar(errores, () => (textoTareas === null ? [] : parseTareas(textoTareas)), []);
   const areas = intentar(errores, () => (textoAreas === null ? [] : parseAreas(textoAreas)), []);
-  return { tareas, areas, errores };
+  // La bandeja no puede estar "rota": lo que no es una idea se guarda como línea normal.
+  const ideas = textoBandeja === null ? [] : parseBandeja(textoBandeja);
+  return { tareas, areas, ideas, errores };
 }
 
 export async function cargarTodo(cfg: Config): Promise<Datos> {
-  const [{ tareas, areas, errores }, nombres] = await Promise.all([
+  const [{ tareas, areas, ideas, errores }, nombres] = await Promise.all([
     cargarAgenda(cfg),
     listarCarpeta(cfg, CARPETA_PROYECTOS),
   ]);
@@ -57,7 +65,18 @@ export async function cargarTodo(cfg: Config): Promise<Datos> {
         return intentar<Proyecto | null>(errores, () => parseProyecto(id, texto), null);
       }),
   );
-  return { tareas, areas, proyectos: leidos.filter((p): p is Proyecto => p !== null), errores };
+  return { tareas, areas, ideas, proyectos: leidos.filter((p): p is Proyecto => p !== null), errores };
+}
+
+export async function modificarBandeja(
+  cfg: Config, cambio: (ls: Linea[]) => Linea[], mensaje: string,
+): Promise<Linea[]> {
+  let resultado: Linea[] = [];
+  await actualizarArchivo(cfg, RUTA_BANDEJA, (texto) => {
+    resultado = cambio(texto === null ? [] : parseBandeja(texto));
+    return serializarBandeja(resultado);
+  }, mensaje);
+  return resultado;
 }
 
 export async function modificarTareas(

@@ -116,6 +116,18 @@ prioridad: alta       # opcional, por defecto media
 # Título del proyecto
 Notas...
 ```
+
+### Ideas: `ideas/bandeja.md`
+
+Un archivo Markdown. Cada idea es una línea con esta forma:
+
+    - 2026-09-24: texto de la idea
+    - 2026-09-24 [id-proyecto]: idea vinculada a proyectos/id-proyecto.md
+
+- La fecha es `AAAA-MM-DD` y el proyecto (opcional) es el nombre del archivo sin `.md`, entre corchetes.
+- Una idea ocupa una sola línea.
+- Las demás líneas (título, explicaciones) la app las conserva tal cual.
+- Las ideas nuevas van al final. La app las muestra de la más nueva a la más antigua.
 El título es el primer encabezado `#`. Si no hay ninguno, se usa el `id`.
 
 ## 4. Arquitectura

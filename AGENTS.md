@@ -29,21 +29,24 @@ Node está en `C:\Program Files\nodejs`. En la terminal Bash de Claude Code pued
 
 ## Estructura del código
 - `src/fechas.ts`: fechas locales, días de la semana, cuadrícula del calendario.
-- `src/datos/`: leer, validar y escribir `tareas.yaml`, `areas.yaml` y los `proyectos/*.md`.
+- `src/datos/`: leer, validar y escribir `tareas.yaml`, `areas.yaml`, los `proyectos/*.md` e `ideas/bandeja.md` (`ideas.ts`).
 - `src/agenda/`: lógica sin pantalla (qué toca cada día, atrasadas, prioridades, aviso de más de 2 proyectos activos).
 - `src/github/cliente.ts`: única pieza que habla con GitHub (leer, escribir, reintentar si hay conflicto).
 - `src/repositorio.ts`: carga todo y guarda cambios sin pisar lo que haya cambiado otro.
 - `src/estado/`: estado de la app en React (conexión, llave, caché para cuando no hay internet).
-- `src/pantallas/` y `src/componentes/`: Hoy, Calendario, Tareas, Proyectos y Ajustes.
+- `src/agenda/ideas.ts`: operaciones con ideas (añadir, vincular a un proyecto, quitar, convertir en proyecto).
+- `src/componentes/navegacion.ts`, `Lateral.tsx`, `MenuMovil.tsx`: navegación (barra lateral en el PC, menú abajo en el móvil).
+- `src/pantallas/` y `src/componentes/`: Inicio, Calendario, Tareas, Proyectos, Ideas y Ajustes. Estilos: `src/estilos.css` (tema «papel cálido»).
 
 ## Seguridad del token
 El token se guarda en el `localStorage` del navegador, y ese almacenamiento es compartido por todo el dominio `https://dino768.github.io`. Cualquier otra web que Diego publique con GitHub Pages en su cuenta (un juego, un portfolio…) podría leerlo. Recuérdaselo si va a publicar otra web y recomiéndale tokens con caducidad corta (90 días o menos). La alternativa gratuita es mover la app a una organización de GitHub propia, con su propio dominio: está pendiente de proponérselo.
 
 ## Estado actual
-Última actualización: 2026-09-24.
+Última actualización: 2026-09-24 (v1.1).
 - **Versión 1 terminada y publicada** en https://dino768.github.io/segundo-cerebro-app/. Diego la tiene instalada en el PC, el portátil y el iPhone, con un token por dispositivo. Tasks 0 a 15 del plan hechas.
 - **Arreglos de la revisión final hechos** (2026-09-24): casilla que "fija" en vez de alternar, con cola (`src/estado/cola.ts`); editar una tarea solo aplica los campos cambiados (`aplicarEdicion`) y tareas/áreas se refrescan al volver a la app; "hoy" cambia a medianoche (`src/estado/hoy.ts`); aviso del token en Ajustes.
 - Detalles, decisiones y los arreglos menores aplazados: `.superpowers/sdd/plan-v1/progress.md` (líneas `Final:`).
-- **Siguiente: versión 1.1.** Diego cuenta lo que no le convence tras usar la app y se pule.
+- **Versión 1.1 (rediseño del PC) hecha en la rama `rediseno-pc`**, a falta de probarla con Diego y publicarla: tema «papel cálido», barra lateral, Inicio tipo panel de Notion, calendarios por área, sección Ideas (`ideas/bandeja.md`) y progreso de proyectos. Diseño: `docs/superpowers/specs/2026-09-24-rediseno-pc-design.md`. Plan: `docs/superpowers/plans/2026-09-24-rediseno-pc.md`. Registro: `.superpowers/sdd/2026-09-24-rediseno-pc/progress.md`.
+- **Siguiente: ronda del móvil.** Diego contará los fallos de la versión del móvil. Más adelante: sección de estudio con chat (apuntada en `ideas/bandeja.md`).
 
 Mantén esta sección al día cuando avances.

@@ -1,20 +1,25 @@
 import { useState } from 'react';
-import { LIMITE_ACTIVOS, necesitaAvisoActivos } from '../agenda/proyectos';
+import { LIMITE_ACTIVOS, necesitaAvisoActivos, progresoProyecto } from '../agenda/proyectos';
+import { BarraProgreso } from '../componentes/BarraProgreso';
 import { FilaTarea } from '../componentes/FilaTarea';
 import type { Edicion } from '../componentes/FormTarea';
 import { Markdown } from '../componentes/Markdown';
+import type { Destino } from '../componentes/navegacion';
+import { ideasDe } from '../datos/ideas';
 import { ESTADOS, tituloDesdeCuerpo, type Estado, type Proyecto } from '../datos/proyectos';
 import { PRIORIDADES, type Prioridad } from '../datos/tareas';
 import { useDatos } from '../estado/datos';
 import { useHoy } from '../estado/hoy';
+import { formatoCorto } from '../fechas';
 
 interface Props {
   proyecto: Proyecto;
   volver(): void;
   editar(e: Edicion): void;
+  ir(d: Destino): void;
 }
 
-export function PaginaProyecto({ proyecto, volver, editar }: Props) {
+export function PaginaProyecto({ proyecto, volver, editar, ir }: Props) {
   const { datos, soloLectura, tareasBloqueadas, guardarProyecto, recargar } = useDatos();
   const [estado, setEstado] = useState<Estado>(proyecto.estado);
   const [area, setArea] = useState(proyecto.area ?? '');
@@ -57,11 +62,19 @@ export function PaginaProyecto({ proyecto, volver, editar }: Props) {
     if (!cambiado || confirm('Tienes cambios sin guardar. ¿Salir igualmente?')) volver();
   }
 
+  const irA = (d: Destino) => {
+    if (!cambiado || confirm('Tienes cambios sin guardar. ¿Salir igualmente?')) ir(d);
+  };
+  const ideasProyecto = ideasDe(datos.ideas).filter((i) => i.proyecto === proyecto.id);
+
   return (
     <section>
       <div className="barra">
         <button onClick={salir}>‹ Proyectos</button>
         <h2>{proyecto.titulo}</h2>
+      </div>
+      <div className="progreso-proyecto">
+        <BarraProgreso {...progresoProyecto(datos.tareas, proyecto.id)} />
       </div>
       <div className="fila-campos">
         <label>
@@ -107,22 +120,41 @@ export function PaginaProyecto({ proyecto, volver, editar }: Props) {
         </button>
         <button onClick={() => void recargar()}>Recargar</button>
       </div>
-      <div className="barra">
-        <h3>Tareas del proyecto</h3>
-        <button
-          disabled={soloLectura || tareasBloqueadas}
-          onClick={() => editar({ nueva: { proyecto: proyecto.id } })}
-        >
-          + Nueva tarea
-        </button>
-      </div>
-      <ul className="lista">
-        {datos.tareas
-          .filter((t) => t.proyecto === proyecto.id)
-          .map((t) => (
-            <FilaTarea key={t.id} tarea={t} dia={hoy} mostrarFecha alEditar={(x) => editar({ tarea: x })} />
-          ))}
-      </ul>
+      <section className="tarjeta seccion-proyecto">
+        <h2 className="titulo-seccion">
+          Tareas del proyecto
+          <button
+            className="enlace"
+            disabled={soloLectura || tareasBloqueadas}
+            onClick={() => editar({ nueva: { proyecto: proyecto.id } })}
+          >
+            + Nueva tarea
+          </button>
+        </h2>
+        <ul className="lista">
+          {datos.tareas
+            .filter((t) => t.proyecto === proyecto.id)
+            .map((t) => (
+              <FilaTarea key={t.id} tarea={t} dia={hoy} mostrarFecha alEditar={(x) => editar({ tarea: x })} />
+            ))}
+        </ul>
+      </section>
+      {ideasProyecto.length > 0 && (
+        <section className="tarjeta">
+          <h2 className="titulo-seccion">
+            Ideas de este proyecto
+            <button className="enlace" onClick={() => irA({ pantalla: 'ideas' })}>Ver en Ideas →</button>
+          </h2>
+          <ul className="lista">
+            {ideasProyecto.map((i, n) => (
+              <li key={`${n}-${i.fecha}-${i.texto}`} className="fila-idea">
+                <span className="detalle fecha-idea">{formatoCorto(i.fecha)}</span>
+                <span className="texto-idea">{i.texto}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </section>
   );
 }

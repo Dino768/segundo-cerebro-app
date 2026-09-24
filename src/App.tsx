@@ -58,7 +58,7 @@ function Contenido() {
         {actual === 'inicio' && <Inicio editar={editar} ir={ir} />}
         {actual === 'calendario' && <Calendario key={visita} editar={editar} diaInicial={destino.dia} />}
         {actual === 'tareas' && <Tareas editar={editar} />}
-        {actual === 'proyectos' && <Proyectos key={visita} editar={editar} abiertoInicial={destino.proyecto} />}
+        {actual === 'proyectos' && <Proyectos key={visita} editar={editar} ir={ir} abiertoInicial={destino.proyecto} />}
         {actual === 'ideas' && <Ideas editar={editar} ir={ir} />}
         {actual === 'ajustes' && <Ajustes />}
       </main>

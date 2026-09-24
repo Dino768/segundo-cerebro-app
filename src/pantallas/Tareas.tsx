@@ -10,8 +10,8 @@ export function Tareas({ editar }: { editar(e: Edicion): void }) {
   const hoy = useHoy();
 
   const seccion = (titulo: string, ts: Tarea[], vacio: string, mostrarFecha = false) => (
-    <>
-      <h3>{titulo}</h3>
+    <section className="tarjeta">
+      <h2 className="titulo-seccion">{titulo}</h2>
       {ts.length ? (
         <ul className="lista">
           {ts.map((t) => (
@@ -21,14 +21,14 @@ export function Tareas({ editar }: { editar(e: Edicion): void }) {
       ) : (
         <p className="vacio">{vacio}</p>
       )}
-    </>
+    </section>
   );
 
   return (
     <section>
       <div className="barra">
         <h2>Tareas</h2>
-        <button disabled={soloLectura || tareasBloqueadas} onClick={() => editar({ nueva: {} })}>
+        <button className="principal" disabled={soloLectura || tareasBloqueadas} onClick={() => editar({ nueva: {} })}>
           + Nueva tarea
         </button>
       </div>

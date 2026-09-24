@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { URL_USO_CLAUDE } from '../componentes/navegacion';
 import { useDatos } from '../estado/datos';
 
 export function Ajustes() {
@@ -16,29 +17,31 @@ export function Ajustes() {
 
   return (
     <section className="ajustes">
-      <h2>Ajustes</h2>
+      <div className="barra"><h2>Ajustes</h2></div>
       {estado === 'error-token' && (
         <p className="banner error">La llave de GitHub no funciona (puede que haya caducado o que esté mal copiada). Pega una nueva.</p>
       )}
       {estado === 'sin-config' && (
         <p>Para empezar, conecta la app con tu repositorio <code>my-context</code> de GitHub.</p>
       )}
-      <form onSubmit={enviar}>
-        <label>
-          Usuario de GitHub
-          <input value={owner} onChange={(e) => setOwner(e.target.value)} required autoComplete="username" />
-        </label>
-        <label>
-          Repositorio
-          <input value={repo} onChange={(e) => setRepo(e.target.value)} required />
-        </label>
-        <label>
-          Llave (token){!necesitaToken && ': déjalo vacío para mantener la actual'}
-          <input type="password" value={token} onChange={(e) => setToken(e.target.value)} required={necesitaToken} autoComplete="off" />
-        </label>
-        <button type="submit">Guardar y conectar</button>
-      </form>
-      <details>
+      <div className="tarjeta">
+        <form onSubmit={enviar}>
+          <label>
+            Usuario de GitHub
+            <input value={owner} onChange={(e) => setOwner(e.target.value)} required autoComplete="username" />
+          </label>
+          <label>
+            Repositorio
+            <input value={repo} onChange={(e) => setRepo(e.target.value)} required />
+          </label>
+          <label>
+            Llave (token){!necesitaToken && ': déjalo vacío para mantener la actual'}
+            <input type="password" value={token} onChange={(e) => setToken(e.target.value)} required={necesitaToken} autoComplete="off" />
+          </label>
+          <button type="submit" className="principal">Guardar y conectar</button>
+        </form>
+      </div>
+      <details className="tarjeta">
         <summary>¿Cómo creo la llave?</summary>
         <ol>
           <li>
@@ -59,6 +62,9 @@ export function Ajustes() {
           y no publiques ahí webs con código de otros.
         </p>
       </details>
+      <p className="solo-movil">
+        <a href={URL_USO_CLAUDE} target="_blank" rel="noreferrer">📊 Ver el uso de Claude</a>
+      </p>
       {config && (
         <button className="peligro" onClick={() => confirm('¿Olvidar la llave en este dispositivo?') && desconectar()}>
           Olvidar la llave en este dispositivo

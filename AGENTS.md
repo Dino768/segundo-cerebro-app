@@ -47,9 +47,11 @@ El token se guarda en el `localStorage` del navegador, y ese almacenamiento es c
 - **Arreglos de la revisión final hechos** (2026-09-24): casilla que "fija" en vez de alternar, con cola (`src/estado/cola.ts`); editar una tarea solo aplica los campos cambiados (`aplicarEdicion`) y tareas/áreas se refrescan al volver a la app; "hoy" cambia a medianoche (`src/estado/hoy.ts`); aviso del token en Ajustes.
 - Detalles, decisiones y los arreglos menores aplazados: `.superpowers/sdd/plan-v1/progress.md` (líneas `Final:`).
 - **Versión 1.1 (rediseño del PC) publicada** (2026-09-24), probada por Diego con sus datos: tema «papel cálido», barra lateral, Inicio tipo panel de Notion, calendarios por área, sección Ideas (`ideas/bandeja.md`) y progreso de proyectos. Diseño: `docs/superpowers/specs/2026-09-24-rediseno-pc-design.md`. Plan: `docs/superpowers/plans/2026-09-24-rediseno-pc.md`. Registro: `.superpowers/sdd/2026-09-24-rediseno-pc/progress.md`.
-- **Siguiente, en orden:**
-  1. Pulir el PC: Diego cuenta sus "tonterías" y se juntan con los arreglos menores aplazados de la revisión (líneas `Final: minor (deferred)` del registro de la v1.1).
-  2. Ronda del móvil: Diego cuenta los fallos del iPhone.
-  3. Más adelante: sección de estudio con chat (apuntada en `ideas/bandeja.md`).
+- Diego ha revisado la v1.1 en el PC y en el móvil: le gusta, y el móvil no necesita una ronda propia.
+- **Siguiente fase: zona de estudio** (sección de estudio con chat; ver `proyectos/zona-de-estudio.md` e `ideas/bandeja.md`). Empieza con brainstorming. **En esa misma actualización, incluir estos pulidos pendientes** para dejar una versión definitiva:
+  1. **Casillas más rápidas**: ahora cada cambio espera a GitHub (leer y escribir: 1-3 s) y va en cola, y la casilla se queda desactivada mientras tanto. Propuesta: actualizar la lista local al instante (optimista), guardar en segundo plano sin desactivar la casilla y deshacer con aviso si falla.
+  2. **Probar contenido pegado a la izquierda** (más cerca de la barra lateral) en vez de centrado en el PC (`main { max-width: 1180px; margin: 0 auto }`). Diego no sabe si le gustará: enseñárselo para que elija.
+  3. **Probar la hora actual** junto a la fecha, bajo el saludo del Inicio. También a prueba.
+  4. Los arreglos menores aplazados de la revisión: líneas `Final: minor (deferred)` de `.superpowers/sdd/2026-09-24-rediseno-pc/progress.md`.
 
 Mantén esta sección al día cuando avances.

@@ -6,7 +6,7 @@ import { conContexto } from '../src/estudio/contexto.ts';
 import { ErrorPizarra, validarOperacion, type Operacion } from '../src/estudio/pizarra.ts';
 import type { EventoChat, EventoPizarra } from '../src/estudio/tipos.ts';
 import { lanzarClaude, type Comando, type Proceso } from './claude.ts';
-import { carpetaConversaciones, leerConversacionDe, listarConversaciones } from './conversaciones.ts';
+import { avisoCarpetaConversaciones, carpetaConversaciones, leerConversacionDe, listarConversaciones } from './conversaciones.ts';
 import { crearPizarra, listarPizarras, operarPizarra, pizarrasNoValidas, vigilarPizarras } from './pizarras.ts';
 import { esIdAsignatura, esIdConversacion, esNombreImagen, hostPermitido, origenPermitido, rutaDentro } from './seguridad.ts';
 
@@ -163,6 +163,10 @@ export function crearServidor(o: OpcionesServidor) {
         conContexto({ asignatura: asig, carpeta, pizarraAbierta: abierta, imagenes: imagenes.map((n) => path.join(carpeta, 'imagenes', n)) }, t);
       const inicio = Date.now() - 50;
       const ok = await conversar(asig, id, b.nueva === true, conCabecera(texto || 'Mira la captura.'), emitir, res);
+      if (ok) {
+        const aviso = avisoCarpetaConversaciones(cwdDe(asig), o.home);
+        if (aviso) console.warn(aviso);
+      }
       // Si Claude ha dejado alguna pizarra mal escrita, se le pide una sola vez que la arregle.
       if (ok && !res.destroyed) {
         const malas = await pizarrasNoValidas(carpeta, inicio);

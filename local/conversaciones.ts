@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -8,6 +9,14 @@ import { describirHerramienta } from './claude.ts';
 // Claude Code guarda las conversaciones de cada carpeta en ~/.claude/projects/<ruta con guiones>/.
 export function carpetaConversaciones(cwd: string, home = os.homedir()): string {
   return path.join(home, '.claude', 'projects', path.resolve(cwd).replace(/[^a-zA-Z0-9]/g, '-'));
+}
+
+// Si Claude Code guarda conversaciones pero no donde esperamos (quizá cambió su regla de nombres),
+// se avisa en la consola del programa en vez de enseñar la lista vacía sin más.
+export function avisoCarpetaConversaciones(cwd: string, home = os.homedir()): string | null {
+  const carpeta = carpetaConversaciones(cwd, home);
+  if (existsSync(carpeta) || !existsSync(path.join(home, '.claude', 'projects'))) return null;
+  return `No encuentro las conversaciones de ${cwd} en ${carpeta}. Puede que Claude Code haya cambiado dónde las guarda.`;
 }
 
 function textoDeDiego(contenido: unknown): { texto: string; imagenes: string[] } | null {

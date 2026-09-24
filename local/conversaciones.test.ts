@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { conContexto } from '../src/estudio/contexto.ts';
-import { carpetaConversaciones, leerConversacion, listarConversaciones, tituloConversacion } from './conversaciones.ts';
+import { avisoCarpetaConversaciones, carpetaConversaciones, leerConversacion, listarConversaciones, tituloConversacion } from './conversaciones.ts';
 
 const lineas = (...os: unknown[]) => os.map((o) => JSON.stringify(o)).join('\n') + '\n';
 const usuario = (content: unknown, extra = {}) => ({ type: 'user', message: { role: 'user', content }, ...extra });
@@ -68,5 +68,16 @@ describe('listarConversaciones', () => {
   });
   it('carpeta que no existe → lista vacía', async () => {
     expect(await listarConversaciones(path.join(os.tmpdir(), 'no-existe-xyz'))).toEqual([]);
+  });
+});
+
+describe('avisoCarpetaConversaciones', () => {
+  it('avisa si Claude Code guarda conversaciones pero no en la carpeta esperada', () => {
+    const home = mkdtempSync(path.join(os.tmpdir(), 'casa-'));
+    const cwd = path.join(home, 'estudios', 'fisica');
+    mkdirSync(path.join(home, '.claude', 'projects', 'otra-cosa'), { recursive: true });
+    expect(avisoCarpetaConversaciones(cwd, home)).toMatch(/No encuentro/);
+    mkdirSync(carpetaConversaciones(cwd, home), { recursive: true });
+    expect(avisoCarpetaConversaciones(cwd, home)).toBeNull();
   });
 });

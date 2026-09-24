@@ -83,7 +83,8 @@ export function Chat(p: Props) {
   return (
     <div className="chat">
       <div className="chat-cabecera">
-        <button className="enlace" onClick={p.alVerLista}>◂ Conversaciones</button>
+        {/* Mientras Claude contesta no se cambia de conversación: la respuesta acabaría en la otra. */}
+        <button className="enlace" onClick={p.alVerLista} disabled={p.enviando}>◂ Conversaciones</button>
         <span className="titulo-chat">{p.titulo || 'Conversación nueva'}</span>
         <button onClick={p.alNueva} disabled={p.enviando} aria-label="Conversación nueva">+</button>
       </div>

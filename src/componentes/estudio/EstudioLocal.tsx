@@ -3,6 +3,7 @@ import type { Asignatura } from '../../datos/asignaturas';
 import { aplicarEvento } from '../../estudio/chat';
 import { useDatos } from '../../estado/datos';
 import { useHoy } from '../../estado/hoy';
+import { guardarYMarcar } from '../../estudio/guardado';
 import type { EntradaHistorial } from '../../estudio/historial';
 import { subirAlHistorial } from '../../estudio/historialRemoto';
 import {
@@ -50,6 +51,8 @@ export function EstudioLocal({ asignatura, local }: Props) {
   const [guardado, setGuardado] = useState<Record<number, 'subiendo' | 'pendiente' | 'hecho'>>({});
   const subiendo = useRef(new Set<number>());
   const pendientes = useRef(new Map<number, string>());
+  // Ruta del historial de cada pizarra ya subida, para que un reintento actualice el mismo archivo.
+  const rutasSubidas = useRef(new Map<number, string>());
 
   const recargarPizarras = useCallback(async (id: string) => {
     const lista = await leerPizarras(asignatura.id, id).catch(() => null);
@@ -126,14 +129,17 @@ export function EstudioLocal({ asignatura, local }: Props) {
     await recargarPizarras(conv.id);
   }
 
-  async function operar(n: number, op: Operacion) {
-    if (!conv) return;
+  // Devuelve si se pudo aplicar (para que el guardado sepa si quedó marcado).
+  async function operar(n: number, op: Operacion): Promise<boolean> {
+    if (!conv) return false;
     try {
       const p = await operarPizarra(asignatura.id, conv.id, n, op);
       setPizarras((ps) => ps.map((e) => (e.n === n ? { ...e, pizarra: p, error: null } : e)));
+      return true;
     } catch (e) {
       setAvisoPizarra(e instanceof Error ? e.message : String(e));
       await recargarPizarras(conv.id);
+      return false;
     }
   }
 
@@ -169,17 +175,15 @@ export function EstudioLocal({ asignatura, local }: Props) {
     if (!config || !conv || !estado?.pizarra || subiendo.current.has(n)) return;
     subiendo.current.add(n);
     setGuardado((g) => ({ ...g, [n]: 'subiendo' }));
-    try {
-      const ruta = await subirAlHistorial(config, asignatura.id, estado.pizarra, titulo, hoy, (r) => leerArchivoBase64(asignatura.id, conv.id, r));
-      pendientes.current.delete(n);
-      await operar(n, { tipo: 'guardada', ruta });
-      setGuardado((g) => ({ ...g, [n]: 'hecho' }));
-    } catch {
-      pendientes.current.set(n, titulo);
-      setGuardado((g) => ({ ...g, [n]: 'pendiente' }));
-    } finally {
-      subiendo.current.delete(n);
-    }
+    const r = await guardarYMarcar(estado.pizarra, rutasSubidas.current.get(n) ?? null, {
+      subir: (p) => subirAlHistorial(config, asignatura.id, p, titulo, hoy, (ruta) => leerArchivoBase64(asignatura.id, conv.id, ruta)),
+      marcar: (ruta) => operar(n, { tipo: 'guardada', ruta }),
+    });
+    if (r.ruta) rutasSubidas.current.set(n, r.ruta);
+    if (r.estado === 'hecho') pendientes.current.delete(n);
+    else pendientes.current.set(n, titulo);
+    setGuardado((g) => ({ ...g, [n]: r.estado }));
+    subiendo.current.delete(n);
   }
 
   function pedirTitulo(n: number) {

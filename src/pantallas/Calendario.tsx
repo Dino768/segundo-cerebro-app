@@ -4,16 +4,17 @@ import { colorDeArea } from '../componentes/areas';
 import { FilaTarea } from '../componentes/FilaTarea';
 import type { Edicion } from '../componentes/FormTarea';
 import { useDatos } from '../estado/datos';
+import { useHoy } from '../estado/hoy';
 import {
   addDays, cuadriculaMes, DIAS, diaDeSemana, diasSemana, formatoCorto, formatoLargo, fromISO, nombreMes,
-  sumarMeses, toISO, type ISODate,
+  sumarMeses, type ISODate,
 } from '../fechas';
 
 type Vista = 'mes' | 'semana';
 
 export function Calendario({ editar }: { editar(e: Edicion): void }) {
   const { datos, soloLectura, tareasBloqueadas } = useDatos();
-  const hoy = toISO(new Date());
+  const hoy = useHoy();
   const [vista, setVista] = useState<Vista>('mes');
   const [seleccionado, setSeleccionado] = useState<ISODate>(hoy);
 

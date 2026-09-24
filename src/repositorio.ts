@@ -33,15 +33,21 @@ function intentar<T>(errores: ErrorDatos[], leer: () => T, porDefecto: T): T {
   }
 }
 
-export async function cargarTodo(cfg: Config): Promise<Datos> {
+export type Agenda = Omit<Datos, 'proyectos'>;
+
+export async function cargarAgenda(cfg: Config): Promise<Agenda> {
   const errores: ErrorDatos[] = [];
-  const [textoTareas, textoAreas, nombres] = await Promise.all([
-    leerOpcional(cfg, RUTA_TAREAS),
-    leerOpcional(cfg, RUTA_AREAS),
-    listarCarpeta(cfg, CARPETA_PROYECTOS),
-  ]);
+  const [textoTareas, textoAreas] = await Promise.all([leerOpcional(cfg, RUTA_TAREAS), leerOpcional(cfg, RUTA_AREAS)]);
   const tareas = intentar(errores, () => (textoTareas === null ? [] : parseTareas(textoTareas)), []);
   const areas = intentar(errores, () => (textoAreas === null ? [] : parseAreas(textoAreas)), []);
+  return { tareas, areas, errores };
+}
+
+export async function cargarTodo(cfg: Config): Promise<Datos> {
+  const [{ tareas, areas, errores }, nombres] = await Promise.all([
+    cargarAgenda(cfg),
+    listarCarpeta(cfg, CARPETA_PROYECTOS),
+  ]);
   const leidos = await Promise.all(
     nombres
       .filter((n) => n.endsWith('.md'))

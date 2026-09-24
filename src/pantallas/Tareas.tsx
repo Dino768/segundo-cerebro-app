@@ -3,11 +3,11 @@ import { FilaTarea } from '../componentes/FilaTarea';
 import type { Edicion } from '../componentes/FormTarea';
 import type { Tarea } from '../datos/tareas';
 import { useDatos } from '../estado/datos';
-import { toISO } from '../fechas';
+import { useHoy } from '../estado/hoy';
 
 export function Tareas({ editar }: { editar(e: Edicion): void }) {
   const { datos, soloLectura, tareasBloqueadas } = useDatos();
-  const hoy = toISO(new Date());
+  const hoy = useHoy();
 
   const seccion = (titulo: string, ts: Tarea[], vacio: string, mostrarFecha = false) => (
     <>

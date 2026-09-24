@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { borrarDeLista, guardarEnLista, type TareaSinId } from '../agenda/tareas';
+import { aplicarEdicion, borrarDeLista, type TareaSinId } from '../agenda/tareas';
 import { PRIORIDADES, type Prioridad, type Tarea } from '../datos/tareas';
 import { useDatos } from '../estado/datos';
 import { DIAS, type Dia, type ISODate } from '../fechas';
@@ -41,7 +41,7 @@ export function FormTarea({ edicion, cerrar }: Props) {
     };
     setGuardando(true);
     const ok = await cambiarTareas(
-      (ts) => guardarEnLista(ts, tarea, new Date()),
+      (ts) => aplicarEdicion(ts, original, tarea, new Date()),
       `${original ? 'Editar' : 'Crear'} tarea: ${tarea.titulo}`,
     );
     setGuardando(false);

@@ -65,13 +65,13 @@ export function topSinFecha(ts: Tarea[], n = 3): Tarea[] {
     .slice(0, n);
 }
 
-export function alternarHecha(t: Tarea, dia: ISODate): Tarea {
+export function fijarHecha(t: Tarea, dia: ISODate, valor: boolean): Tarea {
   if (esRepetida(t)) {
-    const actuales = t.hechas ?? [];
-    const hechas = actuales.includes(dia) ? actuales.filter((d) => d !== dia) : [...actuales, dia].sort();
+    const otras = (t.hechas ?? []).filter((d) => d !== dia);
+    const hechas = valor ? [...otras, dia].sort() : otras;
     return { ...t, hechas: hechas.length ? hechas : undefined };
   }
-  return { ...t, hecha: !t.hecha };
+  return { ...t, hecha: valor };
 }
 
 export function nuevoIdTarea(ahora: Date, existentes: Tarea[]): string {
@@ -85,15 +85,27 @@ export function nuevoIdTarea(ahora: Date, existentes: Tarea[]): string {
   return `${prefijo}${max + 1}`;
 }
 
-export function guardarEnLista(ts: Tarea[], t: TareaSinId, ahora: Date): Tarea[] {
-  if (t.id && ts.some((x) => x.id === t.id)) return ts.map((x) => (x.id === t.id ? (t as Tarea) : x));
-  return [...ts, { ...t, id: t.id ?? nuevoIdTarea(ahora, ts) }];
+// Aplica sobre la versión remota solo los campos que el usuario cambió respecto a `original`,
+// para no pisar lo que otro (Claude, otro dispositivo) haya cambiado mientras tanto.
+export function aplicarEdicion(ts: Tarea[], original: Tarea | null, editada: TareaSinId, ahora: Date): Tarea[] {
+  if (!original) return [...ts, { ...editada, id: nuevoIdTarea(ahora, ts) }];
+  const remota = ts.find((x) => x.id === original.id);
+  if (!remota) return [...ts, { ...editada, id: original.id }];
+  const resultado: Record<string, unknown> = { ...remota };
+  const antes = original as unknown as Record<string, unknown>;
+  const despues = editada as unknown as Record<string, unknown>;
+  for (const k of new Set([...Object.keys(antes), ...Object.keys(despues)])) {
+    if (k === 'id' || JSON.stringify(antes[k]) === JSON.stringify(despues[k])) continue;
+    if (despues[k] === undefined) delete resultado[k];
+    else resultado[k] = despues[k];
+  }
+  return ts.map((x) => (x === remota ? (resultado as unknown as Tarea) : x));
 }
 
 export function borrarDeLista(ts: Tarea[], id: string): Tarea[] {
   return ts.filter((t) => t.id !== id);
 }
 
-export function alternarEnLista(ts: Tarea[], id: string, dia: ISODate): Tarea[] {
-  return ts.map((t) => (t.id === id ? alternarHecha(t, dia) : t));
+export function fijarEnLista(ts: Tarea[], id: string, dia: ISODate, valor: boolean): Tarea[] {
+  return ts.map((t) => (t.id === id ? fijarHecha(t, dia, valor) : t));
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  addDays, cuadriculaMes, diaDeSemana, diasSemana, fromISO, isHora, isISODate, sumarMeses, toISO,
+  addDays, cuadriculaMes, diaDeSemana, diasSemana, fromISO, isHora, isISODate, msHastaMedianoche, sumarMeses, toISO,
 } from './fechas';
 
 describe('fechas', () => {
@@ -59,5 +59,13 @@ describe('fechas', () => {
     const dic = cuadriculaMes(2026, 12);
     expect(dic[0][0]).toBe('2026-11-30');
     expect(dic[dic.length - 1][6]).toBe('2027-01-03');
+  });
+});
+
+describe('msHastaMedianoche', () => {
+  it('cuenta lo que falta hasta las 00:00 locales del día siguiente', () => {
+    expect(msHastaMedianoche(new Date(2026, 8, 23, 23, 59, 30))).toBe(30_000);
+    expect(msHastaMedianoche(new Date(2026, 8, 23, 0, 0, 0))).toBe(24 * 3600_000);
+    expect(msHastaMedianoche(new Date(2026, 11, 31, 23, 0, 0))).toBe(3600_000);
   });
 });

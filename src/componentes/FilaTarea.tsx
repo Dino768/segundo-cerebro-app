@@ -1,4 +1,5 @@
-import { alternarEnLista, esRepetida, hechaEl, prioridadDe } from '../agenda/tareas';
+import { useState } from 'react';
+import { esRepetida, fijarEnLista, hechaEl, prioridadDe } from '../agenda/tareas';
 import type { Tarea } from '../datos/tareas';
 import { useDatos } from '../estado/datos';
 import type { ISODate } from '../fechas';
@@ -13,8 +14,17 @@ interface Props {
 
 export function FilaTarea({ tarea, dia, mostrarFecha = false, alEditar }: Props) {
   const { datos, cambiarTareas, soloLectura, tareasBloqueadas } = useDatos();
-  const hecha = hechaEl(tarea, dia);
+  // Mientras se guarda, se muestra ya el valor nuevo (null = no hay nada guardándose).
+  const [guardando, setGuardando] = useState<boolean | null>(null);
+  const hecha = guardando ?? hechaEl(tarea, dia);
   const bloqueado = soloLectura || tareasBloqueadas;
+
+  async function marcar() {
+    const valor = !hecha;
+    setGuardando(valor);
+    await cambiarTareas((ts) => fijarEnLista(ts, tarea.id, dia, valor), `${valor ? 'Completar' : 'Desmarcar'}: ${tarea.titulo}`);
+    setGuardando(null);
+  }
   const prioridad = prioridadDe(tarea);
   const detalle = [
     mostrarFecha ? tarea.fecha : undefined,
@@ -29,11 +39,9 @@ export function FilaTarea({ tarea, dia, mostrarFecha = false, alEditar }: Props)
       <input
         type="checkbox"
         checked={hecha}
-        disabled={bloqueado}
+        disabled={bloqueado || guardando !== null}
         aria-label={`Marcar «${tarea.titulo}»`}
-        onChange={() =>
-          void cambiarTareas((ts) => alternarEnLista(ts, tarea.id, dia), `${hecha ? 'Desmarcar' : 'Completar'}: ${tarea.titulo}`)
-        }
+        onChange={() => void marcar()}
       />
       <span className="punto" style={{ background: colorDeArea(datos.areas, tarea.area) }} />
       <button className="titulo-tarea" onClick={() => alEditar(tarea)} disabled={bloqueado}>

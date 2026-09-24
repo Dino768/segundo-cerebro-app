@@ -3,11 +3,12 @@ import { FilaTarea } from '../componentes/FilaTarea';
 import type { Edicion } from '../componentes/FormTarea';
 import type { Tarea } from '../datos/tareas';
 import { useDatos } from '../estado/datos';
-import { formatoLargo, toISO, type ISODate } from '../fechas';
+import { useHoy } from '../estado/hoy';
+import { formatoLargo, type ISODate } from '../fechas';
 
 export function Hoy({ editar }: { editar(e: Edicion): void }) {
   const { datos, soloLectura, tareasBloqueadas } = useDatos();
-  const hoy = toISO(new Date());
+  const hoy = useHoy();
   const retrasadas = atrasadas(datos.tareas, hoy);
   const deHoy = tareasDelDia(datos.tareas, hoy);
   const top = topSinFecha(datos.tareas);

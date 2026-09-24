@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as cliente from './github/cliente';
 import { parseProyecto } from './datos/proyectos';
 import { ErrorDatos } from './datos/yaml';
-import { cargarTodo, guardarProyecto, modificarTareas } from './repositorio';
+import { cargarAgenda, cargarTodo, guardarProyecto, modificarTareas } from './repositorio';
 
 vi.mock('./github/cliente', async (importOriginal) => {
   const real = await importOriginal<typeof import('./github/cliente')>();
@@ -39,6 +39,21 @@ describe('cargarTodo', () => {
     expect(d.areas).toEqual([]);
     expect(d.errores.map((e) => e.archivo)).toEqual(['agenda/areas.yaml']);
     expect(d.proyectos.map((p) => p.titulo)).toEqual(['Juego']);
+  });
+});
+
+describe('cargarAgenda', () => {
+  it('lee solo tareas y áreas, sin tocar los proyectos', async () => {
+    leer.mockImplementation(async (_cfg, ruta) => {
+      if (ruta === 'agenda/tareas.yaml') return { texto: '- id: a\n  titulo: A\n  area: uni\n', sha: 't' };
+      if (ruta === 'agenda/areas.yaml') return { texto: '- id: uni\n  nombre: [roto\n', sha: 'a' };
+      throw new Error(`ruta inesperada ${ruta}`);
+    });
+    const d = await cargarAgenda(cfg);
+    expect(d.tareas.map((t) => t.id)).toEqual(['a']);
+    expect(d.areas).toEqual([]);
+    expect(d.errores.map((e) => e.archivo)).toEqual(['agenda/areas.yaml']);
+    expect(listar).not.toHaveBeenCalled();
   });
 });
 

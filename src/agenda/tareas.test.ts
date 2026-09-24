@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Tarea } from '../datos/tareas';
 import {
-  alternarEnLista, alternarHecha, atrasadas, borrarDeLista, guardarEnLista, hechaEl, nuevoIdTarea,
+  aplicarEdicion, atrasadas, borrarDeLista, fijarEnLista, fijarHecha, hechaEl, nuevoIdTarea,
   ocurreEl, proximas, repetidas, sinFecha, tareasDelDia, topSinFecha,
 } from './tareas';
 
@@ -43,18 +43,25 @@ describe('tareasDelDia', () => {
   });
 });
 
-describe('hechaEl y alternarHecha', () => {
+describe('hechaEl y fijarHecha', () => {
   it('tarea normal', () => {
     const a = t({ id: 'a', fecha: '2026-09-23' });
     expect(hechaEl(a, '2026-09-23')).toBe(false);
-    expect(hechaEl(alternarHecha(a, '2026-09-23'), '2026-09-23')).toBe(true);
+    expect(hechaEl(fijarHecha(a, '2026-09-23', true), '2026-09-23')).toBe(true);
+    expect(hechaEl(fijarHecha(a, '2026-09-23', false), '2026-09-23')).toBe(false);
+  });
+  it('fijar dos veces a hecha no la desmarca', () => {
+    const a = t({ id: 'a' });
+    expect(fijarHecha(fijarHecha(a, '2026-09-23', true), '2026-09-23', true).hecha).toBe(true);
+    const r = t({ id: 'r', repetir: ['lun'] });
+    expect(fijarHecha(fijarHecha(r, '2026-09-21', true), '2026-09-21', true).hechas).toEqual(['2026-09-21']);
   });
   it('tarea repetida: se marca por día', () => {
     const r = t({ id: 'r', repetir: ['lun'] });
-    const marcada = alternarHecha(r, '2026-09-21');
+    const marcada = fijarHecha(r, '2026-09-21', true);
     expect(marcada.hechas).toEqual(['2026-09-21']);
     expect(hechaEl(marcada, '2026-09-28')).toBe(false);
-    expect(alternarHecha(marcada, '2026-09-21').hechas).toBeUndefined();
+    expect(fijarHecha(marcada, '2026-09-21', false).hechas).toBeUndefined();
   });
 });
 
@@ -105,24 +112,39 @@ describe('cambios sobre la lista', () => {
   const ahora = new Date(2026, 8, 23, 12);
   const ts = [t({ id: 'a' }), t({ id: 'b' })];
 
-  it('guardarEnLista añade una tarea nueva con id', () => {
-    const r = guardarEnLista(ts, { titulo: 'Nueva', area: 'uni' }, ahora);
+  it('aplicarEdicion añade una tarea nueva con id', () => {
+    const r = aplicarEdicion(ts, null, { titulo: 'Nueva', area: 'uni' }, ahora);
     expect(r).toHaveLength(3);
     expect(r[2]).toEqual({ id: 't-20260923-1', titulo: 'Nueva', area: 'uni' });
   });
-  it('guardarEnLista sustituye una tarea existente en su sitio', () => {
-    expect(guardarEnLista(ts, { id: 'a', titulo: 'Cambiada', area: 'uni' }, ahora)[0].titulo).toBe('Cambiada');
+  it('aplicarEdicion cambia solo los campos editados y respeta los cambios remotos', () => {
+    const original = t({ id: 'a', titulo: 'Viejo', notas: 'n' });
+    const remota = [t({ id: 'a', titulo: 'Viejo', notas: 'n', hecha: true, prioridad: 'alta' }), t({ id: 'b' })];
+    const r = aplicarEdicion(remota, original, { ...original, titulo: 'Nuevo', notas: undefined }, ahora);
+    expect(r[0]).toEqual({ id: 'a', titulo: 'Nuevo', area: 'uni', hecha: true, prioridad: 'alta' });
+    expect(r[1]).toBe(remota[1]);
   });
-  it('guardarEnLista vuelve a añadir una tarea que se borró mientras se editaba', () => {
-    const r = guardarEnLista([t({ id: 'b' })], { id: 'a', titulo: 'Editada', area: 'uni' }, ahora);
+  it('aplicarEdicion compara las listas por contenido', () => {
+    const original = t({ id: 'r', repetir: ['lun'], hechas: ['2026-09-21'] });
+    const remota = [t({ id: 'r', repetir: ['lun', 'mie'], hechas: ['2026-09-21', '2026-09-23'] })];
+    const r = aplicarEdicion(remota, original, { ...original, repetir: ['lun'], titulo: 'X' }, ahora);
+    expect(r[0].repetir).toEqual(['lun', 'mie']);
+    expect(r[0].hechas).toEqual(['2026-09-21', '2026-09-23']);
+    expect(r[0].titulo).toBe('X');
+  });
+  it('aplicarEdicion vuelve a añadir una tarea que se borró mientras se editaba', () => {
+    const original = t({ id: 'a' });
+    const r = aplicarEdicion([t({ id: 'b' })], original, { ...original, titulo: 'Editada' }, ahora);
     expect(ids(r)).toEqual(['b', 'a']);
+    expect(r[1].titulo).toBe('Editada');
   });
   it('borrarDeLista', () => {
     expect(ids(borrarDeLista(ts, 'a'))).toEqual(['b']);
   });
-  it('alternarEnLista cambia solo esa tarea', () => {
-    const r = alternarEnLista(ts, 'b', '2026-09-23');
+  it('fijarEnLista cambia solo esa tarea', () => {
+    const r = fijarEnLista(ts, 'b', '2026-09-23', true);
     expect(r[0].hecha).toBeUndefined();
     expect(r[1].hecha).toBe(true);
+    expect(fijarEnLista(r, 'b', '2026-09-23', true)[1].hecha).toBe(true);
   });
 });

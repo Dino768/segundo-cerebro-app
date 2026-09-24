@@ -6,7 +6,7 @@ import { Markdown } from '../componentes/Markdown';
 import { ESTADOS, tituloDesdeCuerpo, type Estado, type Proyecto } from '../datos/proyectos';
 import { PRIORIDADES, type Prioridad } from '../datos/tareas';
 import { useDatos } from '../estado/datos';
-import { toISO } from '../fechas';
+import { useHoy } from '../estado/hoy';
 
 interface Props {
   proyecto: Proyecto;
@@ -22,7 +22,7 @@ export function PaginaProyecto({ proyecto, volver, editar }: Props) {
   const [cuerpo, setCuerpo] = useState(proyecto.cuerpo);
   const [modo, setModo] = useState<'ver' | 'editar'>('ver');
   const [guardando, setGuardando] = useState(false);
-  const hoy = toISO(new Date());
+  const hoy = useHoy();
 
   const cambiado =
     estado !== proyecto.estado ||

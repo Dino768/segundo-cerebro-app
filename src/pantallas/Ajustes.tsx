@@ -50,8 +50,14 @@ export function Ajustes() {
           </li>
           <li>En «Repository access» elige «Only select repositories» y marca <code>my-context</code>.</li>
           <li>En «Permissions», busca «Contents» y elige «Read and write».</li>
+          <li>En «Expiration» elige 90 días o menos.</li>
           <li>Pulsa «Generate token», copia la llave y pégala aquí.</li>
         </ol>
+        <p>
+          <strong>Cuidado:</strong> la llave se guarda en este navegador, y cualquier otra web que publiques con GitHub
+          Pages en <code>dino768.github.io</code> (un juego, un portfolio…) podría leerla. Usa llaves que caduquen pronto
+          y no publiques ahí webs con código de otros.
+        </p>
       </details>
       {config && (
         <button className="peligro" onClick={() => confirm('¿Olvidar la llave en este dispositivo?') && desconectar()}>

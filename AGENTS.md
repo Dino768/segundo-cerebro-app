@@ -40,14 +40,10 @@ Node está en `C:\Program Files\nodejs`. En la terminal Bash de Claude Code pued
 El token se guarda en el `localStorage` del navegador, y ese almacenamiento es compartido por todo el dominio `https://dino768.github.io`. Cualquier otra web que Diego publique con GitHub Pages en su cuenta (un juego, un portfolio…) podría leerlo. Recuérdaselo si va a publicar otra web y recomiéndale tokens con caducidad corta (90 días o menos). La alternativa gratuita es mover la app a una organización de GitHub propia, con su propio dominio: está pendiente de proponérselo.
 
 ## Estado actual
-Última actualización: 2026-09-23.
+Última actualización: 2026-09-24.
 - **Versión 1 terminada y publicada** en https://dino768.github.io/segundo-cerebro-app/. Diego la tiene instalada en el PC, el portátil y el iPhone, con un token por dispositivo. Tasks 0 a 15 del plan hechas.
-- **Revisión final hecha. FALTA el arreglo** de sus 4 puntos importantes. Es lo primero que hay que hacer, con TDD (prueba que falla → arreglo → `npm test`), y después `git push` para que se vuelva a publicar sola:
-  1. **Casilla de "hecha"**: pasar de "alternar" a "fijar" (`fijarHecha(t, dia, valor)` / `fijarEnLista`, con `valor = !hecha` según lo que se ve en pantalla). Así, tocar dos veces no desmarca. Mostrar el cambio al instante y desactivar la casilla mientras se guarda (en `FilaTarea`). Poner en cola las llamadas a `cambiarTareas` para que vayan de una en una (`crearCola` en `src/estado/`).
-  2. **Editar una tarea no debe pisar cambios de otros**: `aplicarEdicion(ts, original, editada, ahora)` aplica solo los campos que el usuario cambió sobre la versión remota, en lugar de sustituir la tarea entera (sustituye a `guardarEnLista` en `FormTarea`). Si la tarea se borró mientras tanto, se vuelve a añadir. Además, refrescar tareas y áreas (no proyectos) al volver a la app (`visibilitychange`), a través de la misma cola.
-  3. **"Hoy" al pasar la medianoche**: hook `useHoy()` que se actualiza al volver a la app y con un temporizador a la medianoche local (función pura `msHastaMedianoche` con test). Lo usan Hoy, Tareas, Calendario y PaginaProyecto.
-  4. **Token**: añadir en la ayuda de Ajustes el aviso de la sección "Seguridad del token".
+- **Arreglos de la revisión final hechos** (2026-09-24): casilla que "fija" en vez de alternar, con cola (`src/estado/cola.ts`); editar una tarea solo aplica los campos cambiados (`aplicarEdicion`) y tareas/áreas se refrescan al volver a la app; "hoy" cambia a medianoche (`src/estado/hoy.ts`); aviso del token en Ajustes.
 - Detalles, decisiones y los arreglos menores aplazados: `.superpowers/sdd/plan-v1/progress.md` (líneas `Final:`).
-- Después de los arreglos: Diego cuenta lo que no le convence tras usar la app → versión 1.1.
+- **Siguiente: versión 1.1.** Diego cuenta lo que no le convence tras usar la app y se pule.
 
 Mantén esta sección al día cuando avances.

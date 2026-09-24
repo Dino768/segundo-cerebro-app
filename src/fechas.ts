@@ -63,3 +63,8 @@ export function formatoCorto(iso: ISODate): string {
 export function nombreMes(year: number, month: number): string {
   return new Date(year, month - 1, 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
 }
+
+export function msHastaMedianoche(ahora: Date): number {
+  const manana = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() + 1);
+  return manana.getTime() - ahora.getTime();
+}

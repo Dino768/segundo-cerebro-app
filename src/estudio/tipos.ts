@@ -1,4 +1,5 @@
 // Tipos que comparten la app y el programa local.
+import type { Pizarra } from './pizarra.ts';
 
 export interface Mensaje {
   rol: 'diego' | 'claude' | 'herramienta';
@@ -25,4 +26,13 @@ export interface EventoPizarra {
   asignatura: string;
   conversacion: string;
   n: number;
+}
+
+// Una pizarra en curso tal y como la devuelve el programa local.
+// Si el archivo está roto, `pizarra` es la última versión buena y `error` explica qué pasa.
+export interface EstadoPizarra {
+  n: number;
+  pizarra: Pizarra | null;
+  error: string | null;
+  avisos: string[];
 }

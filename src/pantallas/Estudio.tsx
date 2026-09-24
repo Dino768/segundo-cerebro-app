@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { EstudioLocal } from '../componentes/estudio/EstudioLocal';
 import { FormAsignatura } from '../componentes/estudio/FormAsignatura';
+import { Historial } from '../componentes/estudio/Historial';
 import { PestanasAsignaturas } from '../componentes/estudio/PestanasAsignaturas';
 import { GENERAL, type Asignatura } from '../datos/asignaturas';
 import { guardarPreferencia, leerPreferencia } from '../estudio/preferencias';
@@ -38,11 +39,14 @@ export function Estudio() {
       {local.estado === 'comprobando' && <p className="cargando">Buscando el programa local…</p>}
       {local.estado === 'si' && <EstudioLocal key={asignatura.id} asignatura={asignatura} local={local} />}
       {(local.estado === 'no' || local.estado === 'cerrado') && (
-        <div className="banner aviso">
-          {local.estado === 'cerrado'
-            ? 'El programa local se ha cerrado. Vuelve a abrirlo (npm run local) para seguir con el chat.'
-            : 'El chat solo está disponible en tu PC.'}
-        </div>
+        <>
+          <div className="banner aviso">
+            {local.estado === 'cerrado'
+              ? 'El programa local se ha cerrado. Vuelve a abrirlo (npm run local) para seguir con el chat.'
+              : 'El chat solo está disponible en tu PC.'}
+          </div>
+          <Historial key={asignatura.id} asignatura={asignatura} />
+        </>
       )}
       {form && (
         <FormAsignatura asignatura={form === 'nueva' ? null : form} cerrar={() => setForm(null)} alQuitar={() => elegir(GENERAL.id)} />

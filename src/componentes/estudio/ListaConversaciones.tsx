@@ -1,21 +1,25 @@
 import { useEffect, useState } from 'react';
+import type { Asignatura } from '../../datos/asignaturas';
+import type { EntradaHistorial } from '../../estudio/historial';
 import { listarConversaciones } from '../../estudio/local';
 import type { ResumenConversacion } from '../../estudio/tipos';
+import { ListaHistorial } from './Historial';
 
 interface Props {
-  asignatura: string;
+  asignatura: Asignatura;
   alAbrir(id: string): void;
   alNueva(): void;
   alVolver(): void;
+  alAbrirHistorial(e: EntradaHistorial): void;
 }
 
-export function ListaConversaciones({ asignatura, alAbrir, alNueva, alVolver }: Props) {
+export function ListaConversaciones({ asignatura, alAbrir, alNueva, alVolver, alAbrirHistorial }: Props) {
   const [lista, setLista] = useState<ResumenConversacion[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    listarConversaciones(asignatura).then(setLista, (e: Error) => setError(e.message));
-  }, [asignatura]);
+    listarConversaciones(asignatura.id).then(setLista, (e: Error) => setError(e.message));
+  }, [asignatura.id]);
 
   return (
     <div className="lista-conversaciones">
@@ -36,6 +40,8 @@ export function ListaConversaciones({ asignatura, alAbrir, alNueva, alVolver }: 
           </li>
         ))}
       </ul>
+      <h3>Historial</h3>
+      <ListaHistorial asignatura={asignatura} alAbrir={alAbrirHistorial} />
     </div>
   );
 }

@@ -259,3 +259,8 @@ main.ancho { max-width: none; }
   .estudio-local.con-pizarra { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: minmax(0, 1fr) minmax(0, 1.2fr); }
   .separador { display: none; }
 }
+
+/* Historial */
+.visor-historial { display: flex; flex-direction: column; height: calc(100vh - 230px); min-height: 380px; border: 1px solid var(--borde); border-radius: 14px; background: var(--superficie); overflow: hidden; }
+.estudio-local .visor-historial { height: 100%; border: none; border-radius: 0; }
+.lista-historial .lista { margin: 0; }

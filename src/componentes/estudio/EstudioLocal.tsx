@@ -1,14 +1,20 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react';
 import type { Asignatura } from '../../datos/asignaturas';
 import { aplicarEvento } from '../../estudio/chat';
+import { useDatos } from '../../estado/datos';
+import { useHoy } from '../../estado/hoy';
+import type { EntradaHistorial } from '../../estudio/historial';
+import { subirAlHistorial } from '../../estudio/historialRemoto';
 import {
-  enviarMensaje, leerConversacion, leerPizarras, listarConversaciones, nuevaPizarra, operarPizarra, pararRespuesta, urlArchivo,
+  enviarMensaje, leerArchivoBase64, leerConversacion, leerPizarras, listarConversaciones, nuevaPizarra, operarPizarra, pararRespuesta,
+  urlArchivo,
 } from '../../estudio/local';
 import type { Operacion } from '../../estudio/pizarra';
 import { guardarPreferencia, leerPreferencia } from '../../estudio/preferencias';
 import type { EstadoPizarra, Mensaje } from '../../estudio/tipos';
 import type { useLocal } from '../../estudio/useLocal';
 import { Chat, type ErrorChat } from './Chat';
+import { VisorHistorial } from './Historial';
 import { ListaConversaciones } from './ListaConversaciones';
 import { Pizarra } from './Pizarra';
 
@@ -38,6 +44,12 @@ export function EstudioLocal({ asignatura, local }: Props) {
   const [anchoChat, setAnchoChat] = useState(() => Number(leerPreferencia(CLAVE_ANCHO)) || 36);
   const contenedor = useRef<HTMLDivElement>(null);
   const cuantas = useRef(0);
+  const { config } = useDatos();
+  const hoy = useHoy();
+  const [historialAbierto, setHistorialAbierto] = useState<EntradaHistorial | null>(null);
+  const [guardado, setGuardado] = useState<Record<number, 'subiendo' | 'pendiente' | 'hecho'>>({});
+  const subiendo = useRef(new Set<number>());
+  const pendientes = useRef(new Map<number, string>());
 
   const recargarPizarras = useCallback(async (id: string) => {
     const lista = await leerPizarras(asignatura.id, id).catch(() => null);
@@ -152,7 +164,57 @@ export function EstudioLocal({ asignatura, local }: Props) {
     window.addEventListener('pointerup', soltar);
   }
 
+  async function guardarEnHistorial(n: number, titulo: string) {
+    const estado = pizarras.find((e) => e.n === n);
+    if (!config || !conv || !estado?.pizarra || subiendo.current.has(n)) return;
+    subiendo.current.add(n);
+    setGuardado((g) => ({ ...g, [n]: 'subiendo' }));
+    try {
+      const ruta = await subirAlHistorial(config, asignatura.id, estado.pizarra, titulo, hoy, (r) => leerArchivoBase64(asignatura.id, conv.id, r));
+      pendientes.current.delete(n);
+      await operar(n, { tipo: 'guardada', ruta });
+      setGuardado((g) => ({ ...g, [n]: 'hecho' }));
+    } catch {
+      pendientes.current.set(n, titulo);
+      setGuardado((g) => ({ ...g, [n]: 'pendiente' }));
+    } finally {
+      subiendo.current.delete(n);
+    }
+  }
+
+  function pedirTitulo(n: number) {
+    const p = pizarras.find((e) => e.n === n)?.pizarra;
+    const titulo = prompt('Título de la pizarra', p?.titulo ?? '')?.trim();
+    if (titulo) void guardarEnHistorial(n, titulo);
+  }
+
+  // Si Claude ha pedido guardar una pizarra (guardarComo), se sube sola.
+  useEffect(() => {
+    for (const e of pizarras)
+      if (e.pizarra?.guardarComo && !subiendo.current.has(e.n) && guardado[e.n] !== 'pendiente') void guardarEnHistorial(e.n, e.pizarra.guardarComo);
+  });
+
+  // Cuando vuelve internet, se reintenta lo pendiente.
+  useEffect(() => {
+    const reintentar = () => pendientes.current.forEach((titulo, n) => void guardarEnHistorial(n, titulo));
+    window.addEventListener('online', reintentar);
+    return () => window.removeEventListener('online', reintentar);
+  });
+
+  const textoGuardar = (n: number, guardadaEn: string | null) =>
+    guardado[n] === 'subiendo' ? 'Guardando…'
+      : guardado[n] === 'pendiente' ? 'Pendiente de subir (reintentar)'
+        : guardadaEn ? 'Guardada ✓ (actualizar)'
+          : 'Guardar en el historial ⤓';
+
   if (!conv) return <p className="cargando">Cargando…</p>;
+
+  if (historialAbierto)
+    return (
+      <div className="estudio-local sin-pizarra">
+        <VisorHistorial asignatura={asignatura} entrada={historialAbierto} alVolver={() => setHistorialAbierto(null)} />
+      </div>
+    );
 
   const actual = pizarras.find((e) => e.n === abierta) ?? pizarras.at(-1) ?? null;
   const conPizarra = pizarras.length > 0;
@@ -165,7 +227,13 @@ export function EstudioLocal({ asignatura, local }: Props) {
       style={conPizarra ? { gridTemplateColumns: `${anchoChat}% 6px minmax(0, 1fr)` } : undefined}
     >
       {vista === 'lista' ? (
-        <ListaConversaciones asignatura={asignatura.id} alAbrir={(id) => void abrir(id)} alNueva={nueva} alVolver={() => setVista('chat')} />
+        <ListaConversaciones
+          asignatura={asignatura}
+          alAbrir={(id) => void abrir(id)}
+          alNueva={nueva}
+          alVolver={() => setVista('chat')}
+          alAbrirHistorial={setHistorialAbierto}
+        />
       ) : (
         <Chat
           asignatura={asignatura.id}
@@ -202,7 +270,15 @@ export function EstudioLocal({ asignatura, local }: Props) {
               <div className="banner error aviso-pizarra">{avisoPizarra} <button onClick={() => setAvisoPizarra(null)}>Cerrar</button></div>
             )}
             {actual?.pizarra ? (
-              <Pizarra key={`${conv.id}-${actual.n}`} pizarra={actual.pizarra} imagen={imagen} alOperar={(op) => void operar(actual.n, op)} />
+              <Pizarra key={`${conv.id}-${actual.n}`} pizarra={actual.pizarra} imagen={imagen} alOperar={(op) => void operar(actual.n, op)}>
+                <button
+                  className={actual.pizarra.guardadaEn && guardado[actual.n] !== 'pendiente' ? '' : 'principal'}
+                  disabled={!config || guardado[actual.n] === 'subiendo'}
+                  onClick={() => pedirTitulo(actual.n)}
+                >
+                  {textoGuardar(actual.n, actual.pizarra.guardadaEn)}
+                </button>
+              </Pizarra>
             ) : (
               <p className="cargando">Esperando a que la pizarra esté lista…</p>
             )}

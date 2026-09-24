@@ -137,8 +137,7 @@ Las etiquetas de semana y mes son el mismo componente: `src/componentes/Etiqueta
 - Arriba, un campo y un botón «Apuntar idea», que la añade con la fecha de hoy y sin proyecto.
 - Lista de `ideasDe`. Cada fila lleva:
   - la fecha corta y el texto;
-  - una etiqueta con el título del proyecto, si está vinculada;
-  - **Proyecto ▾**: un `select` con «(ninguno)» y todos los proyectos. Al cambiarlo se llama a `vincularIdea`;
+  - **Proyecto ▾**: un `select` con «(ningún proyecto)» y todos los proyectos. Muestra el proyecto vinculado, así que no hace falta otra etiqueta. Al cambiarlo se llama a `vincularIdea`;
   - **→ Tarea**: abre `FormTarea` con `nueva: { titulo: texto, proyecto }` y un aviso «al guardar, la idea sale de la bandeja». Si la tarea se guarda bien, se llama a `quitarIdea`. Si esto último falla, la idea se queda y sale el aviso de error; se puede borrar a mano;
   - **→ Proyecto**: abre `FormProyectoDesdeIdea` (sección 6.1);
   - **Borrar**: pide confirmación y llama a `quitarIdea`.
@@ -155,7 +154,11 @@ Las etiquetas de semana y mes son el mismo componente: `src/componentes/Etiqueta
 - En `PaginaProyecto`, un bloque «Ideas de este proyecto» (solo si hay alguna) con las ideas vinculadas a ese id: fecha y texto.
 - Al pulsar el bloque se abre la pantalla Ideas.
 
-`FormTarea` acepta `nueva.titulo` además de `fecha` y `proyecto`. También acepta una propiedad opcional `alGuardar?(): void`, que se llama solo si la tarea se guardó bien, antes de cerrar. La pantalla Ideas la usa para quitar la idea.
+`FormTarea` acepta `nueva.titulo` además de `fecha` y `proyecto`. El tipo `Edicion` gana dos campos opcionales:
+- `nota?: string`: un aviso que se muestra en el formulario;
+- `alGuardar?(): Promise<unknown>`: se llama solo si la tarea se guardó bien, antes de cerrar. La pantalla Ideas la usa para quitar la idea.
+
+Van dentro de `Edicion` porque es `App` quien abre `FormTarea`.
 
 ## 7. Calendario
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CABECERA_BANDEJA, ideasDe, parseBandeja, serializarBandeja } from '../datos/ideas';
+import { CABECERA_BANDEJA, ideasDe, parseBandeja, serializarBandeja } from '../datos/bandeja';
 import { parseProyecto, serializarProyecto } from '../datos/proyectos';
 import { anadirIdea, ErrorIdeaCambiada, proyectoDesdeIdea, quitarIdea, vincularIdea } from './ideas';
 

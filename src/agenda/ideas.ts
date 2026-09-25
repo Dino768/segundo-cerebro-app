@@ -1,4 +1,4 @@
-import { CABECERA_BANDEJA, parseBandeja, type Idea, type Linea } from '../datos/ideas';
+import { CABECERA_BANDEJA, parseBandeja, type Idea, type Linea } from '../datos/bandeja';
 import { idProyectoDesdeTitulo, type Proyecto } from '../datos/proyectos';
 import type { ISODate } from '../fechas';
 

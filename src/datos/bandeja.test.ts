@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ideasDe, mismoFinDeLinea, parseBandeja, serializarBandeja, type Linea } from './ideas';
+import { ideasDe, mismoFinDeLinea, parseBandeja, serializarBandeja, type Linea } from './bandeja';
 
 const REAL =
   '# Bandeja de ideas\n\nAquí van las ideas nuevas. Una línea por idea, con la fecha.\n\n' +

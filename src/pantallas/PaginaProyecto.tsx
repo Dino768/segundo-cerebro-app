@@ -5,7 +5,7 @@ import { FilaTarea } from '../componentes/FilaTarea';
 import type { Edicion } from '../componentes/FormTarea';
 import { Markdown } from '../componentes/Markdown';
 import type { Destino } from '../componentes/navegacion';
-import { ideasDe } from '../datos/ideas';
+import { ideasDe } from '../datos/bandeja';
 import { ESTADOS, tituloDesdeCuerpo, type Estado, type Proyecto } from '../datos/proyectos';
 import { PRIORIDADES, type Prioridad } from '../datos/tareas';
 import { useDatos } from '../estado/datos';

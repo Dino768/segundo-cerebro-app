@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { proyectoDesdeIdea, quitarIdea } from '../agenda/ideas';
-import type { Idea } from '../datos/ideas';
+import type { Idea } from '../datos/bandeja';
 import { useDatos } from '../estado/datos';
 import { useHoy } from '../estado/hoy';
 

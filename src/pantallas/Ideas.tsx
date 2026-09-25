@@ -3,7 +3,7 @@ import { anadirIdea, mismaIdea, quitarIdea, vincularIdea } from '../agenda/ideas
 import type { Edicion } from '../componentes/FormTarea';
 import { FormProyectoDesdeIdea } from '../componentes/FormProyectoDesdeIdea';
 import type { Destino } from '../componentes/navegacion';
-import { ideasDe, type Idea } from '../datos/ideas';
+import { ideasDe, type Idea } from '../datos/bandeja';
 import { useDatos } from '../estado/datos';
 import { confirmar } from '../estado/dialogos';
 import { useHoy } from '../estado/hoy';

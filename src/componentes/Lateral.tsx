@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import { ordenarProyectos } from '../agenda/proyectos';
 import { contarPendientes } from '../agenda/tareas';
-import { ideasDe } from '../datos/ideas';
+import { ideasDe } from '../datos/bandeja';
 import { useDatos } from '../estado/datos';
 import { colorDeArea } from '../agenda/areas';
 import { SECCIONES, URL_USO_CLAUDE, type Destino, type Pantalla } from './navegacion';

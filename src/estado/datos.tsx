@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ErrorIdeaCambiada } from '../agenda/ideas';
 import type { Asignatura } from '../datos/asignaturas';
-import type { Linea } from '../datos/ideas';
+import type { Linea } from '../datos/bandeja';
 import { parseProyecto, serializarProyecto, type Proyecto } from '../datos/proyectos';
 import { RUTA_AREAS, RUTA_ASIGNATURAS, RUTA_TAREAS } from '../datos/rutas';
 import type { Tarea } from '../datos/tareas';

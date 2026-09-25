@@ -1,7 +1,7 @@
 import { parseAreas, type Area } from './datos/areas';
 import { parseAsignaturas, serializarAsignaturas, type Asignatura } from './datos/asignaturas';
 import { parseProyecto, serializarProyecto, type Proyecto } from './datos/proyectos';
-import { mismoFinDeLinea, parseBandeja, serializarBandeja, type Linea } from './datos/ideas';
+import { mismoFinDeLinea, parseBandeja, serializarBandeja, type Linea } from './datos/bandeja';
 import { CARPETA_PROYECTOS, RUTA_AREAS, RUTA_ASIGNATURAS, RUTA_BANDEJA, RUTA_TAREAS } from './datos/rutas';
 import { parseTareas, serializarTareas, type Tarea } from './datos/tareas';
 import { ErrorDatos } from './datos/yaml';

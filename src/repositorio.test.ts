@@ -4,7 +4,7 @@ import { parseProyecto } from './datos/proyectos';
 import { ErrorDatos } from './datos/yaml';
 import { cargarAgenda, cargarTodo, guardarProyecto, listarIdsProyectos, modificarAsignaturas, modificarBandeja, modificarTareas } from './repositorio';
 import { anadirIdea, ErrorIdeaCambiada, quitarIdea } from './agenda/ideas';
-import { ideasDe } from './datos/ideas';
+import { ideasDe } from './datos/bandeja';
 
 vi.mock('./github/cliente', async (importOriginal) => {
   const real = await importOriginal<typeof import('./github/cliente')>();

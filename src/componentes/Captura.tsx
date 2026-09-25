@@ -3,6 +3,7 @@ import { anadirIdea } from '../agenda/ideas';
 import { aplicarEdicion } from '../agenda/tareas';
 import { useDatos } from '../estado/datos';
 import { useHoy } from '../estado/hoy';
+import { iconoPara } from '../iconos/diccionario';
 
 // Captura rápida: una tarea sin fecha (Enter o «+ Tarea») o una idea para la bandeja.
 export function Captura() {
@@ -15,10 +16,17 @@ export function Captura() {
   async function crear(tipo: 'tarea' | 'idea') {
     if (!limpio || guardando) return;
     setGuardando(true);
+    const icono = iconoPara(limpio);
     const ok =
       tipo === 'tarea'
         ? await cambiarTareas(
-            (ts) => aplicarEdicion(ts, null, { titulo: limpio, area: datos.areas[0]?.id ?? 'personal' }, new Date()),
+            (ts) =>
+              aplicarEdicion(
+                ts,
+                null,
+                { titulo: limpio, area: datos.areas[0]?.id ?? 'personal', ...(icono ? { icono } : {}) },
+                new Date(),
+              ),
             `Crear tarea: ${limpio}`,
           )
         : await cambiarIdeas((is) => anadirIdea(is, { fecha: hoy, texto: limpio }), `Apuntar idea: ${limpio}`);

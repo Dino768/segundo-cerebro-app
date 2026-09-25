@@ -6,6 +6,7 @@ import { Captura } from '../componentes/Captura';
 import { EtiquetaTarea } from '../componentes/EtiquetaTarea';
 import { FilaTarea } from '../componentes/FilaTarea';
 import type { Edicion } from '../componentes/FormTarea';
+import { Icono } from '../componentes/Icono';
 import type { Destino } from '../componentes/navegacion';
 import { dondeLoDejamos } from '../datos/proyectos';
 import type { Tarea } from '../datos/tareas';
@@ -88,6 +89,7 @@ export function Inicio({ editar, ir }: Props) {
               <button key={p.id} className="tarjeta-proyecto" onClick={() => ir({ pantalla: 'proyectos', proyecto: p.id })}>
                 <span className="tarjeta-proyecto-titulo">
                   <span className="punto" style={{ background: colorDeArea(datos.areas, p.area) }} />
+                  <Icono nombre={p.icono} />
                   {p.titulo}
                 </span>
                 {dejamos && <span className="detalle">Dónde lo dejamos: {dejamos}</span>}

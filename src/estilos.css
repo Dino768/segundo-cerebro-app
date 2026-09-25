@@ -178,6 +178,7 @@ fieldset { border: 1px solid var(--borde); border-radius: 8px; display: flex; fl
 .sem-dia.hoy .sem-numero { color: var(--acento); font-weight: 700; }
 .etiqueta-tarea { display: block; font-size: 12px; padding: 2px 6px; border-radius: 6px; border-left: 3px solid; color: var(--texto); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
 .etiqueta-tarea.hecha { text-decoration: line-through; opacity: 0.6; }
+.etiqueta-tarea .icono-tabler { vertical-align: -2px; margin-right: 2px; }
 @media (max-width: 600px) {
   .sem-rejilla { gap: 3px; }
   .sem-dia, .sem-rejilla.mes .sem-dia { min-height: 60px; padding: 4px; }

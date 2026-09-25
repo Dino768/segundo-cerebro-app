@@ -3,6 +3,7 @@ import { proyectoDesdeIdea, quitarIdea, tituloDeIdea } from '../agenda/ideas';
 import type { Idea } from '../datos/ideas';
 import { useDatos } from '../estado/datos';
 import { useHoy } from '../estado/hoy';
+import { SelectorArea } from './SelectorArea';
 
 interface Props {
   idea: Idea;
@@ -38,15 +39,7 @@ export function FormProyectoDesdeIdea({ idea, cerrar, alCrear }: Props) {
           Nombre del proyecto
           <input value={nombre} onChange={(e) => setNombre(e.target.value)} required autoFocus maxLength={80} />
         </label>
-        <label>
-          Área
-          <select value={area} onChange={(e) => setArea(e.target.value)}>
-            <option value="">(ninguna)</option>
-            {datos.areas.map((a) => (
-              <option key={a.id} value={a.id}>{a.nombre}</option>
-            ))}
-          </select>
-        </label>
+        <SelectorArea areas={datos.areas} valor={area} cambiar={setArea} ninguna="(ninguna)" />
         <div className="botones">
           <button type="submit" className="activa" disabled={guardando}>
             {guardando ? 'Creando…' : 'Crear proyecto'}

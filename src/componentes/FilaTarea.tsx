@@ -2,7 +2,8 @@ import { esRepetida, fijarEnLista, hechaEl, prioridadDe } from '../agenda/tareas
 import type { Tarea } from '../datos/tareas';
 import { useDatos } from '../estado/datos';
 import type { ISODate } from '../fechas';
-import { colorDeArea } from '../agenda/areas';
+import { colorDeArea, nombreDeArea } from '../agenda/areas';
+import { Icono } from './Icono';
 
 interface Props {
   tarea: Tarea;
@@ -43,8 +44,9 @@ export function FilaTarea({ tarea, dia, mostrarFecha = false, alEditar }: Props)
         aria-label={`Marcar «${tarea.titulo}»`}
         onChange={marcar}
       />
-      <span className="punto" style={{ background: colorDeArea(datos.areas, tarea.area) }} />
+      <span className="punto" style={{ background: colorDeArea(datos.areas, tarea.area) }} title={nombreDeArea(datos.areas, tarea.area) ?? 'Área desconocida'} />
       <button className="titulo-tarea" onClick={() => alEditar(tarea)} disabled={bloqueado}>
+        <Icono nombre={tarea.icono} />
         {tarea.titulo}
       </button>
       {detalle && <span className="detalle">{detalle}</span>}

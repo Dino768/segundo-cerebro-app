@@ -4,6 +4,9 @@ import { PRIORIDADES, type Prioridad, type Tarea } from '../datos/tareas';
 import { useDatos } from '../estado/datos';
 import { confirmar } from '../estado/dialogos';
 import { DIAS, type Dia, type ISODate } from '../fechas';
+import { iconoAlEscribir, iconoPara } from '../iconos/diccionario';
+import { SelectorArea } from './SelectorArea';
+import { SelectorIcono } from './SelectorIcono';
 
 export type Edicion = ({ tarea: Tarea } | { nueva: { fecha?: ISODate; proyecto?: string; titulo?: string; area?: string; icono?: string; notas?: string } }) & {
   // Aviso que se muestra en el formulario y acción extra tras guardar bien (p. ej. quitar la idea de la bandeja).
@@ -30,9 +33,15 @@ export function FormTarea({ edicion, cerrar }: Props) {
   const proyectoNuevo = nueva.proyecto && datos.proyectos.some((p) => p.id === nueva.proyecto) ? nueva.proyecto : '';
   const [proyecto, setProyecto] = useState(original?.proyecto ?? proyectoNuevo);
   const [notas, setNotas] = useState(original?.notas ?? nueva.notas ?? '');
-  // El icono todavía no se puede editar en el formulario (Task 10): se conserva el de partida.
-  const [icono] = useState(original?.icono ?? nueva.icono);
+  const [icono, setIcono] = useState(original?.icono ?? nueva.icono ?? iconoPara(original?.titulo ?? nueva.titulo ?? ''));
+  // Solo el icono guardado cuenta como fijado: una tarea sin icono todavía sigue la sugerencia del título.
+  const [fijado, setFijado] = useState(Boolean(original?.icono ?? nueva.icono));
   const [guardando, setGuardando] = useState(false);
+
+  function cambiarTitulo(v: string) {
+    setTitulo(v);
+    setIcono((i) => iconoAlEscribir(v, i, fijado));
+  }
 
   async function guardar(e: FormEvent) {
     e.preventDefault();
@@ -74,20 +83,15 @@ export function FormTarea({ edicion, cerrar }: Props) {
       <form className="modal" onSubmit={guardar}>
         <h2>{original ? 'Editar tarea' : 'Nueva tarea'}</h2>
         {edicion.nota && <p className="nota-form">{edicion.nota}</p>}
-        <label>
-          Título
-          <input value={titulo} onChange={(e) => setTitulo(e.target.value)} required autoFocus />
-        </label>
-        <div className="fila-campos">
+        <div className="campo-titulo">
+          <SelectorIcono icono={icono} elegir={(i) => { setIcono(i); setFijado(true); }} />
           <label>
-            Área
-            <select value={area} onChange={(e) => setArea(e.target.value)}>
-              {datos.areas.map((a) => (
-                <option key={a.id} value={a.id}>{a.nombre}</option>
-              ))}
-              {!datos.areas.some((a) => a.id === area) && <option value={area}>{area}</option>}
-            </select>
+            Título
+            <input value={titulo} onChange={(e) => cambiarTitulo(e.target.value)} required autoFocus />
           </label>
+        </div>
+        <div className="fila-campos">
+          <SelectorArea areas={datos.areas} valor={area} cambiar={setArea} />
           <label>
             Prioridad
             <select value={prioridad} onChange={(e) => setPrioridad(e.target.value as Prioridad)}>
@@ -118,7 +122,15 @@ export function FormTarea({ edicion, cerrar }: Props) {
         </fieldset>
         <label>
           Proyecto
-          <select value={proyecto} onChange={(e) => setProyecto(e.target.value)}>
+          <select
+            value={proyecto}
+            onChange={(e) => {
+              const v = e.target.value;
+              setProyecto(v);
+              const a = datos.proyectos.find((p) => p.id === v)?.area;
+              if (a) setArea(a);
+            }}
+          >
             <option value="">(ninguno)</option>
             {datos.proyectos.map((p) => (
               <option key={p.id} value={p.id}>{p.titulo}</option>

@@ -4,11 +4,13 @@ import { prioridadDe } from '../agenda/tareas';
 import { colorDeArea } from '../agenda/areas';
 import { BarraProgreso } from '../componentes/BarraProgreso';
 import type { Edicion } from '../componentes/FormTarea';
+import { Icono } from '../componentes/Icono';
 import type { Destino } from '../componentes/navegacion';
 import { ESTADOS, idProyectoDesdeTitulo, serializarProyecto, type Estado, type Proyecto } from '../datos/proyectos';
 import { useDatos } from '../estado/datos';
 import { pedirTexto } from '../estado/dialogos';
 import type { Guardian } from '../estado/guardian';
+import { iconoPara } from '../iconos/diccionario';
 import { PaginaProyecto } from './PaginaProyecto';
 
 interface Props {
@@ -43,7 +45,7 @@ export function Proyectos({ editar, ir, guardian, abiertoInicial, alCambiarAbier
     const titulo = await pedirTexto('Nombre del proyecto', { aceptar: 'Crear' });
     if (!titulo) return;
     const id = idProyectoDesdeTitulo(titulo, datos.proyectos.map((p) => p.id));
-    const nuevo: Proyecto = { id, estado: 'idea', titulo, cuerpo: `# ${titulo}\n\n`, meta: {} };
+    const nuevo: Proyecto = { id, estado: 'idea', titulo, icono: iconoPara(titulo), cuerpo: `# ${titulo}\n\n`, meta: {} };
     if (await guardarProyecto(nuevo, null)) setAbierto(id);
   }
 
@@ -65,7 +67,10 @@ export function Proyectos({ editar, ir, guardian, abiertoInicial, alCambiarAbier
           {lista.map((p) => (
             <li key={p.id} className="fila-proyecto">
               <span className="punto" style={{ background: colorDeArea(datos.areas, p.area) }} />
-              <button className="titulo-tarea" onClick={() => setAbierto(p.id)}>{p.titulo}</button>
+              <button className="titulo-tarea" onClick={() => setAbierto(p.id)}>
+                <Icono nombre={p.icono} />
+                {p.titulo}
+              </button>
               <span className="fila-progreso"><BarraProgreso {...progresoProyecto(datos.tareas, p.id)} /></span>
               <span className={`estado ${p.estado}`}>{p.estado}</span>
               {prioridadDe(p) !== 'media' && <span className={`prioridad ${prioridadDe(p)}`}>{prioridadDe(p)}</span>}

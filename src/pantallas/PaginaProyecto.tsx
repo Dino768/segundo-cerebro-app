@@ -4,6 +4,8 @@ import { BarraProgreso } from '../componentes/BarraProgreso';
 import { FilaTarea } from '../componentes/FilaTarea';
 import type { Edicion } from '../componentes/FormTarea';
 import { Markdown } from '../componentes/Markdown';
+import { SelectorArea } from '../componentes/SelectorArea';
+import { SelectorIcono } from '../componentes/SelectorIcono';
 import type { Destino } from '../componentes/navegacion';
 import { ordenarIdeas } from '../datos/ideas';
 import { ESTADOS, tituloDesdeCuerpo, type Estado, type Proyecto } from '../datos/proyectos';
@@ -28,6 +30,7 @@ export function PaginaProyecto({ proyecto, volver, editar, ir, guardian }: Props
   const [estado, setEstado] = useState<Estado>(proyecto.estado);
   const [area, setArea] = useState(proyecto.area ?? '');
   const [prioridad, setPrioridad] = useState<Prioridad>(proyecto.prioridad ?? 'media');
+  const [icono, setIcono] = useState(proyecto.icono);
   const [cuerpo, setCuerpo] = useState(proyecto.cuerpo);
   const [modo, setModo] = useState<'ver' | 'editar'>('ver');
   const [guardando, setGuardando] = useState(false);
@@ -37,6 +40,7 @@ export function PaginaProyecto({ proyecto, volver, editar, ir, guardian }: Props
     estado !== proyecto.estado ||
     area !== (proyecto.area ?? '') ||
     prioridad !== (proyecto.prioridad ?? 'media') ||
+    icono !== proyecto.icono ||
     cuerpo !== proyecto.cuerpo;
 
   async function cambiarEstado(nuevo: Estado) {
@@ -57,6 +61,7 @@ export function PaginaProyecto({ proyecto, volver, editar, ir, guardian }: Props
       estado,
       area: area || undefined,
       prioridad: prioridad === 'media' ? undefined : prioridad,
+      icono,
       cuerpo,
       titulo: tituloDesdeCuerpo(cuerpo, proyecto.id),
     };
@@ -81,6 +86,7 @@ export function PaginaProyecto({ proyecto, volver, editar, ir, guardian }: Props
     <section>
       <div className="barra">
         <button onClick={() => void salir()}>‹ Proyectos</button>
+        <SelectorIcono icono={icono} elegir={setIcono} disabled={soloLectura} />
         <h2>{proyecto.titulo}</h2>
       </div>
       <div className="progreso-proyecto">
@@ -95,15 +101,7 @@ export function PaginaProyecto({ proyecto, volver, editar, ir, guardian }: Props
             ))}
           </select>
         </label>
-        <label>
-          Área
-          <select value={area} onChange={(e) => setArea(e.target.value)} disabled={soloLectura}>
-            <option value="">(ninguna)</option>
-            {datos.areas.map((a) => (
-              <option key={a.id} value={a.id}>{a.nombre}</option>
-            ))}
-          </select>
-        </label>
+        <SelectorArea areas={datos.areas} valor={area} cambiar={setArea} ninguna="(ninguna)" disabled={soloLectura} />
         <label>
           Prioridad
           <select value={prioridad} onChange={(e) => setPrioridad(e.target.value as Prioridad)} disabled={soloLectura}>

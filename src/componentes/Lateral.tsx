@@ -3,6 +3,7 @@ import { ordenarProyectos } from '../agenda/proyectos';
 import { contarPendientes } from '../agenda/tareas';
 import { useDatos } from '../estado/datos';
 import { colorDeArea } from '../agenda/areas';
+import { Icono } from './Icono';
 import { SECCIONES, URL_USO_CLAUDE, type Destino, type Pantalla } from './navegacion';
 
 interface Props {
@@ -50,6 +51,7 @@ export function Lateral({ actual, ir, bloqueado, proyectoAbierto }: Props) {
                 onClick={() => ir({ pantalla: 'proyectos', proyecto: p.id })}
               >
                 <span className="punto" style={{ background: colorDeArea(datos.areas, p.area) }} />
+                <Icono nombre={p.icono} />
                 {p.titulo}
               </button>
             ))}

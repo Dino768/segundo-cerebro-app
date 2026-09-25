@@ -104,6 +104,10 @@ export async function leerBinario(cfg: Config, ruta: string): Promise<Blob> {
   return res.blob();
 }
 
+export async function borrarArchivo(cfg: Config, ruta: string, sha: string, mensaje: string): Promise<void> {
+  await peticion(cfg, ruta, { method: 'DELETE', body: JSON.stringify({ message: mensaje, sha }) });
+}
+
 export async function actualizarArchivo(
   cfg: Config, ruta: string, transformar: (texto: string | null) => string, mensaje: string,
 ): Promise<string> {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { actualizarArchivo, escribirArchivo, escribirBase64, leerArchivo, leerBinario, listarCarpeta } from './cliente';
+import { actualizarArchivo, borrarArchivo, ErrorGitHub, escribirArchivo, escribirBase64, leerArchivo, leerBinario, listarCarpeta } from './cliente';
 
 const cfg = { owner: 'diego', repo: 'my-context', token: 'secreto' };
 const fetchMock = vi.fn();
@@ -101,6 +101,22 @@ describe('actualizarArchivo', () => {
     const escrito = await actualizarArchivo(cfg, 'a', (t) => (t === null ? 'nuevo' : 'mal'), 'm');
     expect(escrito).toBe('nuevo');
     expect(cuerpoDe(1).sha).toBeUndefined();
+  });
+});
+
+describe('borrarArchivo', () => {
+  it('manda DELETE con el sha y el mensaje', async () => {
+    fetchMock.mockResolvedValueOnce(json(200, {}));
+    await borrarArchivo(cfg, 'ideas/bandeja.md', 'abc', 'Borrar bandeja');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.github.com/repos/diego/my-context/contents/ideas/bandeja.md');
+    expect(init.method).toBe('DELETE');
+    expect(cuerpoDe(0)).toEqual({ message: 'Borrar bandeja', sha: 'abc' });
+  });
+  it('si el archivo cambió, es un conflicto', async () => {
+    fetchMock.mockResolvedValueOnce(json(409, {}));
+    await expect(borrarArchivo(cfg, 'ideas/bandeja.md', 'viejo', 'x')).rejects.toMatchObject({ tipo: 'conflicto' });
+    expect(ErrorGitHub).toBeDefined();
   });
 });
 

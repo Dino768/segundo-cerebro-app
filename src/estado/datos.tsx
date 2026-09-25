@@ -8,7 +8,7 @@ import type { Tarea } from '../datos/tareas';
 import { ErrorDatos } from '../datos/yaml';
 import { ErrorGitHub, type Config } from '../github/cliente';
 import {
-  cargarAgenda, cargarTodo, guardarProyecto as guardarProyectoRemoto, listarIdsProyectos, modificarAsignaturas, modificarIdeas, modificarTareas, type Datos,
+  cargarAgenda, cargarTodo, guardarProyecto as guardarProyectoRemoto, listarIdsProyectos, migrarBandeja, modificarAsignaturas, modificarIdeas, modificarTareas, type Datos,
 } from '../repositorio';
 import { borrarCache, guardarCache, leerCache } from './cache';
 import { crearCola } from './cola';
@@ -71,6 +71,20 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
     if (alCargar) setEstado('listo');
   }, []);
 
+  // Si aún existe la bandeja antigua, se pasa a ideas.yaml por detrás. Si falla, se reintenta en la próxima carga.
+  const pasarBandeja = useCallback(
+    (cfg: Config) =>
+      encolar(async () => {
+        try {
+          const ideas = await migrarBandeja(cfg);
+          if (ideas) setDatos((d) => ({ ...d, ideas }));
+        } catch {
+          // sin conexión, conflicto o archivo roto: se deja para la próxima vez, sin molestar
+        }
+      }),
+    [encolar],
+  );
+
   const recargar = useCallback(async () => {
     if (!config) {
       setEstado('sin-config');
@@ -78,13 +92,14 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
     }
     setEstado('cargando');
     try {
-      const { bandejaPendiente: _bandejaPendiente, ...d } = await cargarTodo(config);
+      const { bandejaPendiente, ...d } = await cargarTodo(config);
       setDatos(d);
       setEstado('listo');
+      if (bandejaPendiente) void pasarBandeja(config);
     } catch (e) {
       alFallar(e, true);
     }
-  }, [config, alFallar]);
+  }, [config, alFallar, pasarBandeja]);
 
   useEffect(() => {
     void recargar();
@@ -96,7 +111,7 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
 
   // Trae tareas, áreas e ideas (no proyectos: refrescarlos borraría el texto de una página abierta).
   const traerAgenda = useCallback(async (cfg: Config) => {
-    const { bandejaPendiente: _bandejaPendiente, ...agenda } = await cargarAgenda(cfg);
+    const { bandejaPendiente, ...agenda } = await cargarAgenda(cfg);
     setDatos((d) => ({
       ...d,
       tareas: agenda.tareas,
@@ -108,7 +123,8 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
         ...agenda.errores,
       ],
     }));
-  }, []);
+    if (bandejaPendiente) void pasarBandeja(cfg);
+  }, [pasarBandeja]);
 
   // Al volver a la app (cambiar de pestaña, desbloquear el móvil) trae lo que haya cambiado Claude u otro dispositivo.
   useEffect(() => {

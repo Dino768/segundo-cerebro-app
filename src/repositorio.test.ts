@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as cliente from './github/cliente';
 import { parseProyecto } from './datos/proyectos';
 import { ErrorDatos } from './datos/yaml';
-import { cargarAgenda, cargarTodo, guardarProyecto, listarIdsProyectos, modificarAsignaturas, modificarIdeas, modificarTareas } from './repositorio';
+import { cargarAgenda, cargarTodo, guardarProyecto, listarIdsProyectos, migrarBandeja, modificarAsignaturas, modificarIdeas, modificarTareas } from './repositorio';
 
 vi.mock('./github/cliente', async (importOriginal) => {
   const real = await importOriginal<typeof import('./github/cliente')>();
@@ -13,6 +13,7 @@ const cfg = { owner: 'diego', repo: 'my-context', token: 'x' };
 const leer = vi.mocked(cliente.leerArchivo);
 const listar = vi.mocked(cliente.listarCarpeta);
 const actualizar = vi.mocked(cliente.actualizarArchivo);
+const borrar = vi.mocked(cliente.borrarArchivo);
 
 function simularRemoto(texto: string | null): () => string | undefined {
   let escrito: string | undefined;
@@ -119,6 +120,33 @@ describe('ideas', () => {
     const r = await modificarIdeas(cfg, (is) => is.filter((i) => i.id !== 'i-20260922-1'), 'Borrar idea');
     expect(r).toEqual([]);
     expect(escrito()).toBe('');
+  });
+});
+
+describe('migrarBandeja', () => {
+  it('sin bandeja no hace nada', async () => {
+    leer.mockRejectedValue(new cliente.ErrorGitHub('no-existe', 'no', 404));
+    expect(await migrarBandeja(cfg)).toBeNull();
+    expect(actualizar).not.toHaveBeenCalled();
+  });
+  it('primero escribe ideas.yaml con todo y después borra la bandeja con su sha', async () => {
+    leer.mockResolvedValue({ texto: '# Bandeja\n- 2026-09-22 [juego]: Vieja\n', sha: 'b1' });
+    const orden: string[] = [];
+    actualizar.mockImplementation(async (_c, ruta, t) => {
+      orden.push(`escribir ${ruta}`);
+      return t('- id: i-20260925-1\n  fecha: 2026-09-25\n  texto: Nueva\n');
+    });
+    borrar.mockImplementation(async (_c, ruta, sha) => void orden.push(`borrar ${ruta} ${sha}`));
+    const r = await migrarBandeja(cfg);
+    expect(r?.map((i) => i.texto)).toEqual(['Nueva', 'Vieja']);
+    expect(orden).toEqual(['escribir ideas/ideas.yaml', 'borrar ideas/bandeja.md b1']);
+  });
+  it('si el borrado falla, ideas.yaml ya tiene las ideas (la próxima vez se fusiona sin duplicar)', async () => {
+    leer.mockResolvedValue({ texto: '- 2026-09-22: Vieja\n', sha: 'b1' });
+    const escrito = simularRemoto(null);
+    borrar.mockRejectedValue(new cliente.ErrorGitHub('conflicto', 'cambió', 409));
+    await expect(migrarBandeja(cfg)).rejects.toMatchObject({ tipo: 'conflicto' });
+    expect(escrito()).toContain('texto: Vieja');
   });
 });
 

@@ -6,7 +6,7 @@ import { fusionarBandeja, parseIdeas, serializarIdeas, type Idea } from './datos
 import { CARPETA_PROYECTOS, RUTA_AREAS, RUTA_ASIGNATURAS, RUTA_BANDEJA, RUTA_IDEAS, RUTA_TAREAS } from './datos/rutas';
 import { parseTareas, serializarTareas, type Tarea } from './datos/tareas';
 import { ErrorDatos } from './datos/yaml';
-import { actualizarArchivo, ErrorGitHub, leerArchivo, listarCarpeta, type Config } from './github/cliente';
+import { actualizarArchivo, borrarArchivo, ErrorGitHub, leerArchivo, listarCarpeta, type Config } from './github/cliente';
 
 export interface Datos {
   tareas: Tarea[];
@@ -85,6 +85,22 @@ export async function modificarIdeas(cfg: Config, cambio: (is: Idea[]) => Idea[]
     return serializarIdeas(resultado);
   }, mensaje);
   return resultado;
+}
+
+// Paso de la bandeja antigua: primero se escriben todas sus ideas en ideas.yaml y después se borra bandeja.md.
+// Si el borrado falla (p. ej. Claude acaba de escribir en la bandeja), la próxima carga vuelve a fusionar sin duplicar.
+export async function migrarBandeja(cfg: Config): Promise<Idea[] | null> {
+  let bandeja;
+  try {
+    bandeja = await leerArchivo(cfg, RUTA_BANDEJA);
+  } catch (e) {
+    if (e instanceof ErrorGitHub && e.tipo === 'no-existe') return null;
+    throw e;
+  }
+  const lineas = parseBandeja(bandeja.texto);
+  const ideas = await modificarIdeas(cfg, (is) => fusionarBandeja(is, lineas), 'Pasar las ideas de bandeja.md a ideas.yaml');
+  await borrarArchivo(cfg, RUTA_BANDEJA, bandeja.sha, 'Borrar bandeja.md (las ideas ya están en ideas.yaml)');
+  return ideas;
 }
 
 export async function modificarTareas(

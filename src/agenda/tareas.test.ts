@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Tarea } from '../datos/tareas';
 import { parseAreas } from '../datos/areas';
 import {
-  alternarArea, aplicarEdicion, atrasadas, borrarDeLista, contarPendientes, filtrarPorAreas, fijarEnLista, fijarHecha,
+  alternarArea, aplicarEdicion, atrasadas, borrarDeLista, contarPendientes, encendidasEfectivas, filtrarPorAreas, fijarEnLista, fijarHecha,
   hayOtrasAreas, hechaEl, nuevoIdTarea, OTRAS,
   ocurreEl, proximas, repetidas, sinFecha, tareasDelDia, topSinFecha,
 } from './tareas';
@@ -201,6 +201,19 @@ describe('filtro por áreas', () => {
   });
   it('alternarArea ignora áreas guardadas que ya no existen', () => {
     expect(alternarArea(['borrada'], 'uni', todas)).toEqual(['personal', OTRAS]);
+  });
+  it('encendidasEfectivas: sin filtro guardado, se ve todo', () => {
+    expect(encendidasEfectivas([], [], todas)).toEqual([]);
+  });
+  it('encendidasEfectivas: con un filtro guardado, se respeta tal cual si no hay áreas nuevas', () => {
+    expect(encendidasEfectivas(['uni'], todas, todas)).toEqual(['uni']);
+  });
+  it('encendidasEfectivas: un área nueva desde la última vez que se guardó el filtro sale encendida', () => {
+    const todasConNueva = [...todas, 'salud'];
+    expect(encendidasEfectivas(['uni'], todas, todasConNueva)).toEqual(['uni', 'salud']);
+  });
+  it('encendidasEfectivas: sin nada encendido (Todo) sigue viéndose todo aunque haya áreas nuevas', () => {
+    expect(encendidasEfectivas([], todas, [...todas, 'salud'])).toEqual([]);
   });
 });
 

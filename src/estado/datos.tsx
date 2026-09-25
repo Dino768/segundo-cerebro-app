@@ -76,18 +76,37 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
     if (alCargar) setEstado('listo');
   }, []);
 
+  // Aplica al estado una agenda recién leída (tareas, áreas, ideas y asignaturas), sin tocar los proyectos.
+  const aplicarAgenda = useCallback((agenda: { tareas: Tarea[]; areas: Area[]; ideas: Idea[]; asignaturas: Asignatura[]; errores: ErrorDatos[] }) => {
+    setDatos((d) => ({
+      ...d,
+      tareas: agenda.tareas,
+      areas: agenda.areas,
+      ideas: agenda.ideas,
+      asignaturas: agenda.asignaturas,
+      errores: [
+        ...d.errores.filter((x) => x.archivo !== RUTA_TAREAS && x.archivo !== RUTA_AREAS && x.archivo !== RUTA_ASIGNATURAS && x.archivo !== RUTA_IDEAS),
+        ...agenda.errores,
+      ],
+    }));
+  }, []);
+
   // Si aún existe la bandeja antigua, se pasa a ideas.yaml por detrás. Si falla, se reintenta en la próxima carga.
   const pasarBandeja = useCallback(
     (cfg: Config) =>
       encolar(async () => {
         try {
           const ideas = await migrarBandeja(cfg);
-          if (ideas) setDatos((d) => ({ ...d, ideas }));
+          if (!ideas) return;
+          // Se recarga la agenda para que los ids mostrados coincidan con los que quedaron en el archivo
+          // (evita una rara carrera de ids si algo más escribió ideas.yaml justo mientras se pasaba la bandeja).
+          const { bandejaPendiente: _bp, ...agenda } = await cargarAgenda(cfg);
+          aplicarAgenda(agenda);
         } catch {
           // sin conexión, conflicto o archivo roto: se deja para la próxima vez, sin molestar
         }
       }),
-    [encolar],
+    [encolar, aplicarAgenda],
   );
 
   const recargar = useCallback(async () => {
@@ -117,19 +136,9 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
   // Trae tareas, áreas e ideas (no proyectos: refrescarlos borraría el texto de una página abierta).
   const traerAgenda = useCallback(async (cfg: Config) => {
     const { bandejaPendiente, ...agenda } = await cargarAgenda(cfg);
-    setDatos((d) => ({
-      ...d,
-      tareas: agenda.tareas,
-      areas: agenda.areas,
-      ideas: agenda.ideas,
-      asignaturas: agenda.asignaturas,
-      errores: [
-        ...d.errores.filter((x) => x.archivo !== RUTA_TAREAS && x.archivo !== RUTA_AREAS && x.archivo !== RUTA_ASIGNATURAS && x.archivo !== RUTA_IDEAS),
-        ...agenda.errores,
-      ],
-    }));
+    aplicarAgenda(agenda);
     if (bandejaPendiente) void pasarBandeja(cfg);
-  }, [pasarBandeja]);
+  }, [aplicarAgenda, pasarBandeja]);
 
   // Al volver a la app (cambiar de pestaña, desbloquear el móvil) trae lo que haya cambiado Claude u otro dispositivo.
   useEffect(() => {
@@ -226,6 +235,7 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
         try {
           const areas = await modificarAreas(config, cambio, mensaje);
           setDatos((d) => ({ ...d, areas, errores: d.errores.filter((x) => x.archivo !== RUTA_AREAS) }));
+          setEstado('listo');
           return true;
         } catch (e) {
           alFallar(e, false);
@@ -244,6 +254,7 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
           if (destino === null) {
             const areas = await modificarAreas(config, (as) => quitarArea(as, id), `Borrar área ${id}`);
             setDatos((d) => ({ ...d, areas }));
+            setEstado('listo');
             return true;
           }
           const ids = idsDeArea(datos.areas, id);
@@ -256,6 +267,7 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
             ideas: r.ideas,
             proyectos: d.proyectos.map((p) => r.proyectos.find((x) => x.id === p.id) ?? p),
           }));
+          setEstado('listo');
           return true;
         } catch (e) {
           alFallar(e, false);

@@ -9,7 +9,7 @@ import { SelectorArea } from './SelectorArea';
 import { SelectorIcono } from './SelectorIcono';
 
 export type Edicion = ({ tarea: Tarea } | { nueva: { fecha?: ISODate; proyecto?: string; titulo?: string; area?: string; icono?: string; notas?: string } }) & {
-  // Aviso que se muestra en el formulario y acción extra tras guardar bien (p. ej. quitar la idea de la bandeja).
+  // Aviso que se muestra en el formulario y acción extra tras guardar bien (p. ej. quitar la idea de ideas.yaml).
   nota?: string;
   alGuardar?(): Promise<unknown>;
 };

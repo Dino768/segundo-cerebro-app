@@ -11,8 +11,9 @@ export default defineConfig({
       workbox: {
         // El service worker nunca contesta por el programa local.
         navigateFallbackDenylist: [/\/api\//],
-        // La colección de iconos se descarga la primera vez que hace falta y se guarda para usarla sin conexión.
-        runtimeCaching: [{ urlPattern: /\/iconos\/tabler\.json$/, handler: 'CacheFirst', options: { cacheName: 'iconos' } }],
+        // La colección de iconos se guarda para usarla sin conexión; StaleWhileRevalidate para que una colección
+        // nueva (subida con la app) acabe llegando a los dispositivos en vez de quedarse con la primera para siempre.
+        runtimeCaching: [{ urlPattern: /\/iconos\/tabler\.json$/, handler: 'StaleWhileRevalidate', options: { cacheName: 'iconos' } }],
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {

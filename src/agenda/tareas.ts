@@ -130,3 +130,12 @@ export function alternarArea(encendidas: string[], area: string, todas: string[]
   const nuevas = actuales.includes(area) ? actuales.filter((a) => a !== area) : [...actuales, area];
   return nuevas.length === 0 || todas.every((a) => nuevas.includes(a)) ? [] : nuevas;
 }
+
+// Un área nueva (creada aquí o en otra pantalla) sale visible aunque haya un filtro guardado, hasta que se vuelva
+// a tocar el filtro: se compara contra `conocidas` (las áreas que había cuando se guardó `encendidas` la última vez).
+export function encendidasEfectivas(encendidas: string[], conocidas: string[], todas: string[]): string[] {
+  const validas = encendidas.filter((a) => todas.includes(a));
+  if (validas.length === 0) return [];
+  const nuevas = todas.filter((a) => !conocidas.includes(a) && !validas.includes(a));
+  return [...validas, ...nuevas];
+}

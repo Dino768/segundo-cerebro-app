@@ -120,6 +120,7 @@ Reglas:
 - Los `id` son únicos en todo el archivo, tanto entre áreas como entre subáreas: no puede repetirse ninguno.
 - El color va siempre entre comillas (sin ellas, YAML lo confunde con un comentario).
 - Una tarea, idea o proyecto puede usar en su campo `area` el id de un área grande o el de una de sus subáreas.
+- La app escribe este archivo (crear, editar y borrar áreas), así que no conserva comentarios `#` que hubiera puesto Claude.
 
 ### Proyectos: `proyectos/<id>.md`
 Encabezado YAML (frontmatter) seguido de notas libres en Markdown:

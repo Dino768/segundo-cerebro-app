@@ -37,7 +37,7 @@ Node está en `C:\Program Files\nodejs`. En la terminal Bash de Claude Code pued
 - `src/repositorio.ts`: carga todo y guarda cambios sin pisar lo que haya cambiado otro.
 - `src/estado/`: estado de la app en React (conexión, llave, caché para cuando no hay internet).
 - `src/agenda/ideas.ts`: operaciones con ideas (añadir, editar, vincular a un proyecto, quitar, convertir en proyecto).
-- `src/iconos/`: iconos de Tabler. `diccionario.ts` (palabras → icono, en español), `coleccion.ts` (cargar y buscar en la colección completa), `basicos.ts` (generado, no tocar a mano). `scripts/iconos.ts` genera los iconos antes de `dev`, `build` y `local` (descarga la colección completa a `public/iconos/tabler.json` y los básicos del diccionario a `src/iconos/basicos.ts`).
+- `src/iconos/`: iconos de Tabler. `diccionario.ts` (palabras → icono, en español), `coleccion.ts` (cargar y buscar en la colección completa), `basicos.ts` (generado, no tocar a mano). `scripts/iconos.ts` genera los iconos antes de `dev`, `build` y `local` a partir de `node_modules/@tabler/icons` (no descarga nada de internet): escribe la colección completa en `public/iconos/tabler.json` y los básicos del diccionario en `src/iconos/basicos.ts`.
 - `src/componentes/navegacion.ts`, `Lateral.tsx`, `MenuMovil.tsx`: navegación (barra lateral en el PC, menú abajo en el móvil).
 - `src/pantallas/` y `src/componentes/`: Inicio, Calendario, Tareas, Proyectos (con pestañas Proyectos e Ideas), Estudio y Ajustes. Estilos: `src/estilos.css` (tema «papel cálido»).
 - `local/`: programa local de la zona de estudio (servidor, Claude Code, conversaciones, pizarras). Node lo ejecuta sin compilar: imports con `.ts`.

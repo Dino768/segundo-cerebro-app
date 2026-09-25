@@ -1,6 +1,6 @@
 import { renderToString } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
-import { SelectorIcono, VentanaIconos } from './SelectorIcono';
+import { describe, expect, it, vi } from 'vitest';
+import { alTecleoBuscador, SelectorIcono, VentanaIconos } from './SelectorIcono';
 
 describe('SelectorIcono', () => {
   it('con icono, lo enseña en el botón', () => {
@@ -13,6 +13,19 @@ describe('SelectorIcono', () => {
     const html = renderToString(<SelectorIcono elegir={() => undefined} />);
     expect(html).toContain('>+<');
     expect(html).toContain('aria-label="Elegir icono"');
+  });
+});
+
+describe('alTecleoBuscador', () => {
+  it('Enter no debe enviar el formulario que envuelve a la ventana', () => {
+    const prevenir = vi.fn();
+    alTecleoBuscador({ key: 'Enter', preventDefault: prevenir });
+    expect(prevenir).toHaveBeenCalled();
+  });
+  it('otras teclas no se tocan', () => {
+    const prevenir = vi.fn();
+    alTecleoBuscador({ key: 'a', preventDefault: prevenir });
+    expect(prevenir).not.toHaveBeenCalled();
   });
 });
 

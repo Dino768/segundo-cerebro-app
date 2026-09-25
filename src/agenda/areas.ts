@@ -46,9 +46,13 @@ export function nombreDeArea(areas: Area[], id: string | undefined): string | un
   return buscarArea(areas, id)?.area.nombre;
 }
 
+// 'otras' es el id que usa el calendario para agrupar tareas con un área desconocida (OTRAS en agenda/tareas.ts);
+// se repite aquí en vez de importarlo para no crear un import circular entre areas.ts y tareas.ts.
+const ID_OTRAS = 'otras';
+
 export function nuevoIdArea(nombre: string, areas: Area[]): string {
   const base = aSlug(nombre, 40) || 'area';
-  const usados = todosLosIds(areas);
+  const usados = [...todosLosIds(areas), ID_OTRAS];
   let id = base;
   for (let n = 2; usados.includes(id); n++) id = `${base}-${n}`;
   return id;

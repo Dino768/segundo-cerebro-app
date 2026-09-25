@@ -198,6 +198,7 @@ fieldset { border: 1px solid var(--borde); border-radius: 8px; display: flex; fl
 .fila-idea select { width: auto; max-width: 200px; padding: 4px 8px; font-size: 14px; }
 .fila-idea button { padding: 4px 10px; font-size: 14px; }
 .fila-idea.guardando { opacity: 0.6; }
+.etiqueta-area { display: inline-flex; align-items: center; gap: 5px; }
 
 /* Proyectos */
 .progreso-proyecto { max-width: 360px; margin: -4px 0 16px; }

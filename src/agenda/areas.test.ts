@@ -47,6 +47,9 @@ describe('crear y editar', () => {
     expect(nuevoIdArea('Blender', AREAS)).toBe('blender-2');
     expect(nuevoIdArea('¡¡!!', AREAS)).toBe('area');
   });
+  it('«otras» cuenta como usado, para no chocar con el grupo del calendario', () => {
+    expect(nuevoIdArea('Otras', AREAS)).toBe('otras-2');
+  });
   it('un área nueva va al final; una subárea nace con el color de su área', () => {
     const r = crearArea(AREAS, { nombre: 'Salud', color: '#22c55e' });
     expect(r.at(-1)).toEqual({ id: 'salud', nombre: 'Salud', color: '#22c55e', subareas: [] });

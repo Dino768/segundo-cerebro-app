@@ -36,6 +36,11 @@ export function SelectorIcono({ icono, elegir, disabled }: Props) {
   );
 }
 
+// La ventana se pinta dentro del <form> de tarea/idea: sin esto, Enter en el buscador enviaría ese formulario.
+export function alTecleoBuscador(e: { key: string; preventDefault(): void }): void {
+  if (e.key === 'Enter') e.preventDefault();
+}
+
 export function VentanaIconos({ actual, elegir, cerrar }: { actual?: string; elegir(i: string | undefined): void; cerrar(): void }) {
   const [consulta, setConsulta] = useState('');
   const [coleccion, setColeccion] = useState<Coleccion | null>(coleccionCargada);
@@ -59,7 +64,14 @@ export function VentanaIconos({ actual, elegir, cerrar }: { actual?: string; ele
   return (
     <div className="fondo-modal dialogo" onClick={(e) => e.target === e.currentTarget && cerrar()}>
       <div className="modal ventana-iconos" role="dialog" aria-modal="true" aria-label="Elegir icono">
-        <input autoFocus value={consulta} onChange={(e) => setConsulta(e.target.value)} placeholder="Busca: música, examen, cube…" aria-label="Buscar icono" />
+        <input
+          autoFocus
+          value={consulta}
+          onChange={(e) => setConsulta(e.target.value)}
+          onKeyDown={alTecleoBuscador}
+          placeholder="Busca: música, examen, cube…"
+          aria-label="Buscar icono"
+        />
         {sinConexion && <p className="nota-form">Conéctate para ver todos los iconos. Mientras, tienes los más usados.</p>}
         <div className="rejilla-iconos">
           {iconos.map((n) => (

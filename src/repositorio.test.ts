@@ -207,7 +207,8 @@ describe('áreas', () => {
       'agenda/areas.yaml': AREAS,
     };
     const orden: string[] = [];
-    leer.mockResolvedValue({ texto: AREAS, sha: 'a' });
+    // Cada ruta puede leerse más de una vez (para decidir si hace falta escribir y, luego, dentro de la escritura).
+    leer.mockImplementation(async (_c, ruta: string) => ({ texto: remoto[ruta], sha: 'a' }));
     actualizar.mockImplementation(async (_c, ruta, t) => {
       orden.push(ruta);
       remoto[ruta] = t(remoto[ruta] ?? null);
@@ -219,6 +220,50 @@ describe('áreas', () => {
     expect(remoto['ideas/ideas.yaml']).toContain('area: uni');
     expect(remoto['proyectos/nave.md']).toContain('area: uni');
     expect(r.areas.map((a) => a.id)).toEqual(['uni']);
+  });
+
+  it('si nada tiene el área que se borra, no escribe tareas.yaml ni ideas.yaml (y no crea un ideas.yaml vacío)', async () => {
+    const remoto: Record<string, string | null> = {
+      'agenda/tareas.yaml': '- id: t2\n  titulo: Estudiar\n  area: uni\n',
+      'ideas/ideas.yaml': null, // no existe
+      'agenda/areas.yaml': AREAS,
+    };
+    const orden: string[] = [];
+    leer.mockImplementation(async (_c, ruta: string) => {
+      if (remoto[ruta] === null || remoto[ruta] === undefined) throw new cliente.ErrorGitHub('no-existe', 'no', 404);
+      return { texto: remoto[ruta] as string, sha: 'a' };
+    });
+    actualizar.mockImplementation(async (_c, ruta, t) => {
+      orden.push(ruta);
+      remoto[ruta] = t(remoto[ruta] ?? null);
+      return remoto[ruta] as string;
+    });
+    const r = await moverYBorrarArea(cfg, 'videojuegos', 'uni', []);
+    expect(orden).toEqual(['agenda/areas.yaml']);
+    expect(r.tareas.map((t) => t.id)).toEqual(['t2']);
+    expect(r.ideas).toEqual([]);
+  });
+
+  it('si el proyecto ya no tiene esa área, no se escribe', async () => {
+    const remoto: Record<string, string | null> = {
+      'agenda/tareas.yaml': null,
+      'ideas/ideas.yaml': null,
+      'proyectos/nave.md': '---\nestado: activo\narea: uni\n---\n# Nave\n',
+      'agenda/areas.yaml': AREAS,
+    };
+    const orden: string[] = [];
+    leer.mockImplementation(async (_c, ruta: string) => {
+      if (remoto[ruta] === null || remoto[ruta] === undefined) throw new cliente.ErrorGitHub('no-existe', 'no', 404);
+      return { texto: remoto[ruta] as string, sha: 'a' };
+    });
+    actualizar.mockImplementation(async (_c, ruta, t) => {
+      orden.push(ruta);
+      remoto[ruta] = t(remoto[ruta] ?? null);
+      return remoto[ruta] as string;
+    });
+    const r = await moverYBorrarArea(cfg, 'videojuegos', 'uni', ['nave']);
+    expect(orden).toEqual(['agenda/areas.yaml']);
+    expect(r.proyectos).toEqual([]);
   });
 
   it('un destino que se va a borrar no toca nada', async () => {

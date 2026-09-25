@@ -4,7 +4,7 @@ import { useDatos } from '../estado/datos';
 import { iconoPara } from '../iconos/diccionario';
 import { FormIdea } from './FormIdea';
 
-// Captura rápida: una tarea sin fecha (Enter o «+ Tarea») o una idea para la bandeja.
+// Captura rápida: una tarea sin fecha (Enter o «+ Tarea») o una idea (💡 Idea) que se apunta en ideas.
 export function Captura() {
   const { datos, cambiarTareas, soloLectura, tareasBloqueadas, ideasBloqueadas } = useDatos();
   const [texto, setTexto] = useState('');
@@ -54,7 +54,8 @@ export function Captura() {
         </button>
       </form>
       {idea !== null && (
-        <FormIdea inicial={{ texto: idea }} cerrar={() => { setIdea(null); setTexto(''); }} />
+        // Cancelar no debe borrar lo escrito: solo se vacía si la idea se llegó a guardar.
+        <FormIdea inicial={{ texto: idea }} cerrar={() => setIdea(null)} alGuardar={() => setTexto('')} />
       )}
     </>
   );

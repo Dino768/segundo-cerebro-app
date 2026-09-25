@@ -1,5 +1,6 @@
 import { Fragment, useState } from 'react';
 import { agruparPorArea } from '../agenda/agrupar';
+import { colorDeArea, nombreDeArea } from '../agenda/areas';
 import { quitarIdea, tareaDesdeIdea, tituloDeIdea } from '../agenda/ideas';
 import { ordenarIdeas, type Idea } from '../datos/ideas';
 import { useDatos } from '../estado/datos';
@@ -48,6 +49,12 @@ export function ListaIdeas({ editar, ir }: Props) {
         <Icono nombre={idea.icono} />
         {idea.titulo ? <strong>{idea.titulo}</strong> : <span>{tituloDeIdea(idea)}</span>}
       </button>
+      {idea.area && (
+        <span className="detalle etiqueta-area">
+          <span className="punto" style={{ background: colorDeArea(datos.areas, idea.area) }} />
+          {nombreDeArea(datos.areas, idea.area)}
+        </span>
+      )}
       {idea.proyecto && <span className="detalle">📁 {datos.proyectos.find((p) => p.id === idea.proyecto)?.titulo ?? idea.proyecto}</span>}
       <span className="detalle fecha-idea">{formatoCorto(idea.fecha)}</span>
       <button disabled={soloLectura || tareasBloqueadas || ideasBloqueadas || ocupada(idea)} onClick={() => aTarea(idea)}>→ Tarea</button>

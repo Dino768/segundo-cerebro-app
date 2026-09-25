@@ -1,5 +1,5 @@
 import { Fragment, useState } from 'react';
-import { alternarArea, filtrarPorAreas, hayOtrasAreas, OTRAS, tareasDelDia } from '../agenda/tareas';
+import { alternarArea, encendidasEfectivas, filtrarPorAreas, hayOtrasAreas, OTRAS, tareasDelDia } from '../agenda/tareas';
 import { EtiquetaTarea } from '../componentes/EtiquetaTarea';
 import { FilaTarea } from '../componentes/FilaTarea';
 import type { Edicion } from '../componentes/FormTarea';
@@ -14,20 +14,38 @@ import {
 type Vista = 'mes' | 'semana';
 
 // El filtro de áreas se recuerda en cada dispositivo. Si el navegador no deja guardarlo, se empieza con todas.
+// `conocidas` guarda qué áreas había cuando se tocó el filtro por última vez, para que una nueva (de aquí o de
+// otra pantalla) salga visible aunque haya un filtro activo (spec §3.8).
 const CLAVE_AREAS = 'sc-calendario-areas';
 
-function leerAreas(): string[] {
-  try {
-    const v: unknown = JSON.parse(localStorage.getItem(CLAVE_AREAS) ?? '[]');
-    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
-  } catch {
-    return [];
-  }
+interface FiltroAreas {
+  encendidas: string[];
+  conocidas: string[];
 }
 
-function guardarAreas(areas: string[]): void {
+function esListaDeTextos(x: unknown): x is string[] {
+  return Array.isArray(x) && x.every((v) => typeof v === 'string');
+}
+
+function leerFiltro(): FiltroAreas {
   try {
-    localStorage.setItem(CLAVE_AREAS, JSON.stringify(areas));
+    const v: unknown = JSON.parse(localStorage.getItem(CLAVE_AREAS) ?? 'null');
+    // Formato antiguo: solo la lista de encendidas. Sin «conocidas» guardadas, cualquier área ya existente
+    // se trata como nueva (sale visible) hasta que se vuelva a tocar el filtro; no rompe nada, solo se ve de más.
+    if (esListaDeTextos(v)) return { encendidas: v, conocidas: [] };
+    if (v && typeof v === 'object') {
+      const o = v as Record<string, unknown>;
+      if (esListaDeTextos(o.encendidas)) return { encendidas: o.encendidas, conocidas: esListaDeTextos(o.conocidas) ? o.conocidas : [] };
+    }
+  } catch {
+    // sin almacenamiento o roto: se empieza con todas
+  }
+  return { encendidas: [], conocidas: [] };
+}
+
+function guardarFiltro(f: FiltroAreas): void {
+  try {
+    localStorage.setItem(CLAVE_AREAS, JSON.stringify(f));
   } catch {
     // sin almacenamiento: no se recuerda el filtro
   }
@@ -38,7 +56,7 @@ export function Calendario({ editar, diaInicial }: { editar(e: Edicion): void; d
   const hoy = useHoy();
   const [vista, setVista] = useState<Vista>('mes');
   const [seleccionado, setSeleccionado] = useState<ISODate>(diaInicial ?? hoy);
-  const [encendidas, setEncendidas] = useState<string[]>(leerAreas);
+  const [filtro, setFiltro] = useState<FiltroAreas>(leerFiltro);
   const [editandoArea, setEditandoArea] = useState<{ id?: string } | null>(null);
 
   const botones = [
@@ -46,12 +64,13 @@ export function Calendario({ editar, diaInicial }: { editar(e: Edicion): void; d
     ...(hayOtrasAreas(datos.tareas, datos.areas) ? [{ id: OTRAS, nombre: 'Otras', color: '#9ca3af' }] : []),
   ];
   const todas = botones.map((b) => b.id);
-  const validas = encendidas.filter((a) => todas.includes(a));
-  const estaEncendida = (id: string) => validas.length === 0 || validas.includes(id);
-  const tareas = filtrarPorAreas(datos.tareas, encendidas, datos.areas);
+  const efectivas = encendidasEfectivas(filtro.encendidas, filtro.conocidas, todas);
+  const estaEncendida = (id: string) => efectivas.length === 0 || efectivas.includes(id);
+  const tareas = filtrarPorAreas(datos.tareas, efectivas, datos.areas);
   const cambiarAreas = (nuevas: string[]) => {
-    setEncendidas(nuevas);
-    guardarAreas(nuevas);
+    const f = { encendidas: nuevas, conocidas: todas };
+    setFiltro(f);
+    guardarFiltro(f);
   };
 
   const fecha = fromISO(seleccionado);
@@ -72,7 +91,7 @@ export function Calendario({ editar, diaInicial }: { editar(e: Edicion): void; d
         </button>
       </div>
       <div className="filtros-areas" aria-label="Calendarios">
-        <button className={`pastilla${validas.length === 0 ? ' encendida' : ''}`} onClick={() => cambiarAreas([])}>
+        <button className={`pastilla${efectivas.length === 0 ? ' encendida' : ''}`} onClick={() => cambiarAreas([])}>
           Todo
         </button>
         {botones.map((b) => (
@@ -80,7 +99,7 @@ export function Calendario({ editar, diaInicial }: { editar(e: Edicion): void; d
             <button
               className={`pastilla${estaEncendida(b.id) ? ' encendida' : ''}`}
               aria-pressed={estaEncendida(b.id)}
-              onClick={() => cambiarAreas(alternarArea(encendidas, b.id, todas))}
+              onClick={() => cambiarAreas(alternarArea(efectivas, b.id, todas))}
             >
               <span className="punto" style={{ background: b.color }} />
               {b.nombre}

@@ -12,9 +12,11 @@ interface Props {
   idea?: Idea;
   inicial?: Partial<IdeaSinId>;
   cerrar(): void;
+  // Se llama solo si se guarda bien, antes de cerrar (p. ej. para vaciar la captura rápida que la originó).
+  alGuardar?(): void;
 }
 
-export function FormIdea({ idea, inicial = {}, cerrar }: Props) {
+export function FormIdea({ idea, inicial = {}, cerrar, alGuardar }: Props) {
   const { datos, cambiarIdeas } = useDatos();
   const hoy = useHoy();
   const base = idea ?? inicial;
@@ -53,7 +55,10 @@ export function FormIdea({ idea, inicial = {}, cerrar }: Props) {
       `${idea ? 'Editar' : 'Apuntar'} idea: ${nombre}`,
     );
     setGuardando(false);
-    if (ok) cerrar();
+    if (ok) {
+      alGuardar?.();
+      cerrar();
+    }
   }
 
   async function borrar() {

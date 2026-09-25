@@ -15,7 +15,8 @@ export function SelectorArea({ areas, valor, cambiar, ninguna, disabled, etiquet
     <select value={valor} onChange={(e) => cambiar(e.target.value)} disabled={disabled} aria-label={etiqueta}>
       {ninguna !== undefined && <option value="">{ninguna}</option>}
       {opcionesDeArea(areas).map((o) => {
-        const espacios = o.sub ? '    ' : '';
+        // Espacios normales al principio de un <option> se colapsan en el navegador: hacen falta NBSP para sangrar.
+        const espacios = o.sub ? '    ' : '';
         return (
           <option key={o.id} value={o.id}>
             {`${espacios}${o.nombre}`}

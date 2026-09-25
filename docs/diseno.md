@@ -53,7 +53,7 @@ Una lista de tareas. Campos:
 |---|---|---|
 | `id` | sí | texto único, generado por la app o por Claude (p. ej. `t-20260923-1`) |
 | `titulo` | sí | texto |
-| `area` | sí | `id` de un área de `areas.yaml` |
+| `area` | sí | `id` de un área o de una subárea de `areas.yaml` |
 | `prioridad` | no | `alta`, `media`, `baja`. Por defecto `media` |
 | `fecha` | no | `AAAA-MM-DD`. Sin fecha, la tarea va a la lista "Sin fecha" |
 | `hora` | no | `"HH:MM"`. Se ignora si la tarea no tiene `fecha` ni `repetir` |
@@ -62,6 +62,7 @@ Una lista de tareas. Campos:
 | `notas` | no | texto |
 | `hecha` | no | `true`/`false`, solo para tareas que no se repiten. Por defecto `false` |
 | `hechas` | no | lista de fechas `AAAA-MM-DD` en las que se completó una tarea repetida |
+| `icono` | no | nombre de un icono de Tabler, en inglés (por ejemplo `cube`); lista en https://tabler.io/icons |
 
 Reglas:
 - Una tarea con `repetir` aparece todos los días indicados. Si además tiene `fecha`, empieza ese día.
@@ -97,6 +98,13 @@ Ejemplo:
 - id: videojuegos
   nombre: Videojuegos
   color: "#a855f7"
+  subareas:
+    - id: blender
+      nombre: Blender
+      color: "#a855f7"
+    - id: unreal
+      nombre: Unreal
+      color: "#a855f7"
 - id: personal
   nombre: Personal
   color: "#f59e0b"
@@ -105,6 +113,14 @@ Ejemplo:
   color: "#22c55e"
 ```
 
+Reglas:
+- `subareas` es opcional; un área sin ella es tan válida como antes.
+- Cada subárea tiene `id`, `nombre` y `color`, con las mismas reglas que un área.
+- Una subárea no puede tener a su vez `subareas` (un solo nivel).
+- Los `id` son únicos en todo el archivo, tanto entre áreas como entre subáreas: no puede repetirse ninguno.
+- El color va siempre entre comillas (sin ellas, YAML lo confunde con un comentario).
+- Una tarea, idea o proyecto puede usar en su campo `area` el id de un área grande o el de una de sus subáreas.
+
 ### Proyectos: `proyectos/<id>.md`
 Encabezado YAML (frontmatter) seguido de notas libres en Markdown:
 ```markdown
@@ -112,23 +128,34 @@ Encabezado YAML (frontmatter) seguido de notas libres en Markdown:
 estado: activo        # activo | parado | idea | terminado
 area: videojuegos
 prioridad: alta       # opcional, por defecto media
+icono: cube            # opcional, nombre de un icono de Tabler en inglés
 ---
 # Título del proyecto
 Notas...
 ```
-El título es el primer encabezado `#`. Si no hay ninguno, se usa el `id`.
+El título es el primer encabezado `#`. Si no hay ninguno, se usa el `id`. `area` puede ser el id de un área o de una subárea.
 
-### Ideas: `ideas/bandeja.md`
+### Ideas: `ideas/ideas.yaml`
 
-Un archivo Markdown. Cada idea es una línea con esta forma:
+```yaml
+- id: i-20260925-1
+  fecha: 2026-09-25
+  titulo: Juego de gravedad
+  icono: planet
+  area: unreal
+  proyecto: juego-gravedad
+  texto: |
+    Cambias la gravedad para resolver puzles.
+    - Mecánica: girar el mundo 90º
+```
 
-    - 2026-09-24: texto de la idea
-    - 2026-09-24 [id-proyecto]: idea vinculada a proyectos/id-proyecto.md
+Campos:
+- Obligatorios: `id` (`i-AAAAMMDD-n`, con la fecha de la idea y sin repetir ninguno existente), `fecha` (`AAAA-MM-DD`) y `texto` (no puede estar vacío; puede tener varias líneas, con `texto: |`).
+- Opcionales: `titulo`, `icono` (nombre de un icono de Tabler en inglés), `area` (id de un área o subárea) y `proyecto` (nombre del archivo en `proyectos/` sin `.md`).
+- Se valida al leer como el resto de archivos, se escribe sin campos vacíos y los comentarios `#` no se conservan.
+- Las ideas se muestran de la más nueva a la más antigua (por fecha y, si coincide, la última del archivo primero).
 
-- La fecha es `AAAA-MM-DD` y el proyecto (opcional) es el nombre del archivo sin `.md`, entre corchetes.
-- Una idea ocupa una sola línea.
-- Las demás líneas (título, explicaciones) la app las conserva tal cual.
-- Las ideas nuevas van al final. La app las muestra de la más nueva a la más antigua.
+Antes las ideas vivían en `ideas/bandeja.md` (una línea Markdown por idea). Si la app encuentra ese archivo antiguo, pasa sus ideas a `ideas.yaml` (sin duplicar nada) y borra la bandeja.
 
 ### Estudio: `estudios/asignaturas.yaml`
 ```yaml

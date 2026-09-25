@@ -23,6 +23,7 @@ La app no tiene servidor. Lee y escribe los archivos de `my-context` con la API 
 
 ## Comandos
 Node está en `C:\Program Files\nodejs`. En la terminal Bash de Claude Code puede no estar en el PATH: añade `export PATH="$PATH:/c/Program Files/nodejs";` delante de los comandos.
+`npm run dev`, `npm run build` y `npm run local` generan antes los iconos con `scripts/iconos.ts` (así siempre están al día).
 - `npm run dev`: app en local, en http://localhost:5173/segundo-cerebro-app/
 - `npm test`: pruebas automáticas (Vitest)
 - `npm run build`: compila y revisa los tipos
@@ -30,14 +31,15 @@ Node está en `C:\Program Files\nodejs`. En la terminal Bash de Claude Code pued
 
 ## Estructura del código
 - `src/fechas.ts`: fechas locales, días de la semana, cuadrícula del calendario.
-- `src/datos/`: leer, validar y escribir `tareas.yaml`, `areas.yaml`, los `proyectos/*.md` e `ideas/bandeja.md` (`ideas.ts`).
-- `src/agenda/`: lógica sin pantalla (qué toca cada día, atrasadas, prioridades, aviso de más de 2 proyectos activos).
+- `src/datos/`: leer, validar y escribir `tareas.yaml`, `areas.yaml` (con subáreas), `ideas/ideas.yaml`, los `proyectos/*.md`. `src/datos/bandeja.ts`: solo para el paso automático de `ideas/bandeja.md` (formato antiguo) a `ideas.yaml`.
+- `src/agenda/`: lógica sin pantalla (qué toca cada día, atrasadas, prioridades, aviso de más de 2 proyectos activos). `areas.ts`: buscar un área o subárea, su color, sus ids y crear/editar/borrar áreas. `agrupar.ts`: agrupar tareas, ideas o proyectos por área y subárea. `cambios.ts`: aplicar solo los campos que cambió el usuario sin pisar lo de otro dispositivo.
 - `src/github/cliente.ts`: única pieza que habla con GitHub (leer, escribir, reintentar si hay conflicto).
 - `src/repositorio.ts`: carga todo y guarda cambios sin pisar lo que haya cambiado otro.
 - `src/estado/`: estado de la app en React (conexión, llave, caché para cuando no hay internet).
-- `src/agenda/ideas.ts`: operaciones con ideas (añadir, vincular a un proyecto, quitar, convertir en proyecto).
+- `src/agenda/ideas.ts`: operaciones con ideas (añadir, editar, vincular a un proyecto, quitar, convertir en proyecto).
+- `src/iconos/`: iconos de Tabler. `diccionario.ts` (palabras → icono, en español), `coleccion.ts` (cargar y buscar en la colección completa), `basicos.ts` (generado, no tocar a mano). `scripts/iconos.ts` genera los iconos antes de `dev`, `build` y `local` (descarga la colección completa a `public/iconos/tabler.json` y los básicos del diccionario a `src/iconos/basicos.ts`).
 - `src/componentes/navegacion.ts`, `Lateral.tsx`, `MenuMovil.tsx`: navegación (barra lateral en el PC, menú abajo en el móvil).
-- `src/pantallas/` y `src/componentes/`: Inicio, Calendario, Tareas, Proyectos, Ideas, Estudio y Ajustes. Estilos: `src/estilos.css` (tema «papel cálido»).
+- `src/pantallas/` y `src/componentes/`: Inicio, Calendario, Tareas, Proyectos (con pestañas Proyectos e Ideas), Estudio y Ajustes. Estilos: `src/estilos.css` (tema «papel cálido»).
 - `local/`: programa local de la zona de estudio (servidor, Claude Code, conversaciones, pizarras). Node lo ejecuta sin compilar: imports con `.ts`.
 - `src/estudio/`: lógica de la zona de estudio (pizarra, expresiones, historial, cliente local). `tipos.ts`, `contexto.ts`, `expresion.ts` y `pizarra.ts` los usa también `local/` (imports con `.ts`). `src/componentes/estudio/`: chat, pizarra e historial.
 
@@ -45,7 +47,7 @@ Node está en `C:\Program Files\nodejs`. En la terminal Bash de Claude Code pued
 El token se guarda en el `localStorage` del navegador, y ese almacenamiento es compartido por todo el dominio `https://dino768.github.io`. Cualquier otra web que Diego publique con GitHub Pages en su cuenta (un juego, un portfolio…) podría leerlo. Recuérdaselo si va a publicar otra web y recomiéndale tokens con caducidad corta (90 días o menos). La alternativa gratuita es mover la app a una organización de GitHub propia, con su propio dominio: está pendiente de proponérselo.
 
 ## Estado actual
-Última actualización: 2026-09-24 (v1.2 probada por Diego y publicada).
+Última actualización: 2026-09-25 (v1.3 implementada y revisada, pendiente de que Diego la pruebe y se publique).
 - **Versión 1 terminada y publicada** en https://dino768.github.io/segundo-cerebro-app/. Diego la tiene instalada en el PC, el portátil y el iPhone, con un token por dispositivo. Tasks 0 a 15 del plan hechas.
 - **Arreglos de la revisión final hechos** (2026-09-24): casilla que "fija" en vez de alternar, con cola (`src/estado/cola.ts`); editar una tarea solo aplica los campos cambiados (`aplicarEdicion`) y tareas/áreas se refrescan al volver a la app; "hoy" cambia a medianoche (`src/estado/hoy.ts`); aviso del token en Ajustes.
 - Detalles, decisiones y los arreglos menores aplazados: `.superpowers/sdd/plan-v1/progress.md` (líneas `Final:`).
@@ -56,6 +58,9 @@ El token se guarda en el `localStorage` del navegador, y ese almacenamiento es c
   - Revisión final hecha (revisor nuevo): sin críticos; los 3 importantes arreglados con prueba; 13 menores aplazados en el registro.
   - Tras la prueba de Diego: × en cada pestaña para borrar una pizarra (el historial se queda, los números no cambian) y ventanas propias de la app en vez de `confirm()`/`prompt()` del navegador (`src/estado/dialogos.ts`, `src/componentes/Dialogos.tsx`). 255 pruebas en verde.
   - **Siguiente:** Diego comprueba en el iPhone la pestaña Estudio y el historial de pizarras.
-- **Fase siguiente a la v1.2:** dibujo a mano en la pizarra (tipo de pieza `trazo`: el formato ya lo ignora con aviso).
+- **Fase siguiente a la v1.2:** dibujo a mano en la pizarra (tipo de pieza `trazo`: el formato ya lo ignora con aviso). Sigue pendiente; no forma parte de la v1.3.
+- **Versión 1.3 (organización) implementada en la rama `organizacion`, revisada, pendiente de que Diego la pruebe y se publique.** Diseño: `docs/superpowers/specs/2026-09-25-organizacion-design.md`. Plan: `docs/superpowers/plans/2026-09-25-organizacion.md`. Registro: `.superpowers/sdd/2026-09-25-organizacion/progress.md`.
+  - Qué hay: áreas con subáreas (un solo nivel), gestionadas con una ventana (crear, editar, borrar moviendo lo de dentro) desde Calendario, Ajustes y Proyectos. Icono opcional (Tabler) en tareas, ideas y proyectos, sugerido solo a partir del título y cambiable con un buscador (`src/iconos/`, componentes `Icono` y `SelectorIcono`). Ideas ahora en `ideas/ideas.yaml` (título opcional, texto de varias líneas, icono, área y proyecto; se pueden editar), con paso automático desde la antigua `ideas/bandeja.md` la primera vez que se carga la app. Pantalla Proyectos con pestañas Proyectos e Ideas, agrupadas por área y subárea; en el móvil la barra de abajo pierde el botón Ideas y en el PC aparece como desplegable bajo Proyectos en la barra lateral.
+  - Pendiente: la prueba de Diego con `npm run dev` (crear un área con subárea, borrarla, crear y editar una idea desde Inicio, iconos en una tarea, las pestañas de Proyectos, el desplegable de la barra lateral) y, si todo va bien, publicar (`git merge --ff-only` a `main` y actualizar esta sección a «publicada»).
 
 Mantén esta sección al día cuando avances.

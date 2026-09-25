@@ -1,4 +1,5 @@
-import { parseAreas, type Area } from './datos/areas';
+import { idsDeArea, moverDeArea, quitarArea, ErrorArea } from './agenda/areas';
+import { parseAreas, serializarAreas, type Area } from './datos/areas';
 import { parseAsignaturas, serializarAsignaturas, type Asignatura } from './datos/asignaturas';
 import { parseProyecto, serializarProyecto, type Proyecto } from './datos/proyectos';
 import { parseBandeja } from './datos/bandeja';
@@ -136,6 +137,47 @@ export async function modificarAsignaturas(
     return serializarAsignaturas(resultado);
   }, mensaje);
   return resultado;
+}
+
+export async function modificarAreas(cfg: Config, cambio: (as: Area[]) => Area[], mensaje: string): Promise<Area[]> {
+  let resultado: Area[] = [];
+  await actualizarArchivo(cfg, RUTA_AREAS, (texto) => {
+    resultado = cambio(texto === null ? [] : parseAreas(texto));
+    return serializarAreas(resultado);
+  }, mensaje);
+  return resultado;
+}
+
+export async function cambiarAreaDeProyecto(cfg: Config, id: string, ids: string[], destino: string): Promise<Proyecto | null> {
+  let resultado: Proyecto | null = null;
+  await actualizarArchivo(cfg, `${CARPETA_PROYECTOS}/${id}.md`, (texto) => {
+    if (texto === null) throw new ErrorGitHub('no-existe', `No existe el proyecto ${id}`);
+    const p = parseProyecto(id, texto);
+    resultado = p.area && ids.includes(p.area) ? { ...p, area: destino } : p;
+    return serializarProyecto(resultado);
+  }, `Mover proyecto ${id} al área ${destino}`);
+  return resultado;
+}
+
+// Borrar un área: primero todo lo de dentro va al destino y al final se quita de areas.yaml.
+// Si algo falla a mitad, el área sigue existiendo y se puede volver a intentar.
+export async function moverYBorrarArea(
+  cfg: Config, id: string, destino: string, proyectos: string[],
+): Promise<{ areas: Area[]; tareas: Tarea[]; ideas: Idea[]; proyectos: Proyecto[] }> {
+  const actuales = parseAreas((await leerOpcional(cfg, RUTA_AREAS)) ?? '');
+  const ids = idsDeArea(actuales, id);
+  if (ids.length === 0) throw new ErrorArea('Esta área ya no existe (quizá la borró Claude u otro dispositivo).');
+  if (ids.includes(destino) || !idsDeArea(actuales, destino).length)
+    throw new ErrorArea('El destino no es válido: elige otra área que no sea la que se borra ni una de sus subáreas.');
+  const tareas = await modificarTareas(cfg, (ts) => moverDeArea(ts, ids, destino), `Mover tareas al área ${destino}`);
+  const ideas = await modificarIdeas(cfg, (is) => moverDeArea(is, ids, destino), `Mover ideas al área ${destino}`);
+  const movidos: Proyecto[] = [];
+  for (const p of proyectos) {
+    const r = await cambiarAreaDeProyecto(cfg, p, ids, destino);
+    if (r) movidos.push(r);
+  }
+  const areas = await modificarAreas(cfg, (as) => quitarArea(as, id), `Borrar área ${id}`);
+  return { areas, tareas, ideas, proyectos: movidos };
 }
 
 export async function listarIdsProyectos(cfg: Config): Promise<string[]> {

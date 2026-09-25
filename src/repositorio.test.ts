@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as cliente from './github/cliente';
 import { parseProyecto } from './datos/proyectos';
 import { ErrorDatos } from './datos/yaml';
-import { cargarAgenda, cargarTodo, guardarProyecto, listarIdsProyectos, migrarBandeja, modificarAsignaturas, modificarIdeas, modificarTareas } from './repositorio';
+import { cargarAgenda, cargarTodo, guardarProyecto, listarIdsProyectos, migrarBandeja, modificarAreas, modificarAsignaturas, modificarIdeas, modificarTareas, moverYBorrarArea } from './repositorio';
 
 vi.mock('./github/cliente', async (importOriginal) => {
   const real = await importOriginal<typeof import('./github/cliente')>();
@@ -186,6 +186,46 @@ describe('asignaturas', () => {
     expect(r).toHaveLength(1);
     expect(escrito()).toContain('asignaturas:');
     expect(escrito()).toContain('id: fisica');
+  });
+});
+
+describe('áreas', () => {
+  const AREAS = '- id: uni\n  nombre: Uni\n  color: "#3b82f6"\n- id: videojuegos\n  nombre: Videojuegos\n  color: "#a855f7"\n  subareas:\n    - id: blender\n      nombre: Blender\n      color: "#a855f7"\n';
+
+  it('modificarAreas escribe areas.yaml con el cambio', async () => {
+    const escrito = simularRemoto(AREAS);
+    await modificarAreas(cfg, (as) => as.filter((a) => a.id !== 'uni'), 'Borrar área');
+    expect(escrito()).not.toContain('id: uni');
+    expect(escrito()).toContain('subareas:');
+  });
+
+  it('moverYBorrarArea mueve tareas, ideas y proyectos y deja areas.yaml para el final', async () => {
+    const remoto: Record<string, string> = {
+      'agenda/tareas.yaml': '- id: t1\n  titulo: Modelar\n  area: blender\n- id: t2\n  titulo: Estudiar\n  area: uni\n',
+      'ideas/ideas.yaml': '- id: i1\n  fecha: 2026-09-25\n  area: videojuegos\n  texto: Juego\n',
+      'proyectos/nave.md': '---\nestado: activo\narea: blender\n---\n# Nave\n',
+      'agenda/areas.yaml': AREAS,
+    };
+    const orden: string[] = [];
+    leer.mockResolvedValue({ texto: AREAS, sha: 'a' });
+    actualizar.mockImplementation(async (_c, ruta, t) => {
+      orden.push(ruta);
+      remoto[ruta] = t(remoto[ruta] ?? null);
+      return remoto[ruta];
+    });
+    const r = await moverYBorrarArea(cfg, 'videojuegos', 'uni', ['nave']);
+    expect(orden).toEqual(['agenda/tareas.yaml', 'ideas/ideas.yaml', 'proyectos/nave.md', 'agenda/areas.yaml']);
+    expect(remoto['agenda/tareas.yaml']).not.toContain('blender');
+    expect(remoto['ideas/ideas.yaml']).toContain('area: uni');
+    expect(remoto['proyectos/nave.md']).toContain('area: uni');
+    expect(r.areas.map((a) => a.id)).toEqual(['uni']);
+  });
+
+  it('un destino que se va a borrar no toca nada', async () => {
+    leer.mockResolvedValue({ texto: AREAS, sha: 'a' });
+    const escrito = simularRemoto(AREAS);
+    await expect(moverYBorrarArea(cfg, 'videojuegos', 'blender', [])).rejects.toThrow(/destino/);
+    expect(escrito()).toBeUndefined();
   });
 });
 

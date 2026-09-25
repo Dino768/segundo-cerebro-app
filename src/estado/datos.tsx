@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { idsDeArea, quitarArea, ErrorArea } from '../agenda/areas';
 import { ErrorIdeaCambiada } from '../agenda/ideas';
+import type { Area } from '../datos/areas';
 import type { Asignatura } from '../datos/asignaturas';
 import type { Idea } from '../datos/ideas';
 import { parseProyecto, serializarProyecto, type Proyecto } from '../datos/proyectos';
@@ -8,7 +10,7 @@ import type { Tarea } from '../datos/tareas';
 import { ErrorDatos } from '../datos/yaml';
 import { ErrorGitHub, type Config } from '../github/cliente';
 import {
-  cargarAgenda, cargarTodo, guardarProyecto as guardarProyectoRemoto, listarIdsProyectos, migrarBandeja, modificarAsignaturas, modificarIdeas, modificarTareas, type Datos,
+  cargarAgenda, cargarTodo, guardarProyecto as guardarProyectoRemoto, listarIdsProyectos, migrarBandeja, modificarAreas, modificarAsignaturas, modificarIdeas, modificarTareas, moverYBorrarArea, type Datos,
 } from '../repositorio';
 import { borrarCache, guardarCache, leerCache } from './cache';
 import { crearCola } from './cola';
@@ -25,6 +27,7 @@ export interface ValorDatos {
   soloLectura: boolean;
   tareasBloqueadas: boolean;
   ideasBloqueadas: boolean;
+  areasBloqueadas: boolean;
   cerrarAviso(): void;
   recargar(): Promise<void>;
   conectar(c: Config): void;
@@ -35,6 +38,8 @@ export interface ValorDatos {
   guardarProyecto(p: Proyecto, original: Proyecto | null): Promise<boolean>;
   idsProyectos(): Promise<string[]>;
   cambiarAsignaturas(cambio: (l: Asignatura[]) => Asignatura[], mensaje: string): Promise<boolean>;
+  cambiarAreas(cambio: (as: Area[]) => Area[], mensaje: string): Promise<boolean>;
+  borrarArea(id: string, destino: string | null): Promise<boolean>;
 }
 
 const VACIO: Datos = { tareas: [], areas: [], proyectos: [], ideas: [], asignaturas: [], errores: [] };
@@ -214,6 +219,53 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
     [config, alFallar, encolar],
   );
 
+  const cambiarAreas = useCallback(
+    (cambio: (as: Area[]) => Area[], mensaje: string) =>
+      encolar(async () => {
+        if (!config) return false;
+        try {
+          const areas = await modificarAreas(config, cambio, mensaje);
+          setDatos((d) => ({ ...d, areas, errores: d.errores.filter((x) => x.archivo !== RUTA_AREAS) }));
+          return true;
+        } catch (e) {
+          alFallar(e, false);
+          if (e instanceof ErrorArea) await traerAgenda(config).catch(() => undefined);
+          return false;
+        }
+      }),
+    [config, alFallar, encolar, traerAgenda],
+  );
+
+  const borrarArea = useCallback(
+    (id: string, destino: string | null) =>
+      encolar(async () => {
+        if (!config) return false;
+        try {
+          if (destino === null) {
+            const areas = await modificarAreas(config, (as) => quitarArea(as, id), `Borrar área ${id}`);
+            setDatos((d) => ({ ...d, areas }));
+            return true;
+          }
+          const ids = idsDeArea(datos.areas, id);
+          const afectados = datos.proyectos.filter((p) => p.area && ids.includes(p.area)).map((p) => p.id);
+          const r = await moverYBorrarArea(config, id, destino, afectados);
+          setDatos((d) => ({
+            ...d,
+            areas: r.areas,
+            tareas: r.tareas,
+            ideas: r.ideas,
+            proyectos: d.proyectos.map((p) => r.proyectos.find((x) => x.id === p.id) ?? p),
+          }));
+          return true;
+        } catch (e) {
+          alFallar(e, false);
+          await traerAgenda(config).catch(() => undefined);
+          return false;
+        }
+      }),
+    [config, alFallar, encolar, traerAgenda, datos.areas, datos.proyectos],
+  );
+
   const guardarProyecto = useCallback(
     async (p: Proyecto, original: Proyecto | null) => {
       if (!config) return false;
@@ -259,6 +311,7 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
       soloLectura: estado !== 'listo',
       tareasBloqueadas: datos.errores.some((e) => e.archivo === RUTA_TAREAS),
       ideasBloqueadas: datos.errores.some((e) => e.archivo === RUTA_IDEAS),
+      areasBloqueadas: datos.errores.some((e) => e.archivo === RUTA_AREAS),
       cerrarAviso: () => setAviso(null),
       recargar,
       conectar,
@@ -269,8 +322,10 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
       guardarProyecto,
       idsProyectos,
       cambiarAsignaturas,
+      cambiarAreas,
+      borrarArea,
     }),
-    [estado, datos, config, aviso, recargar, conectar, desconectar, cambiarTareas, cambiarTareasAlInstante, cambiarIdeas, guardarProyecto, idsProyectos, cambiarAsignaturas],
+    [estado, datos, config, aviso, recargar, conectar, desconectar, cambiarTareas, cambiarTareasAlInstante, cambiarIdeas, guardarProyecto, idsProyectos, cambiarAsignaturas, cambiarAreas, borrarArea],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

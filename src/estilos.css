@@ -57,6 +57,9 @@ h3.atrasadas { color: var(--peligro); }
 .titulo-seccion .enlace { text-transform: none; letter-spacing: 0; font-size: 14px; }
 .grupo { font-size: 13px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--texto); margin: 14px 0 4px; }
 .grupo.atrasadas { color: var(--peligro); }
+.grupo-area { display: flex; align-items: center; gap: 8px; }
+h4.subgrupo { margin: 10px 0 4px 16px; font-size: 14px; color: var(--suave); font-weight: 600; }
+.barra-ideas { justify-content: flex-end; }
 
 /* Listas de tareas y proyectos */
 .lista { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; }
@@ -200,6 +203,10 @@ fieldset { border: 1px solid var(--borde); border-radius: 8px; display: flex; fl
 a { color: var(--acento); }
 details summary { cursor: pointer; font-weight: 600; }
 @media (max-width: 600px) { .fila-progreso { width: 100%; order: 5; } }
+.pestanas { display: flex; gap: 4px; border-bottom: 1px solid var(--borde); margin-bottom: 16px; }
+.pestanas button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 8px 14px; color: var(--suave); }
+.pestanas button.activa { color: var(--acento); border-bottom-color: var(--acento); background: none; }
+.titulo-idea { flex: 1; display: flex; align-items: center; gap: 8px; border: none; background: none; text-align: left; padding: 0; min-width: 0; }
 
 /* Estudio */
 main.ancho { max-width: none; }

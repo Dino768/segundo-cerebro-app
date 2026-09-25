@@ -10,7 +10,6 @@ import { crearGuardian } from './estado/guardian';
 import { Ajustes } from './pantallas/Ajustes';
 import { Calendario } from './pantallas/Calendario';
 import { Estudio } from './pantallas/Estudio';
-import { Ideas } from './pantallas/Ideas';
 import { Inicio } from './pantallas/Inicio';
 import { Proyectos } from './pantallas/Proyectos';
 import { Tareas } from './pantallas/Tareas';
@@ -76,7 +75,7 @@ function Contenido() {
         {actual === 'calendario' && <Calendario key={visita} editar={editar} diaInicial={destino.dia} />}
         {actual === 'tareas' && <Tareas editar={editar} />}
         {actual === 'proyectos' && <Proyectos key={visita} editar={editar} ir={ir} guardian={guardian} abiertoInicial={destino.proyecto} alCambiarAbierto={setProyectoAbierto} />}
-        {actual === 'ideas' && <Ideas editar={editar} ir={ir} />}
+        {actual === 'ideas' && <Proyectos key={visita} editar={editar} ir={ir} guardian={guardian} pestanaInicial="ideas" />}
         {actual === 'estudio' && <Estudio />}
         {actual === 'ajustes' && <Ajustes />}
       </main>

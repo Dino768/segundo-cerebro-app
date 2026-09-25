@@ -2,6 +2,8 @@ import type { ISODate } from '../fechas';
 
 export type Pantalla = 'inicio' | 'calendario' | 'tareas' | 'proyectos' | 'ideas' | 'estudio' | 'ajustes';
 
+export type Pestana = 'proyectos' | 'ideas';
+
 // A dónde ir: una pantalla y, si hace falta, el día del calendario o el proyecto que abrir.
 export interface Destino {
   pantalla: Pantalla;

@@ -5,8 +5,9 @@ import { FilaTarea } from '../componentes/FilaTarea';
 import type { Edicion } from '../componentes/FormTarea';
 import { Markdown } from '../componentes/Markdown';
 import type { Destino } from '../componentes/navegacion';
-import { ideasDe } from '../datos/bandeja';
+import { ordenarIdeas } from '../datos/ideas';
 import { ESTADOS, tituloDesdeCuerpo, type Estado, type Proyecto } from '../datos/proyectos';
+import { tituloDeIdea } from '../agenda/ideas';
 import { PRIORIDADES, type Prioridad } from '../datos/tareas';
 import { useDatos } from '../estado/datos';
 import { confirmar } from '../estado/dialogos';
@@ -74,7 +75,7 @@ export function PaginaProyecto({ proyecto, volver, editar, ir, guardian }: Props
     return () => guardian.marcar(false);
   }, [guardian, cambiado]);
 
-  const ideasProyecto = ideasDe(datos.ideas).filter((i) => i.proyecto === proyecto.id);
+  const ideasProyecto = ordenarIdeas(datos.ideas).filter((i) => i.proyecto === proyecto.id);
 
   return (
     <section>
@@ -155,10 +156,10 @@ export function PaginaProyecto({ proyecto, volver, editar, ir, guardian }: Props
             <button className="enlace" onClick={() => ir({ pantalla: 'ideas' })}>Ver en Ideas →</button>
           </h2>
           <ul className="lista">
-            {ideasProyecto.map((i, n) => (
-              <li key={`${n}-${i.fecha}-${i.texto}`} className="fila-idea">
+            {ideasProyecto.map((i) => (
+              <li key={i.id} className="fila-idea">
                 <span className="detalle fecha-idea">{formatoCorto(i.fecha)}</span>
-                <span className="texto-idea">{i.texto}</span>
+                <span className="texto-idea">{tituloDeIdea(i)}</span>
               </li>
             ))}
           </ul>

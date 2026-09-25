@@ -5,7 +5,7 @@ import { useDatos } from '../estado/datos';
 import { confirmar } from '../estado/dialogos';
 import { DIAS, type Dia, type ISODate } from '../fechas';
 
-export type Edicion = ({ tarea: Tarea } | { nueva: { fecha?: ISODate; proyecto?: string; titulo?: string } }) & {
+export type Edicion = ({ tarea: Tarea } | { nueva: { fecha?: ISODate; proyecto?: string; titulo?: string; area?: string; icono?: string; notas?: string } }) & {
   // Aviso que se muestra en el formulario y acción extra tras guardar bien (p. ej. quitar la idea de la bandeja).
   nota?: string;
   alGuardar?(): Promise<unknown>;
@@ -21,7 +21,7 @@ export function FormTarea({ edicion, cerrar }: Props) {
   const original = 'tarea' in edicion ? edicion.tarea : null;
   const nueva = 'nueva' in edicion ? edicion.nueva : {};
   const [titulo, setTitulo] = useState(original?.titulo ?? nueva.titulo ?? '');
-  const [area, setArea] = useState(original?.area ?? datos.areas[0]?.id ?? 'personal');
+  const [area, setArea] = useState(original?.area ?? nueva.area ?? datos.areas[0]?.id ?? 'personal');
   const [prioridad, setPrioridad] = useState<Prioridad>(original?.prioridad ?? 'media');
   const [fecha, setFecha] = useState(original?.fecha ?? nueva.fecha ?? '');
   const [hora, setHora] = useState(original?.hora ?? '');
@@ -29,7 +29,9 @@ export function FormTarea({ edicion, cerrar }: Props) {
   // Una idea vinculada a un proyecto que ya no existe no debe guardar ese id viejo en la tarea.
   const proyectoNuevo = nueva.proyecto && datos.proyectos.some((p) => p.id === nueva.proyecto) ? nueva.proyecto : '';
   const [proyecto, setProyecto] = useState(original?.proyecto ?? proyectoNuevo);
-  const [notas, setNotas] = useState(original?.notas ?? '');
+  const [notas, setNotas] = useState(original?.notas ?? nueva.notas ?? '');
+  // El icono todavía no se puede editar en el formulario (Task 10): se conserva el de partida.
+  const [icono] = useState(original?.icono ?? nueva.icono);
   const [guardando, setGuardando] = useState(false);
 
   async function guardar(e: FormEvent) {
@@ -39,6 +41,7 @@ export function FormTarea({ edicion, cerrar }: Props) {
       ...original,
       titulo: titulo.trim(),
       area,
+      icono,
       prioridad: prioridad === 'media' ? undefined : prioridad,
       fecha: fecha || undefined,
       hora: hora || undefined,

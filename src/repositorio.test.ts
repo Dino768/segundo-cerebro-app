@@ -2,13 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as cliente from './github/cliente';
 import { parseProyecto } from './datos/proyectos';
 import { ErrorDatos } from './datos/yaml';
-import { cargarAgenda, cargarTodo, guardarProyecto, listarIdsProyectos, modificarAsignaturas, modificarBandeja, modificarTareas } from './repositorio';
-import { anadirIdea, ErrorIdeaCambiada, quitarIdea } from './agenda/ideas';
-import { ideasDe } from './datos/bandeja';
+import { cargarAgenda, cargarTodo, guardarProyecto, listarIdsProyectos, modificarAsignaturas, modificarIdeas, modificarTareas } from './repositorio';
 
 vi.mock('./github/cliente', async (importOriginal) => {
   const real = await importOriginal<typeof import('./github/cliente')>();
-  return { ...real, leerArchivo: vi.fn(), listarCarpeta: vi.fn(), actualizarArchivo: vi.fn() };
+  return { ...real, leerArchivo: vi.fn(), listarCarpeta: vi.fn(), actualizarArchivo: vi.fn(), borrarArchivo: vi.fn() };
 });
 
 const cfg = { owner: 'diego', repo: 'my-context', token: 'x' };
@@ -31,6 +29,7 @@ describe('cargarTodo', () => {
   it('carga lo que puede y aparta los archivos rotos', async () => {
     leer.mockImplementation(async (_cfg, ruta) => {
       if (ruta === 'estudios/asignaturas.yaml') throw new cliente.ErrorGitHub('no-existe', 'no', 404);
+      if (ruta === 'ideas/ideas.yaml') throw new cliente.ErrorGitHub('no-existe', 'no', 404);
       if (ruta === 'ideas/bandeja.md') throw new cliente.ErrorGitHub('no-existe', 'no', 404);
       if (ruta === 'agenda/tareas.yaml') throw new cliente.ErrorGitHub('no-existe', 'no', 404);
       if (ruta === 'agenda/areas.yaml') return { texto: '- id: uni\n  nombre: [roto\n', sha: 'a' };
@@ -51,7 +50,8 @@ describe('cargarAgenda', () => {
   it('lee solo tareas y áreas, sin tocar los proyectos', async () => {
     leer.mockImplementation(async (_cfg, ruta) => {
       if (ruta === 'estudios/asignaturas.yaml') throw new cliente.ErrorGitHub('no-existe', 'no', 404);
-      if (ruta === 'ideas/bandeja.md') return { texto: '# Bandeja\n- 2026-09-24: Idea\n', sha: 'b' };
+      if (ruta === 'ideas/ideas.yaml') throw new cliente.ErrorGitHub('no-existe', 'no', 404);
+      if (ruta === 'ideas/bandeja.md') throw new cliente.ErrorGitHub('no-existe', 'no', 404);
       if (ruta === 'agenda/tareas.yaml') return { texto: '- id: a\n  titulo: A\n  area: uni\n', sha: 't' };
       if (ruta === 'agenda/areas.yaml') return { texto: '- id: uni\n  nombre: [roto\n', sha: 'a' };
       throw new Error(`ruta inesperada ${ruta}`);
@@ -61,7 +61,6 @@ describe('cargarAgenda', () => {
     expect(d.areas).toEqual([]);
     expect(d.errores.map((e) => e.archivo)).toEqual(['agenda/areas.yaml']);
     expect(listar).not.toHaveBeenCalled();
-    expect(ideasDe(d.ideas)).toEqual([{ fecha: '2026-09-24', texto: 'Idea' }]);
   });
 });
 
@@ -87,25 +86,39 @@ describe('modificarTareas', () => {
   });
 });
 
-describe('modificarBandeja', () => {
-  it('aplica el cambio sobre la bandeja remota más reciente', async () => {
-    const escrito = simularRemoto('# Bandeja\n\n- 2026-09-22: Vieja\n');
-    const r = await modificarBandeja(cfg, (ls) => anadirIdea(ls, { fecha: '2026-09-24', texto: 'Nueva' }), 'msg');
-    expect(ideasDe(r).map((i) => i.texto)).toEqual(['Nueva', 'Vieja']);
-    expect(escrito()).toBe('# Bandeja\n\n- 2026-09-22: Vieja\n- 2026-09-24: Nueva\n');
-    expect(actualizar).toHaveBeenCalledWith(cfg, 'ideas/bandeja.md', expect.any(Function), 'msg');
+describe('ideas', () => {
+  it('cargarAgenda lee ideas.yaml y suma lo que quede en la bandeja antigua', async () => {
+    leer.mockImplementation(async (_cfg, ruta) => {
+      if (ruta === 'ideas/ideas.yaml') return { texto: '- id: i-20260925-1\n  fecha: 2026-09-25\n  texto: Nueva\n', sha: 'i' };
+      if (ruta === 'ideas/bandeja.md') return { texto: '# Bandeja\n- 2026-09-24: De la bandeja\n', sha: 'b' };
+      throw new cliente.ErrorGitHub('no-existe', 'no', 404);
+    });
+    const d = await cargarAgenda(cfg);
+    expect(d.ideas.map((i) => i.texto)).toEqual(['Nueva', 'De la bandeja']);
+    expect(d.bandejaPendiente).toBe(true);
   });
-  it('si el archivo no existe, parte de una bandeja vacía', async () => {
-    const escrito = simularRemoto(null);
-    await modificarBandeja(cfg, (ls) => anadirIdea(ls, { fecha: '2026-09-24', texto: 'Primera' }), 'm');
-    expect(escrito()).toContain('# Bandeja de ideas');
+  it('sin bandeja no hay nada pendiente', async () => {
+    leer.mockImplementation(async (_cfg, ruta) => {
+      if (ruta === 'ideas/ideas.yaml') return { texto: '', sha: 'i' };
+      throw new cliente.ErrorGitHub('no-existe', 'no', 404);
+    });
+    expect((await cargarAgenda(cfg)).bandejaPendiente).toBe(false);
   });
-  it('si la idea ya no está, no escribe nada', async () => {
-    const escrito = simularRemoto('- 2026-09-22: Otra\n');
-    await expect(
-      modificarBandeja(cfg, (ls) => quitarIdea(ls, { fecha: '2026-09-22', texto: 'Borrada' }), 'm'),
-    ).rejects.toBeInstanceOf(ErrorIdeaCambiada);
-    expect(escrito()).toBeUndefined();
+  it('un ideas.yaml roto se aparta y no se intenta el paso', async () => {
+    leer.mockImplementation(async (_cfg, ruta) => {
+      if (ruta === 'ideas/ideas.yaml') return { texto: '- id: [roto\n', sha: 'i' };
+      if (ruta === 'ideas/bandeja.md') return { texto: '- 2026-09-24: X\n', sha: 'b' };
+      throw new cliente.ErrorGitHub('no-existe', 'no', 404);
+    });
+    const d = await cargarAgenda(cfg);
+    expect(d.errores.map((e) => e.archivo)).toEqual(['ideas/ideas.yaml']);
+    expect(d.bandejaPendiente).toBe(false);
+  });
+  it('modificarIdeas aplica el cambio sobre lo último de GitHub', async () => {
+    const escrito = simularRemoto('- id: i-20260922-1\n  fecha: 2026-09-22\n  texto: Vieja\n');
+    const r = await modificarIdeas(cfg, (is) => is.filter((i) => i.id !== 'i-20260922-1'), 'Borrar idea');
+    expect(r).toEqual([]);
+    expect(escrito()).toBe('');
   });
 });
 
@@ -149,11 +162,6 @@ describe('asignaturas', () => {
 });
 
 describe('arreglos menores', () => {
-  it('modificarBandeja conserva CRLF', async () => {
-    const escrito = simularRemoto('# Bandeja\r\n- 2026-09-24: Una\r\n');
-    await modificarBandeja(cfg, (ls) => anadirIdea(ls, { fecha: '2026-09-25', texto: 'Otra' }), 'x');
-    expect(escrito()).toBe('# Bandeja\r\n- 2026-09-24: Una\r\n- 2026-09-25: Otra\r\n');
-  });
   it('listarIdsProyectos lee los ids de GitHub', async () => {
     listar.mockResolvedValue(['juego.md', 'notas.txt', 'app.md']);
     expect(await listarIdsProyectos(cfg)).toEqual(['juego', 'app']);

@@ -15,8 +15,11 @@ export function guardarCache(d: Datos): void {
 export function leerCache(): DatosCache | null {
   try {
     const c = JSON.parse(localStorage.getItem(CLAVE) ?? 'null') as Partial<DatosCache> | null;
-    // Una caché antigua no tiene ideas ni asignaturas.
-    return c ? { tareas: c.tareas ?? [], areas: c.areas ?? [], proyectos: c.proyectos ?? [], ideas: c.ideas ?? [], asignaturas: c.asignaturas ?? [] } : null;
+    if (!c) return null;
+    // Una caché antigua puede no tener ideas ni asignaturas, tener ideas con el formato de la bandeja o áreas sin subáreas.
+    const ideas = (c.ideas ?? []).filter((i) => typeof i?.id === 'string' && typeof i?.texto === 'string');
+    const areas = (c.areas ?? []).map((a) => ({ ...a, subareas: a.subareas ?? [] }));
+    return { tareas: c.tareas ?? [], areas, proyectos: c.proyectos ?? [], ideas, asignaturas: c.asignaturas ?? [] };
   } catch {
     return null;
   }

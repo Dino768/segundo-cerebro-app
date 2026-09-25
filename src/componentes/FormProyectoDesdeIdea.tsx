@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { proyectoDesdeIdea, quitarIdea } from '../agenda/ideas';
-import type { Idea } from '../datos/bandeja';
+import { proyectoDesdeIdea, quitarIdea, tituloDeIdea } from '../agenda/ideas';
+import type { Idea } from '../datos/ideas';
 import { useDatos } from '../estado/datos';
 import { useHoy } from '../estado/hoy';
 
@@ -13,8 +13,8 @@ interface Props {
 export function FormProyectoDesdeIdea({ idea, cerrar, alCrear }: Props) {
   const { datos, guardarProyecto, cambiarIdeas, idsProyectos } = useDatos();
   const hoy = useHoy();
-  const [nombre, setNombre] = useState(idea.texto.slice(0, 60).trim());
-  const [area, setArea] = useState(datos.proyectos.find((p) => p.id === idea.proyecto)?.area ?? '');
+  const [nombre, setNombre] = useState(tituloDeIdea(idea).slice(0, 60).trim());
+  const [area, setArea] = useState(idea.area ?? datos.proyectos.find((p) => p.id === idea.proyecto)?.area ?? '');
   const [guardando, setGuardando] = useState(false);
 
   async function crear(e: { preventDefault(): void }) {
@@ -24,7 +24,7 @@ export function FormProyectoDesdeIdea({ idea, cerrar, alCrear }: Props) {
     const p = proyectoDesdeIdea(idea, nombre, area || undefined, await idsProyectos(), hoy);
     // Primero se crea el proyecto y después se quita la idea: si algo falla, la idea no se pierde.
     const ok = await guardarProyecto(p, null);
-    if (ok) await cambiarIdeas((ls) => quitarIdea(ls, idea), `Idea convertida en proyecto: ${p.titulo}`);
+    if (ok) await cambiarIdeas((is) => quitarIdea(is, idea.id), `Idea convertida en proyecto: ${p.titulo}`);
     setGuardando(false);
     if (ok) alCrear(p.id);
   }
@@ -33,7 +33,7 @@ export function FormProyectoDesdeIdea({ idea, cerrar, alCrear }: Props) {
     <div className="fondo-modal">
       <form className="modal" onSubmit={(e) => void crear(e)}>
         <h2>Convertir en proyecto</h2>
-        <p className="nota-form">«{idea.texto}»</p>
+        <p className="nota-form">«{tituloDeIdea(idea)}»</p>
         <label>
           Nombre del proyecto
           <input value={nombre} onChange={(e) => setNombre(e.target.value)} required autoFocus maxLength={80} />

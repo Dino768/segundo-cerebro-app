@@ -1,76 +1,54 @@
 import { describe, expect, it } from 'vitest';
-import { CABECERA_BANDEJA, ideasDe, parseBandeja, serializarBandeja } from '../datos/bandeja';
-import { parseProyecto, serializarProyecto } from '../datos/proyectos';
-import { anadirIdea, ErrorIdeaCambiada, proyectoDesdeIdea, quitarIdea, vincularIdea } from './ideas';
+import type { Idea } from '../datos/ideas';
+import { anadirIdea, editarIdea, ErrorIdeaCambiada, proyectoDesdeIdea, quitarIdea, tareaDesdeIdea, tituloDeIdea } from './ideas';
 
-const base = parseBandeja('# Bandeja\n\n- 2026-09-22: Vieja\n');
-const vieja = { fecha: '2026-09-22', texto: 'Vieja' };
+const vieja: Idea = { id: 'i-20260922-1', fecha: '2026-09-22', texto: 'Vieja' };
 
 describe('anadirIdea', () => {
-  it('añade la idea al final', () => {
-    const r = anadirIdea(base, { fecha: '2026-09-24', texto: 'Nueva' });
-    expect(serializarBandeja(r)).toBe('# Bandeja\n\n- 2026-09-22: Vieja\n- 2026-09-24: Nueva\n');
+  it('añade al final con id nuevo y conserva las líneas del texto', () => {
+    const r = anadirIdea([vieja], { fecha: '2026-09-22', texto: '  Nivel de hielo\r\ncon jefe  ', titulo: '  Hielo ', icono: 'snowflake' });
+    expect(r[1]).toEqual({ id: 'i-20260922-2', fecha: '2026-09-22', texto: 'Nivel de hielo\ncon jefe', titulo: 'Hielo', icono: 'snowflake' });
   });
-  it('en una bandeja vacía pone antes la cabecera', () => {
-    const r = anadirIdea([], { fecha: '2026-09-24', texto: 'Primera' });
-    expect(serializarBandeja(r)).toBe(`${CABECERA_BANDEJA}- 2026-09-24: Primera\n`);
-  });
-  it('junta en una línea un texto pegado con saltos de línea', () => {
-    const r = anadirIdea(base, { fecha: '2026-09-24', texto: '  Nivel de hielo\ncon  jefe\r\nfinal ' });
-    expect(ideasDe(r)[0].texto).toBe('Nivel de hielo con jefe final');
+  it('un título vacío no se guarda', () => {
+    expect(anadirIdea([], { fecha: '2026-09-25', texto: 'X', titulo: '  ' })[0]).toEqual({ id: 'i-20260925-1', fecha: '2026-09-25', texto: 'X' });
   });
   it('un texto vacío no añade nada', () => {
-    expect(anadirIdea(base, { fecha: '2026-09-24', texto: '  \n ' })).toBe(base);
-  });
-  it('guarda el proyecto si lo tiene', () => {
-    const r = anadirIdea(base, { fecha: '2026-09-24', proyecto: 'juego', texto: 'X' });
-    expect(serializarBandeja(r)).toContain('- 2026-09-24 [juego]: X\n');
+    const base = [vieja];
+    expect(anadirIdea(base, { fecha: '2026-09-25', texto: ' \n ' })).toBe(base);
   });
 });
 
-describe('vincularIdea', () => {
-  it('pone y quita el proyecto sin mover la idea', () => {
-    const vinculada = vincularIdea(base, vieja, 'juego-nave');
-    expect(serializarBandeja(vinculada)).toBe('# Bandeja\n\n- 2026-09-22 [juego-nave]: Vieja\n');
-    const suelta = vincularIdea(vinculada, { ...vieja, proyecto: 'juego-nave' }, undefined);
-    expect(serializarBandeja(suelta)).toBe('# Bandeja\n\n- 2026-09-22: Vieja\n');
+describe('editarIdea', () => {
+  it('cambia solo lo que se tocó y respeta lo que cambió otro', () => {
+    const remota = { ...vieja, proyecto: 'juego' }; // Claude la vinculó mientras tanto
+    const r = editarIdea([remota], vieja, { fecha: vieja.fecha, texto: 'Vieja', titulo: 'Con título' });
+    expect(r[0]).toEqual({ ...vieja, proyecto: 'juego', titulo: 'Con título' });
   });
   it('si la idea ya no está, lanza ErrorIdeaCambiada', () => {
-    expect(() => vincularIdea(base, { fecha: '2026-09-22', texto: 'Otra' }, 'x')).toThrow(ErrorIdeaCambiada);
+    expect(() => editarIdea([], vieja, { fecha: vieja.fecha, texto: 'X' })).toThrow(ErrorIdeaCambiada);
   });
 });
 
 describe('quitarIdea', () => {
-  it('quita la idea y deja el resto', () => {
-    expect(serializarBandeja(quitarIdea(base, vieja))).toBe('# Bandeja\n\n');
-  });
-  it('con dos ideas idénticas quita solo una', () => {
-    const doble = parseBandeja('- 2026-09-22: Vieja\n- 2026-09-22: Vieja\n');
-    expect(ideasDe(quitarIdea(doble, vieja))).toHaveLength(1);
-  });
-  it('distingue una idea vinculada de la misma sin vincular', () => {
-    const ls = parseBandeja('- 2026-09-22 [juego]: Vieja\n');
-    expect(() => quitarIdea(ls, vieja)).toThrow(ErrorIdeaCambiada);
+  it('quita solo la del id, aunque haya otra igual', () => {
+    const gemela = { ...vieja, id: 'i-20260922-2' };
+    expect(quitarIdea([vieja, gemela], vieja.id)).toEqual([gemela]);
   });
 });
 
-describe('proyectoDesdeIdea', () => {
-  const idea = { fecha: '2026-09-20', texto: 'Juego de naves con hielo' };
-  it('crea un proyecto en estado idea con la idea dentro', () => {
-    const p = proyectoDesdeIdea(idea, 'Juego de naves', 'videojuegos', [], '2026-09-24');
-    expect(p.id).toBe('juego-de-naves');
-    expect(p.estado).toBe('idea');
-    expect(p.area).toBe('videojuegos');
-    expect(p.titulo).toBe('Juego de naves');
-    expect(p.cuerpo).toBe(
-      '# Juego de naves\n\n## Qué es\nJuego de naves con hielo\n\n## Dónde lo dejamos\n2026-09-24: creado desde la bandeja de ideas.\n',
-    );
-    const vuelta = parseProyecto(p.id, serializarProyecto(p));
-    expect(vuelta).toMatchObject({ estado: 'idea', area: 'videojuegos', titulo: 'Juego de naves' });
+describe('título, tarea y proyecto', () => {
+  const larga: Idea = { id: 'x', fecha: '2026-09-25', texto: 'Primera línea\nSegunda', proyecto: 'juego', area: 'unreal', icono: 'planet' };
+  it('el título visible es el título o la primera línea', () => {
+    expect(tituloDeIdea(larga)).toBe('Primera línea');
+    expect(tituloDeIdea({ ...larga, titulo: 'Gravedad' })).toBe('Gravedad');
   });
-  it('no repite un id existente y funciona sin área', () => {
-    const p = proyectoDesdeIdea(idea, 'Juego de naves', undefined, ['juego-de-naves'], '2026-09-24');
-    expect(p.id).toBe('juego-de-naves-2');
-    expect(p.area).toBeUndefined();
+  it('a tarea: título, notas si hay más texto, y proyecto, área e icono', () => {
+    expect(tareaDesdeIdea(larga)).toEqual({ titulo: 'Primera línea', notas: 'Primera línea\nSegunda', proyecto: 'juego', area: 'unreal', icono: 'planet' });
+    expect(tareaDesdeIdea(vieja)).toEqual({ titulo: 'Vieja' });
+  });
+  it('a proyecto: el texto va en «Qué es» y lleva el icono', () => {
+    const p = proyectoDesdeIdea(larga, 'Juego de gravedad', 'unreal', [], '2026-09-25');
+    expect(p).toMatchObject({ id: 'juego-de-gravedad', estado: 'idea', area: 'unreal', icono: 'planet', titulo: 'Juego de gravedad' });
+    expect(p.cuerpo).toContain('## Qué es\nPrimera línea\nSegunda\n');
   });
 });

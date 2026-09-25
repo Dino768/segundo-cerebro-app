@@ -1,7 +1,6 @@
 import { Fragment } from 'react';
 import { ordenarProyectos } from '../agenda/proyectos';
 import { contarPendientes } from '../agenda/tareas';
-import { ideasDe } from '../datos/bandeja';
 import { useDatos } from '../estado/datos';
 import { colorDeArea } from '../agenda/areas';
 import { SECCIONES, URL_USO_CLAUDE, type Destino, type Pantalla } from './navegacion';
@@ -18,7 +17,7 @@ export function Lateral({ actual, ir, bloqueado, proyectoAbierto }: Props) {
   const activos = ordenarProyectos(datos.proyectos).filter((p) => p.estado === 'activo');
   const numeros: Partial<Record<Pantalla, number>> = {
     tareas: contarPendientes(datos.tareas),
-    ideas: ideasDe(datos.ideas).length,
+    ideas: datos.ideas.length,
   };
 
   const item = (s: (typeof SECCIONES)[number]) => (

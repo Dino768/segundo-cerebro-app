@@ -21,7 +21,7 @@ export function Captura() {
             (ts) => aplicarEdicion(ts, null, { titulo: limpio, area: datos.areas[0]?.id ?? 'personal' }, new Date()),
             `Crear tarea: ${limpio}`,
           )
-        : await cambiarIdeas((ls) => anadirIdea(ls, { fecha: hoy, texto: limpio }), `Apuntar idea: ${limpio}`);
+        : await cambiarIdeas((is) => anadirIdea(is, { fecha: hoy, texto: limpio }), `Apuntar idea: ${limpio}`);
     setGuardando(false);
     if (ok) setTexto('');
   }

@@ -276,3 +276,6 @@ main.ancho { max-width: none; }
 .visor-historial { display: flex; flex-direction: column; height: calc(100vh - 230px); min-height: 380px; border: 1px solid var(--borde); border-radius: 14px; background: var(--superficie); overflow: hidden; }
 .estudio-local .visor-historial { height: 100%; border: none; border-radius: 0; }
 .lista-historial .lista { margin: 0; }
+
+/* Iconos */
+.icono-tabler { flex-shrink: 0; vertical-align: -3px; }

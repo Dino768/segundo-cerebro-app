@@ -8,8 +8,12 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      // El service worker nunca contesta por el programa local.
-      workbox: { navigateFallbackDenylist: [/\/api\//] },
+      workbox: {
+        // El service worker nunca contesta por el programa local.
+        navigateFallbackDenylist: [/\/api\//],
+        // La colección de iconos se descarga la primera vez que hace falta y se guarda para usarla sin conexión.
+        runtimeCaching: [{ urlPattern: /\/iconos\/tabler\.json$/, handler: 'CacheFirst', options: { cacheName: 'iconos' } }],
+      },
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
         name: 'Segundo cerebro',

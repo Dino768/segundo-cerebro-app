@@ -1,30 +1,51 @@
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { ordenarProyectos } from '../agenda/proyectos';
 import { contarPendientes } from '../agenda/tareas';
 import { useDatos } from '../estado/datos';
 import { colorDeArea } from '../agenda/areas';
 import { Icono } from './Icono';
-import { SECCIONES, URL_USO_CLAUDE, type Destino, type Pantalla } from './navegacion';
+import { SECCIONES, URL_USO_CLAUDE, type Destino, type Pantalla, type Pestana } from './navegacion';
 
 interface Props {
   actual: Pantalla;
+  pestana: Pestana | null;
   ir(d: Destino): void;
   bloqueado: boolean;
   proyectoAbierto: string | null;
 }
 
-export function Lateral({ actual, ir, bloqueado, proyectoAbierto }: Props) {
+const CLAVE_DESPLEGADO = 'sc-lateral-proyectos';
+
+function leerDesplegado(): boolean {
+  try {
+    return localStorage.getItem(CLAVE_DESPLEGADO) !== 'no';
+  } catch {
+    return true;
+  }
+}
+
+export function Lateral({ actual, pestana, ir, bloqueado, proyectoAbierto }: Props) {
   const { datos } = useDatos();
   const activos = ordenarProyectos(datos.proyectos).filter((p) => p.estado === 'activo');
   const numeros: Partial<Record<Pantalla, number>> = {
     tareas: contarPendientes(datos.tareas),
-    ideas: datos.ideas.length,
+  };
+  const [desplegado, setDesplegado] = useState(leerDesplegado);
+  const alternar = () => {
+    setDesplegado((d) => {
+      try {
+        localStorage.setItem(CLAVE_DESPLEGADO, d ? 'no' : 'si');
+      } catch {
+        /* sin almacenamiento */
+      }
+      return !d;
+    });
   };
 
   const item = (s: (typeof SECCIONES)[number]) => (
     <button
       key={s.id}
-      className={`item-lateral${actual === s.id ? ' activo' : ''}`}
+      className={`item-lateral${actual === s.id && !(s.id === 'proyectos' && pestana === 'ideas') ? ' activo' : ''}`}
       disabled={bloqueado && s.id !== 'ajustes'}
       onClick={() => ir({ pantalla: s.id })}
     >
@@ -41,20 +62,45 @@ export function Lateral({ actual, ir, bloqueado, proyectoAbierto }: Props) {
       </div>
       {SECCIONES.filter((s) => s.id !== 'ajustes').map((s) => (
         <Fragment key={s.id}>
-          {item(s)}
-          {s.id === 'proyectos' &&
-            activos.map((p) => (
+          {s.id === 'proyectos' ? (
+            <div className="fila-lateral">
+              {item(s)}
               <button
-                key={p.id}
-                className={`item-lateral sub${proyectoAbierto === p.id ? ' activo' : ''}`}
-                disabled={bloqueado}
-                onClick={() => ir({ pantalla: 'proyectos', proyecto: p.id })}
+                className="flecha-lateral"
+                aria-expanded={desplegado}
+                aria-label={desplegado ? 'Plegar proyectos' : 'Desplegar proyectos'}
+                onClick={alternar}
               >
-                <span className="punto" style={{ background: colorDeArea(datos.areas, p.area) }} />
-                <Icono nombre={p.icono} />
-                {p.titulo}
+                {desplegado ? '▾' : '▸'}
               </button>
-            ))}
+            </div>
+          ) : (
+            item(s)
+          )}
+          {s.id === 'proyectos' && desplegado && (
+            <>
+              <button
+                className={`item-lateral sub${actual === 'proyectos' && pestana === 'ideas' ? ' activo' : ''}`}
+                disabled={bloqueado}
+                onClick={() => ir({ pantalla: 'proyectos', pestana: 'ideas' })}
+              >
+                <span className="icono">💡</span>Ideas
+                {datos.ideas.length ? <span className="numero-lateral">{datos.ideas.length}</span> : null}
+              </button>
+              {activos.map((p) => (
+                <button
+                  key={p.id}
+                  className={`item-lateral sub${proyectoAbierto === p.id ? ' activo' : ''}`}
+                  disabled={bloqueado}
+                  onClick={() => ir({ pantalla: 'proyectos', proyecto: p.id })}
+                >
+                  <span className="punto" style={{ background: colorDeArea(datos.areas, p.area) }} />
+                  <Icono nombre={p.icono} />
+                  {p.titulo}
+                </button>
+              ))}
+            </>
+          )}
         </Fragment>
       ))}
       <div className="hueco" />

@@ -151,7 +151,7 @@ export function PaginaProyecto({ proyecto, volver, editar, ir, guardian }: Props
         <section className="tarjeta">
           <h2 className="titulo-seccion">
             Ideas de este proyecto
-            <button className="enlace" onClick={() => ir({ pantalla: 'ideas' })}>Ver en Ideas →</button>
+            <button className="enlace" onClick={() => ir({ pantalla: 'proyectos', pestana: 'ideas' })}>Ver en Ideas →</button>
           </h2>
           <ul className="lista">
             {ideasProyecto.map((i) => (

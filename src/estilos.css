@@ -146,6 +146,9 @@ fieldset { border: 1px solid var(--borde); border-radius: 8px; display: flex; fl
 .numero-lateral { margin-left: auto; font-size: 12px; color: var(--suave); }
 .item-lateral.sub { padding: 5px 10px 5px 40px; font-size: 14px; color: var(--suave); }
 .item-lateral.sub .punto { width: 7px; height: 7px; }
+.fila-lateral { display: flex; align-items: center; }
+.fila-lateral .item-lateral { flex: 1; }
+.flecha-lateral { border: none; background: none; padding: 4px 8px; color: var(--suave); }
 .hueco { flex: 1; }
 
 /* Inicio */

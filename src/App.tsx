@@ -3,7 +3,7 @@ import { Dialogos } from './componentes/Dialogos';
 import { FormTarea, type Edicion } from './componentes/FormTarea';
 import { Lateral } from './componentes/Lateral';
 import { MenuMovil } from './componentes/MenuMovil';
-import type { Destino } from './componentes/navegacion';
+import type { Destino, Pestana } from './componentes/navegacion';
 import { ProveedorDatos, useDatos } from './estado/datos';
 import { confirmar } from './estado/dialogos';
 import { crearGuardian } from './estado/guardian';
@@ -29,6 +29,7 @@ function Contenido() {
   const [visita, setVisita] = useState(0);
   const [edicion, setEdicion] = useState<Edicion | null>(null);
   const [proyectoAbierto, setProyectoAbierto] = useState<string | null>(null);
+  const [pestana, setPestana] = useState<Pestana | null>(null);
   const forzarAjustes = estado === 'sin-config' || estado === 'error-token';
   const actual = forzarAjustes ? 'ajustes' : destino.pantalla;
   const [guardian] = useState(crearGuardian);
@@ -52,7 +53,13 @@ function Contenido() {
 
   return (
     <div className="app">
-      <Lateral actual={actual} ir={ir} bloqueado={forzarAjustes} proyectoAbierto={actual === 'proyectos' ? proyectoAbierto : null} />
+      <Lateral
+        actual={actual}
+        pestana={actual === 'proyectos' ? pestana : null}
+        ir={ir}
+        bloqueado={forzarAjustes}
+        proyectoAbierto={actual === 'proyectos' ? proyectoAbierto : null}
+      />
       <main className={actual === 'estudio' ? 'ancho' : undefined}>
         {estado === 'cargando' && <p className="cargando">Cargando…</p>}
         {estado === 'sin-conexion' && (
@@ -74,8 +81,18 @@ function Contenido() {
         {actual === 'inicio' && <Inicio editar={editar} ir={ir} />}
         {actual === 'calendario' && <Calendario key={visita} editar={editar} diaInicial={destino.dia} />}
         {actual === 'tareas' && <Tareas editar={editar} />}
-        {actual === 'proyectos' && <Proyectos key={visita} editar={editar} ir={ir} guardian={guardian} abiertoInicial={destino.proyecto} alCambiarAbierto={setProyectoAbierto} />}
-        {actual === 'ideas' && <Proyectos key={visita} editar={editar} ir={ir} guardian={guardian} pestanaInicial="ideas" />}
+        {actual === 'proyectos' && (
+          <Proyectos
+            key={visita}
+            editar={editar}
+            ir={ir}
+            guardian={guardian}
+            abiertoInicial={destino.proyecto}
+            alCambiarAbierto={setProyectoAbierto}
+            pestanaInicial={destino.pestana}
+            alCambiarPestana={setPestana}
+          />
+        )}
         {actual === 'estudio' && <Estudio />}
         {actual === 'ajustes' && <Ajustes />}
       </main>

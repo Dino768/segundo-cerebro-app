@@ -297,3 +297,15 @@ main.ancho { max-width: none; }
 .ventana-iconos { max-width: 520px; }
 .rejilla-iconos { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; max-height: 50vh; overflow: auto; }
 .rejilla-iconos button { height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; }
+
+/* Ventana de área */
+.paleta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border: none; padding: 0; }
+.paleta legend { width: 100%; margin-bottom: 4px; }
+.muestra { width: 28px; height: 28px; border-radius: 50%; padding: 0; border: 2px solid transparent; }
+.muestra.elegida { border-color: var(--texto); }
+.paleta input[type='color'] { width: 40px; height: 32px; padding: 0; border: none; background: none; }
+.fila-subarea { display: flex; align-items: center; gap: 8px; border: none; background: none; padding: 6px 4px; width: 100%; text-align: left; }
+.lista-areas ul { list-style: none; margin: 0; padding: 0; }
+.lista-areas ul ul { padding-left: 22px; }
+.lapiz { border: none; background: none; padding: 2px 4px; font-size: 12px; opacity: 0.6; }
+.lapiz:hover:not(:disabled) { opacity: 1; background: none; }

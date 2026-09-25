@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { alternarArea, filtrarPorAreas, hayOtrasAreas, OTRAS, tareasDelDia } from '../agenda/tareas';
 import { EtiquetaTarea } from '../componentes/EtiquetaTarea';
 import { FilaTarea } from '../componentes/FilaTarea';
 import type { Edicion } from '../componentes/FormTarea';
+import { VentanaArea } from '../componentes/VentanaArea';
 import { useDatos } from '../estado/datos';
 import { useHoy } from '../estado/hoy';
 import {
@@ -38,6 +39,7 @@ export function Calendario({ editar, diaInicial }: { editar(e: Edicion): void; d
   const [vista, setVista] = useState<Vista>('mes');
   const [seleccionado, setSeleccionado] = useState<ISODate>(diaInicial ?? hoy);
   const [encendidas, setEncendidas] = useState<string[]>(leerAreas);
+  const [editandoArea, setEditandoArea] = useState<{ id?: string } | null>(null);
 
   const botones = [
     ...datos.areas.map((a) => ({ id: a.id, nombre: a.nombre, color: a.color })),
@@ -74,17 +76,25 @@ export function Calendario({ editar, diaInicial }: { editar(e: Edicion): void; d
           Todo
         </button>
         {botones.map((b) => (
-          <button
-            key={b.id}
-            className={`pastilla${estaEncendida(b.id) ? ' encendida' : ''}`}
-            aria-pressed={estaEncendida(b.id)}
-            onClick={() => cambiarAreas(alternarArea(encendidas, b.id, todas))}
-          >
-            <span className="punto" style={{ background: b.color }} />
-            {b.nombre}
-          </button>
+          <Fragment key={b.id}>
+            <button
+              className={`pastilla${estaEncendida(b.id) ? ' encendida' : ''}`}
+              aria-pressed={estaEncendida(b.id)}
+              onClick={() => cambiarAreas(alternarArea(encendidas, b.id, todas))}
+            >
+              <span className="punto" style={{ background: b.color }} />
+              {b.nombre}
+            </button>
+            {b.id !== OTRAS && (
+              <button className="lapiz" aria-label={`Editar ${b.nombre}`} onClick={() => setEditandoArea({ id: b.id })} disabled={soloLectura}>
+                ✏️
+              </button>
+            )}
+          </Fragment>
         ))}
+        <button className="pastilla" onClick={() => setEditandoArea({})} disabled={soloLectura}>+ Nueva área</button>
       </div>
+      {editandoArea && <VentanaArea id={editandoArea.id} cerrar={() => setEditandoArea(null)} />}
       <div className={`cal-cabecera ${vista}`}>
         {DIAS.map((d) => (
           <span key={d}>{d}</span>

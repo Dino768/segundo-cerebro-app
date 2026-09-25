@@ -8,6 +8,7 @@ import type { Edicion } from '../componentes/FormTarea';
 import { Icono } from '../componentes/Icono';
 import { ListaIdeas } from '../componentes/ListaIdeas';
 import type { Destino, Pestana } from '../componentes/navegacion';
+import { VentanaArea } from '../componentes/VentanaArea';
 import { ESTADOS, idProyectoDesdeTitulo, serializarProyecto, type Estado, type Proyecto } from '../datos/proyectos';
 import { useDatos } from '../estado/datos';
 import { pedirTexto } from '../estado/dialogos';
@@ -30,6 +31,7 @@ export function Proyectos({ editar, ir, guardian, abiertoInicial, alCambiarAbier
   const [filtro, setFiltro] = useState<Estado | 'todos'>('todos');
   const [abierto, setAbierto] = useState<string | null>(abiertoInicial ?? null);
   const [pestana, setPestana] = useState<Pestana>(pestanaInicial ?? 'proyectos');
+  const [editandoArea, setEditandoArea] = useState<{ id?: string } | null>(null);
   // La barra lateral resalta el proyecto abierto.
   useEffect(() => alCambiarAbierto?.(abierto), [abierto, alCambiarAbierto]);
   useEffect(() => alCambiarPestana?.(pestana), [pestana, alCambiarPestana]);
@@ -76,7 +78,12 @@ export function Proyectos({ editar, ir, guardian, abiertoInicial, alCambiarAbier
     <section>
       <div className="barra">
         <h2>Proyectos</h2>
-        {pestana === 'proyectos' && <button disabled={soloLectura} onClick={() => void crear()}>+ Nuevo proyecto</button>}
+        {pestana === 'proyectos' && (
+          <>
+            <button disabled={soloLectura} onClick={() => void crear()}>+ Nuevo proyecto</button>
+            <button disabled={soloLectura} onClick={() => setEditandoArea({})}>+ Área</button>
+          </>
+        )}
       </div>
       <div className="pestanas" role="tablist">
         <button role="tab" aria-selected={pestana === 'proyectos'} className={pestana === 'proyectos' ? 'activa' : ''} onClick={() => setPestana('proyectos')}>📁 Proyectos</button>
@@ -96,11 +103,21 @@ export function Proyectos({ editar, ir, guardian, abiertoInicial, alCambiarAbier
                 <h3 className="grupo grupo-area">
                   {g.area && <span className="punto" style={{ background: g.area.color }} />}
                   {g.area?.nombre ?? 'Sin área'}
+                  {g.area && (
+                    <button className="lapiz" aria-label={`Editar ${g.area.nombre}`} disabled={soloLectura} onClick={() => setEditandoArea({ id: g.area!.id })}>
+                      ✏️
+                    </button>
+                  )}
                 </h3>
                 {g.items.length > 0 && <ul className="lista tarjeta">{g.items.map(fila)}</ul>}
                 {g.subgrupos.map((s) => (
                   <Fragment key={s.subarea.id}>
-                    <h4 className="subgrupo">{s.subarea.nombre}</h4>
+                    <h4 className="subgrupo">
+                      {s.subarea.nombre}
+                      <button className="lapiz" aria-label={`Editar ${s.subarea.nombre}`} disabled={soloLectura} onClick={() => setEditandoArea({ id: s.subarea.id })}>
+                        ✏️
+                      </button>
+                    </h4>
                     <ul className="lista tarjeta">{s.items.map(fila)}</ul>
                   </Fragment>
                 ))}
@@ -114,6 +131,7 @@ export function Proyectos({ editar, ir, guardian, abiertoInicial, alCambiarAbier
           )}
         </>
       )}
+      {editandoArea && <VentanaArea id={editandoArea.id} cerrar={() => setEditandoArea(null)} />}
     </section>
   );
 }

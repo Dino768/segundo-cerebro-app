@@ -102,7 +102,7 @@ Decisiones tomadas con Diego:
 ### 3.5 Paso de `bandeja.md` a `ideas.yaml`
 
 - Al cargar: si existe `ideas/bandeja.md` y no existe `ideas/ideas.yaml`, la app convierte cada línea de idea de la bandeja (`- fecha [proyecto]: texto`) en una idea con id nuevo, la misma fecha, el mismo proyecto y el mismo texto. Las líneas que no son ideas (cabecera, huecos) se descartan.
-- Se escribe `ideas.yaml` y se borra `bandeja.md` en **un único commit** (el cliente de GitHub necesitará escribir varios archivos a la vez, o crear y borrar en un solo cambio).
+- Primero se escribe `ideas.yaml` y después se borra `bandeja.md` (el cliente de GitHub necesita una función nueva para borrar un archivo). Si el borrado falla, la regla siguiente lo arregla en la próxima carga sin duplicar nada.
 - Si existen los dos archivos (por ejemplo, porque Claude apuntó algo en la bandeja antigua después del paso), se añaden a `ideas.yaml` las ideas de la bandeja que no estén ya (misma fecha, proyecto y texto) y se borra la bandeja. Así nunca se duplica ni se pierde nada.
 - Mientras no haya internet no se convierte nada; la app enseña las ideas de la caché.
 - La conversión es una función pura con pruebas; `repositorio.ts` decide cuándo aplicarla.

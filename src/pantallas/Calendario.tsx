@@ -34,7 +34,7 @@ function guardarAreas(areas: string[]): void {
 }
 
 export function Calendario({ editar, diaInicial }: { editar(e: Edicion): void; diaInicial?: ISODate }) {
-  const { datos, soloLectura, tareasBloqueadas } = useDatos();
+  const { datos, soloLectura, tareasBloqueadas, areasBloqueadas } = useDatos();
   const hoy = useHoy();
   const [vista, setVista] = useState<Vista>('mes');
   const [seleccionado, setSeleccionado] = useState<ISODate>(diaInicial ?? hoy);
@@ -86,13 +86,13 @@ export function Calendario({ editar, diaInicial }: { editar(e: Edicion): void; d
               {b.nombre}
             </button>
             {b.id !== OTRAS && (
-              <button className="lapiz" aria-label={`Editar ${b.nombre}`} onClick={() => setEditandoArea({ id: b.id })} disabled={soloLectura}>
+              <button className="lapiz" aria-label={`Editar ${b.nombre}`} onClick={() => setEditandoArea({ id: b.id })} disabled={soloLectura || areasBloqueadas}>
                 ✏️
               </button>
             )}
           </Fragment>
         ))}
-        <button className="pastilla" onClick={() => setEditandoArea({})} disabled={soloLectura}>+ Nueva área</button>
+        <button className="pastilla" onClick={() => setEditandoArea({})} disabled={soloLectura || areasBloqueadas}>+ Nueva área</button>
       </div>
       {editandoArea && <VentanaArea id={editandoArea.id} cerrar={() => setEditandoArea(null)} />}
       <div className={`cal-cabecera ${vista}`}>

@@ -1,7 +1,7 @@
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { parseAreas } from '../datos/areas';
-import { contarDentro, VentanaArea } from './VentanaArea';
+import { areasDestino, contarDentro, VentanaArea } from './VentanaArea';
 
 const AREAS = parseAreas('- id: uni\n  nombre: Uni\n  color: "#3b82f6"\n- id: v\n  nombre: Videojuegos\n  color: "#a855f7"\n  subareas:\n    - id: b\n      nombre: Blender\n      color: "#f97316"\n');
 const DATOS = {
@@ -19,6 +19,18 @@ describe('contarDentro', () => {
     expect(contarDentro(DATOS, 'v')).toBe(3);
     expect(contarDentro(DATOS, 'b')).toBe(2);
     expect(contarDentro(DATOS, 'uni')).toBe(1);
+  });
+});
+
+describe('areasDestino', () => {
+  it('al borrar una subárea, ni ella ni el resto de subáreas fuera de destino aparecen (pero su área madre sí)', () => {
+    const r = areasDestino(AREAS, 'b');
+    expect(r.map((a) => a.id)).toEqual(['uni', 'v']);
+    expect(r.find((a) => a.id === 'v')?.subareas).toEqual([]);
+  });
+  it('al borrar un área grande, ni ella ni sus subáreas aparecen como destino', () => {
+    const r = areasDestino(AREAS, 'v');
+    expect(r.map((a) => a.id)).toEqual(['uni']);
   });
 });
 

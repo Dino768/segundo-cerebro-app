@@ -27,7 +27,7 @@ interface Props {
 }
 
 export function Proyectos({ editar, ir, guardian, abiertoInicial, alCambiarAbierto, pestanaInicial, alCambiarPestana }: Props) {
-  const { datos, soloLectura, guardarProyecto } = useDatos();
+  const { datos, soloLectura, areasBloqueadas, guardarProyecto } = useDatos();
   const [filtro, setFiltro] = useState<Estado | 'todos'>('todos');
   const [abierto, setAbierto] = useState<string | null>(abiertoInicial ?? null);
   const [pestana, setPestana] = useState<Pestana>(pestanaInicial ?? 'proyectos');
@@ -81,7 +81,7 @@ export function Proyectos({ editar, ir, guardian, abiertoInicial, alCambiarAbier
         {pestana === 'proyectos' && (
           <>
             <button disabled={soloLectura} onClick={() => void crear()}>+ Nuevo proyecto</button>
-            <button disabled={soloLectura} onClick={() => setEditandoArea({})}>+ Área</button>
+            <button disabled={soloLectura || areasBloqueadas} onClick={() => setEditandoArea({})}>+ Área</button>
           </>
         )}
       </div>
@@ -104,7 +104,7 @@ export function Proyectos({ editar, ir, guardian, abiertoInicial, alCambiarAbier
                   {g.area && <span className="punto" style={{ background: g.area.color }} />}
                   {g.area?.nombre ?? 'Sin área'}
                   {g.area && (
-                    <button className="lapiz" aria-label={`Editar ${g.area.nombre}`} disabled={soloLectura} onClick={() => setEditandoArea({ id: g.area!.id })}>
+                    <button className="lapiz" aria-label={`Editar ${g.area.nombre}`} disabled={soloLectura || areasBloqueadas} onClick={() => setEditandoArea({ id: g.area!.id })}>
                       ✏️
                     </button>
                   )}
@@ -114,7 +114,7 @@ export function Proyectos({ editar, ir, guardian, abiertoInicial, alCambiarAbier
                   <Fragment key={s.subarea.id}>
                     <h4 className="subgrupo">
                       {s.subarea.nombre}
-                      <button className="lapiz" aria-label={`Editar ${s.subarea.nombre}`} disabled={soloLectura} onClick={() => setEditandoArea({ id: s.subarea.id })}>
+                      <button className="lapiz" aria-label={`Editar ${s.subarea.nombre}`} disabled={soloLectura || areasBloqueadas} onClick={() => setEditandoArea({ id: s.subarea.id })}>
                         ✏️
                       </button>
                     </h4>

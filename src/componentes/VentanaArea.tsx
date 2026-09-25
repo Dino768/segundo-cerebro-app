@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { buscarArea, crearArea, destinosPosibles, editarArea, idsDeArea, nombreDeArea, PALETA } from '../agenda/areas';
+import type { Area } from '../datos/areas';
 import type { Datos } from '../repositorio';
 import { useDatos } from '../estado/datos';
 import { confirmar } from '../estado/dialogos';
@@ -9,6 +10,15 @@ export function contarDentro(d: Pick<Datos, 'tareas' | 'ideas' | 'proyectos' | '
   const ids = idsDeArea(d.areas, id);
   const dentro = (x: { area?: string }) => x.area !== undefined && ids.includes(x.area);
   return d.tareas.filter(dentro).length + d.ideas.filter(dentro).length + d.proyectos.filter(dentro).length;
+}
+
+// Áreas válidas como destino al borrar `id`: ni ella ni sus subáreas (si es grande) pueden salir,
+// ni siquiera como subárea dentro de un área madre que sí es un destino válido.
+export function areasDestino(areas: Area[], id: string): Area[] {
+  const destinos = destinosPosibles(areas, id);
+  return areas
+    .filter((a) => destinos.includes(a.id) || a.subareas.some((s) => destinos.includes(s.id)))
+    .map((a) => ({ ...a, subareas: a.subareas.filter((s) => destinos.includes(s.id)) }));
 }
 
 interface Props {
@@ -104,7 +114,7 @@ export function VentanaArea({ id, madre, cerrar }: Props) {
             ) : dentro > 0 ? (
               <label>
                 Tiene {dentro} cosas dentro (tareas, ideas y proyectos). ¿A dónde las paso?
-                <SelectorArea areas={datos.areas.filter((a) => destinos.includes(a.id) || a.subareas.some((s) => destinos.includes(s.id)))} valor={destino} cambiar={setDestino} etiqueta="Destino" />
+                <SelectorArea areas={areasDestino(datos.areas, id)} valor={destino} cambiar={setDestino} etiqueta="Destino" />
               </label>
             ) : (
               <p>Está vacía: se puede borrar sin mover nada.</p>

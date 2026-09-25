@@ -47,6 +47,18 @@ describe('parseProyecto', () => {
   });
 });
 
+describe('icono del proyecto', () => {
+  it('se lee y se escribe en el encabezado', () => {
+    const p = parseProyecto('juego', '---\nestado: activo\nicono: device-gamepad-2\n---\n# Juego\n');
+    expect(p.icono).toBe('device-gamepad-2');
+    expect(serializarProyecto({ ...p, icono: 'cube' })).toContain('icono: cube\n');
+    expect(serializarProyecto({ ...p, icono: undefined })).not.toContain('icono');
+  });
+  it('un icono que no es texto da error', () => {
+    expect(() => parseProyecto('x', '---\nicono: [a]\n---\n# X\n')).toThrow(/icono/);
+  });
+});
+
 describe('idProyectoDesdeTitulo', () => {
   it('convierte el título en un nombre de archivo seguro y único', () => {
     expect(idProyectoDesdeTitulo('Juego de Plataformas ñ!', [])).toBe('juego-de-plataformas-n');

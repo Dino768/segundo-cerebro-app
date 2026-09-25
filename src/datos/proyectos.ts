@@ -11,6 +11,7 @@ export interface Proyecto {
   estado: Estado;
   area?: string;
   prioridad?: Prioridad;
+  icono?: string;
   titulo: string;
   cuerpo: string;
   meta: Record<string, unknown>;
@@ -44,12 +45,14 @@ export function parseProyecto(id: string, texto: string): Proyecto {
   if (meta.area !== undefined && typeof meta.area !== 'string') throw new ErrorDatos(archivo, 'area debe ser texto');
   if (meta.prioridad !== undefined && !PRIORIDADES.includes(meta.prioridad as Prioridad))
     throw new ErrorDatos(archivo, 'prioridad debe ser alta, media o baja');
+  if (meta.icono !== undefined && typeof meta.icono !== 'string') throw new ErrorDatos(archivo, 'icono debe ser el nombre de un icono (texto)');
 
   return {
     id,
     estado: estado as Estado,
     area: meta.area as string | undefined,
     prioridad: meta.prioridad as Prioridad | undefined,
+    icono: meta.icono as string | undefined,
     titulo: tituloDesdeCuerpo(cuerpo, id),
     cuerpo,
     meta,
@@ -57,7 +60,7 @@ export function parseProyecto(id: string, texto: string): Proyecto {
 }
 
 export function serializarProyecto(p: Proyecto): string {
-  const encabezado = { ...p.meta, estado: p.estado, area: p.area, prioridad: p.prioridad };
+  const encabezado = { ...p.meta, estado: p.estado, area: p.area, prioridad: p.prioridad, icono: p.icono };
   return `---\n${stringify(encabezado, { lineWidth: 0 })}---\n${p.cuerpo}`;
 }
 

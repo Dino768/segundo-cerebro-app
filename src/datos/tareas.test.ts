@@ -78,6 +78,11 @@ describe('parseTareas', () => {
     expect(e.message).toContain(palabra);
     expect(e.message).toMatch(/tarea \d/);
   });
+
+  it('lee el icono y rechaza uno que no es texto', () => {
+    expect(parseTareas('- id: a\n  titulo: A\n  area: uni\n  icono: cube\n')[0].icono).toBe('cube');
+    expect(() => parseTareas('- id: a\n  titulo: A\n  area: uni\n  icono: 3\n')).toThrow(/icono/);
+  });
 });
 
 describe('serializarTareas', () => {

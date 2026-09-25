@@ -9,6 +9,7 @@ export const PRIORIDADES: Prioridad[] = ['alta', 'media', 'baja'];
 export interface Tarea {
   id: string;
   titulo: string;
+  icono?: string;
   area: string;
   prioridad?: Prioridad;
   fecha?: ISODate;
@@ -39,6 +40,7 @@ function problema(t: Record<string, unknown>): string | null {
   if (t.hecha !== undefined && typeof t.hecha !== 'boolean') return 'hecha debe ser true o false';
   if (t.proyecto !== undefined && typeof t.proyecto !== 'string') return 'proyecto debe ser texto';
   if (t.notas !== undefined && typeof t.notas !== 'string') return 'notas debe ser texto';
+  if (t.icono !== undefined && typeof t.icono !== 'string') return 'icono debe ser el nombre de un icono (texto)';
   return null;
 }
 

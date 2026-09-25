@@ -2,6 +2,7 @@ import type { Prioridad, Tarea } from '../datos/tareas';
 import type { Area } from '../datos/areas';
 import { diaDeSemana, toISO, type ISODate } from '../fechas';
 import { areaMadre } from './areas';
+import { mezclarCambios } from './cambios';
 
 export type TareaSinId = Omit<Tarea, 'id'> & { id?: string };
 
@@ -87,21 +88,11 @@ export function nuevoIdTarea(ahora: Date, existentes: Tarea[]): string {
   return `${prefijo}${max + 1}`;
 }
 
-// Aplica sobre la versión remota solo los campos que el usuario cambió respecto a `original`,
-// para no pisar lo que otro (Claude, otro dispositivo) haya cambiado mientras tanto.
 export function aplicarEdicion(ts: Tarea[], original: Tarea | null, editada: TareaSinId, ahora: Date): Tarea[] {
-  if (!original) return [...ts, { ...editada, id: nuevoIdTarea(ahora, ts) }];
+  if (!original) return [...ts, { ...editada, id: nuevoIdTarea(ahora, ts) } as Tarea];
   const remota = ts.find((x) => x.id === original.id);
-  if (!remota) return [...ts, { ...editada, id: original.id }];
-  const resultado: Record<string, unknown> = { ...remota };
-  const antes = original as unknown as Record<string, unknown>;
-  const despues = editada as unknown as Record<string, unknown>;
-  for (const k of new Set([...Object.keys(antes), ...Object.keys(despues)])) {
-    if (k === 'id' || JSON.stringify(antes[k]) === JSON.stringify(despues[k])) continue;
-    if (despues[k] === undefined) delete resultado[k];
-    else resultado[k] = despues[k];
-  }
-  return ts.map((x) => (x === remota ? (resultado as unknown as Tarea) : x));
+  if (!remota) return [...ts, { ...editada, id: original.id } as Tarea];
+  return ts.map((x) => (x === remota ? (mezclarCambios(remota, original, editada) as Tarea) : x));
 }
 
 export function borrarDeLista(ts: Tarea[], id: string): Tarea[] {

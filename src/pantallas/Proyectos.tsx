@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ordenarProyectos, progresoProyecto } from '../agenda/proyectos';
 import { prioridadDe } from '../agenda/tareas';
-import { colorDeArea } from '../componentes/areas';
+import { colorDeArea } from '../agenda/areas';
 import { BarraProgreso } from '../componentes/BarraProgreso';
 import type { Edicion } from '../componentes/FormTarea';
 import type { Destino } from '../componentes/navegacion';

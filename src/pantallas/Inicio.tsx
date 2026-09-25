@@ -1,6 +1,6 @@
 import { LIMITE_ACTIVOS, ordenarProyectos, progresoProyecto } from '../agenda/proyectos';
 import { atrasadas, tareasDelDia, topSinFecha } from '../agenda/tareas';
-import { colorDeArea } from '../componentes/areas';
+import { colorDeArea } from '../agenda/areas';
 import { BarraProgreso } from '../componentes/BarraProgreso';
 import { Captura } from '../componentes/Captura';
 import { EtiquetaTarea } from '../componentes/EtiquetaTarea';

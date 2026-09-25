@@ -1,5 +1,7 @@
 import type { Prioridad, Tarea } from '../datos/tareas';
+import type { Area } from '../datos/areas';
 import { diaDeSemana, toISO, type ISODate } from '../fechas';
+import { areaMadre } from './areas';
 
 export type TareaSinId = Omit<Tarea, 'id'> & { id?: string };
 
@@ -117,16 +119,18 @@ export function contarPendientes(ts: Tarea[]): number {
 // Filtro de "calendarios" por área. `encendidas` vacía = todas. OTRAS agrupa las áreas que no están en areas.yaml.
 export const OTRAS = 'otras';
 
-export function hayOtrasAreas(ts: Tarea[], conocidas: string[]): boolean {
-  return ts.some((t) => !conocidas.includes(t.area));
+export function hayOtrasAreas(ts: Tarea[], areas: Area[]): boolean {
+  return ts.some((t) => areaMadre(areas, t.area) === undefined);
 }
 
-export function filtrarPorAreas(ts: Tarea[], encendidas: string[], conocidas: string[]): Tarea[] {
+// Cada tarea cuenta para su área grande: encender «Videojuegos» enseña también Blender, Unreal…
+export function filtrarPorAreas(ts: Tarea[], encendidas: string[], areas: Area[]): Tarea[] {
   // «Otras» solo cuenta si de verdad hay tareas con áreas desconocidas; si no, el calendario saldría vacío.
-  const hayOtras = hayOtrasAreas(ts, conocidas);
+  const conocidas = areas.map((a) => a.id);
+  const hayOtras = hayOtrasAreas(ts, areas);
   const validas = encendidas.filter((a) => conocidas.includes(a) || (a === OTRAS && hayOtras));
   if (validas.length === 0) return ts;
-  return ts.filter((t) => validas.includes(conocidas.includes(t.area) ? t.area : OTRAS));
+  return ts.filter((t) => validas.includes(areaMadre(areas, t.area) ?? OTRAS));
 }
 
 export function alternarArea(encendidas: string[], area: string, todas: string[]): string[] {

@@ -3,7 +3,7 @@ import { ordenarProyectos } from '../agenda/proyectos';
 import { contarPendientes } from '../agenda/tareas';
 import { ideasDe } from '../datos/ideas';
 import { useDatos } from '../estado/datos';
-import { colorDeArea } from './areas';
+import { colorDeArea } from '../agenda/areas';
 import { SECCIONES, URL_USO_CLAUDE, type Destino, type Pantalla } from './navegacion';
 
 interface Props {

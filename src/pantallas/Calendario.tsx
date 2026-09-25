@@ -39,15 +39,14 @@ export function Calendario({ editar, diaInicial }: { editar(e: Edicion): void; d
   const [seleccionado, setSeleccionado] = useState<ISODate>(diaInicial ?? hoy);
   const [encendidas, setEncendidas] = useState<string[]>(leerAreas);
 
-  const conocidas = datos.areas.map((a) => a.id);
   const botones = [
     ...datos.areas.map((a) => ({ id: a.id, nombre: a.nombre, color: a.color })),
-    ...(hayOtrasAreas(datos.tareas, conocidas) ? [{ id: OTRAS, nombre: 'Otras', color: '#9ca3af' }] : []),
+    ...(hayOtrasAreas(datos.tareas, datos.areas) ? [{ id: OTRAS, nombre: 'Otras', color: '#9ca3af' }] : []),
   ];
   const todas = botones.map((b) => b.id);
   const validas = encendidas.filter((a) => todas.includes(a));
   const estaEncendida = (id: string) => validas.length === 0 || validas.includes(id);
-  const tareas = filtrarPorAreas(datos.tareas, encendidas, conocidas);
+  const tareas = filtrarPorAreas(datos.tareas, encendidas, datos.areas);
   const cambiarAreas = (nuevas: string[]) => {
     setEncendidas(nuevas);
     guardarAreas(nuevas);

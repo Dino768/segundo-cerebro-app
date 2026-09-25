@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Tarea } from '../datos/tareas';
+import { parseAreas } from '../datos/areas';
 import {
   alternarArea, aplicarEdicion, atrasadas, borrarDeLista, contarPendientes, filtrarPorAreas, fijarEnLista, fijarHecha,
   hayOtrasAreas, hechaEl, nuevoIdTarea, OTRAS,
@@ -163,8 +164,8 @@ describe('contarPendientes', () => {
 });
 
 describe('filtro por áreas', () => {
+  const conocidas = parseAreas('- id: uni\n  nombre: Uni\n  color: "#3b82f6"\n  subareas:\n    - id: fisica\n      nombre: Física\n      color: "#3b82f6"\n- id: personal\n  nombre: Personal\n  color: "#f59e0b"\n');
   const ts = [t({ id: 'u', area: 'uni' }), t({ id: 'p', area: 'personal' }), t({ id: 'x', area: 'rara' })];
-  const conocidas = ['uni', 'personal'];
   const todas = ['uni', 'personal', OTRAS];
 
   it('sin áreas encendidas se ve todo', () => {
@@ -173,6 +174,11 @@ describe('filtro por áreas', () => {
   it('se ven solo las áreas encendidas, y «otras» son las desconocidas', () => {
     expect(ids(filtrarPorAreas(ts, ['uni'], conocidas))).toEqual(['u']);
     expect(ids(filtrarPorAreas(ts, ['personal', OTRAS], conocidas))).toEqual(['p', 'x']);
+  });
+  it('encender un área enseña también lo de sus subáreas', () => {
+    const conSub = [...ts, { id: 'f', titulo: 'F', area: 'fisica' }];
+    expect(ids(filtrarPorAreas(conSub, ['uni'], conocidas))).toEqual(['u', 'f']);
+    expect(hayOtrasAreas([{ id: 'f', titulo: 'F', area: 'fisica' }], conocidas)).toBe(false);
   });
   it('un área guardada que ya no existe se ignora y, si no queda ninguna, se ve todo', () => {
     expect(ids(filtrarPorAreas(ts, ['borrada'], conocidas))).toEqual(['u', 'p', 'x']);
@@ -200,7 +206,8 @@ describe('filtro por áreas', () => {
 
 describe('filtro por áreas: «otras» sin tareas desconocidas', () => {
   it('si «otras» estaba guardada pero ya no hay áreas desconocidas, se ve todo', () => {
+    const conocidas = parseAreas('- id: uni\n  nombre: Uni\n  color: "#3b82f6"\n- id: personal\n  nombre: Personal\n  color: "#f59e0b"\n');
     const ts = [t({ id: 'u', area: 'uni' }), t({ id: 'p', area: 'personal' })];
-    expect(ids(filtrarPorAreas(ts, [OTRAS], ['uni', 'personal']))).toEqual(['u', 'p']);
+    expect(ids(filtrarPorAreas(ts, [OTRAS], conocidas))).toEqual(['u', 'p']);
   });
 });

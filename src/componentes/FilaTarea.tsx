@@ -2,7 +2,7 @@ import { esRepetida, fijarEnLista, hechaEl, prioridadDe } from '../agenda/tareas
 import type { Tarea } from '../datos/tareas';
 import { useDatos } from '../estado/datos';
 import type { ISODate } from '../fechas';
-import { colorDeArea } from './areas';
+import { colorDeArea } from '../agenda/areas';
 
 interface Props {
   tarea: Tarea;

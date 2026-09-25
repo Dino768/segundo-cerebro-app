@@ -2,7 +2,7 @@ import { hechaEl } from '../agenda/tareas';
 import type { Tarea } from '../datos/tareas';
 import { useDatos } from '../estado/datos';
 import type { ISODate } from '../fechas';
-import { colorDeArea } from './areas';
+import { colorDeArea } from '../agenda/areas';
 
 // Etiqueta de una tarea en la semana y en el mes: fondo suave del color de su área y texto oscuro.
 export function EtiquetaTarea({ tarea, dia }: { tarea: Tarea; dia: ISODate }) {

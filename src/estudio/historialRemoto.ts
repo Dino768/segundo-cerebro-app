@@ -3,7 +3,7 @@ import { actualizarArchivo, ErrorGitHub, escribirBase64, leerArchivo, leerBinari
 import {
   carpetaHistorial, entradaDeArchivo, imagenesDe, nombreHistorial, ordenarHistorial, paraHistorial, type EntradaHistorial,
 } from './historial';
-import { serializarPizarra, validarPizarra, type Pizarra } from './pizarra';
+import { aplicarOperacion, serializarPizarra, validarPizarra, type Operacion, type Pizarra } from './pizarra';
 
 export async function listarHistorial(cfg: Config, asignatura: string): Promise<EntradaHistorial[]> {
   const nombres = await listarCarpeta(cfg, carpetaHistorial(asignatura));
@@ -43,4 +43,17 @@ export async function subirAlHistorial(
   const destino = `${carpeta}/${archivo}`;
   await actualizarArchivo(cfg, destino, () => serializarPizarra(paraHistorial(p, titulo)), `Pizarra al historial: ${titulo}`);
   return destino;
+}
+
+// Aplica las operaciones de Diego sobre la versión más nueva del historial, en un solo guardado.
+export async function operarEnHistorial(cfg: Config, asignatura: string, archivo: string, ops: Operacion[], titulo: string): Promise<Pizarra> {
+  let resultado: Pizarra | null = null;
+  await actualizarArchivo(cfg, `${carpetaHistorial(asignatura)}/${archivo}`, (texto) => {
+    if (texto === null) throw new ErrorGitHub('no-existe', 'Esta pizarra ya no está en el historial');
+    const nueva = ops.reduce(aplicarOperacion, validarPizarra(JSON.parse(texto)).pizarra);
+    resultado = nueva;
+    return serializarPizarra(nueva);
+  }, `Pizarra: ${titulo} (dibujo)`);
+  if (!resultado) throw new ErrorGitHub('no-existe', 'Esta pizarra ya no está en el historial');
+  return resultado;
 }

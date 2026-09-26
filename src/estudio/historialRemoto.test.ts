@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as cliente from '../github/cliente';
-import { listarHistorial, leerDeHistorial, subirAlHistorial } from './historialRemoto';
+import { listarHistorial, leerDeHistorial, operarEnHistorial, subirAlHistorial } from './historialRemoto';
 import { pizarraVacia, serializarPizarra, type Pizarra } from './pizarra';
 
 vi.mock('../github/cliente', async (importOriginal) => {
@@ -50,5 +50,21 @@ describe('historial en GitHub', () => {
   it('sin red, el error llega al que llama (para marcar «pendiente de subir»)', async () => {
     listar.mockRejectedValue(new cliente.ErrorGitHub('red', 'Sin conexión con GitHub'));
     await expect(subirAlHistorial(cfg, 'fisica', conImagen, 'Newton', '2026-09-24', async () => 'x')).rejects.toMatchObject({ tipo: 'red' });
+  });
+});
+
+describe('operarEnHistorial', () => {
+  it('aplica las operaciones sobre la versión más nueva del historial y la devuelve', async () => {
+    const remota = serializarPizarra(pizarraVacia('Newton'));
+    let escrito = '';
+    actualizar.mockImplementation(async (_c, _r, transformar) => (escrito = transformar(remota)));
+    const p = await operarEnHistorial(cfg, 'fisica', 'a.json', [{ tipo: 'nota', id: null, nuevoId: 'd-1', x: 0, y: 0, contenido: 'Hola' }], 'Newton');
+    expect(p.piezas.map((x) => x.id)).toEqual(['d-1']);
+    expect(JSON.parse(escrito).piezas).toHaveLength(1);
+    expect(actualizar).toHaveBeenCalledWith(cfg, 'estudios/fisica/pizarras/a.json', expect.any(Function), 'Pizarra: Newton (dibujo)');
+  });
+  it('si la pizarra ya no está en el historial, falla', async () => {
+    actualizar.mockImplementation(async (_c, _r, transformar) => transformar(null));
+    await expect(operarEnHistorial(cfg, 'fisica', 'a.json', [], 'x')).rejects.toThrow();
   });
 });

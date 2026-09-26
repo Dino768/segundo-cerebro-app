@@ -68,7 +68,7 @@ export function VisorHistorial({ asignatura, entrada, alVolver }: { asignatura: 
         <span className="titulo-chat">{pizarra?.titulo ?? entrada.titulo}{entrada.fecha ? ` · ${formatoCorto(entrada.fecha)}` : ''}</span>
       </div>
       {error && !pizarra && <p className="banner error">No se ha podido abrir: {error}</p>}
-      {pizarra ? <Pizarra pizarra={pizarra} imagen={imagen} /> : !error && <p className="cargando">Cargando…</p>}
+      {pizarra ? <Pizarra pizarra={pizarra} imagen={imagen} clave={`historial-${asignatura.id}-${entrada.archivo}`} origen={`historial:${asignatura.id}`} /> : !error && <p className="cargando">Cargando…</p>}
     </div>
   );
 }

@@ -306,7 +306,14 @@ export function EstudioLocal({ asignatura, local }: Props) {
               <div className="banner error aviso-pizarra">{avisoPizarra} <button onClick={() => setAvisoPizarra(null)}>Cerrar</button></div>
             )}
             {actual?.pizarra ? (
-              <Pizarra key={`${conv.id}-${actual.n}`} pizarra={actual.pizarra} imagen={imagen} alOperar={(op) => void operar(actual.n, op)}>
+              <Pizarra
+                key={`${conv.id}-${actual.n}`}
+                pizarra={actual.pizarra}
+                imagen={imagen}
+                alOperar={(op) => operar(actual.n, op)}
+                clave={`local-${asignatura.id}-${conv.id}-${actual.n}`}
+                origen={`local:${asignatura.id}:${conv.id}`}
+              >
                 <button
                   className={actual.pizarra.guardadaEn && guardado[actual.n] !== 'pendiente' ? '' : 'principal'}
                   disabled={!config || guardado[actual.n] === 'subiendo'}

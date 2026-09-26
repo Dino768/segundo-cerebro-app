@@ -363,3 +363,9 @@ main.ancho { max-width: none; }
 @media (max-width: 899px) {
   .panel-capas { left: 10px; right: 10px; top: auto; bottom: 10px; width: auto; max-height: 55%; }
 }
+.zona-lienzo { position: relative; flex: 1; min-height: 0; display: flex; }
+.zona-lienzo > .lienzo { flex: 1; }
+.lienzo.dibujando, .lienzo.dibujando:active { cursor: crosshair; }
+.guias .lazo { fill: rgb(184 96 61 / 0.06); stroke: var(--acento); stroke-width: 1.5; stroke-dasharray: 6 4; }
+.guias .caja-seleccion { fill: none; stroke: var(--acento); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.aviso-herramienta { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 3; margin: 0; padding: 6px 12px; border-radius: 8px; background: var(--aviso); font-size: 13px; pointer-events: none; max-width: calc(100% - 20px); }

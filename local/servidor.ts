@@ -53,8 +53,8 @@ async function leerCuerpo(req: IncomingMessage, limite: number): Promise<Buffer>
   return Buffer.concat(trozos);
 }
 
-export async function leerJson(req: IncomingMessage): Promise<Record<string, unknown>> {
-  const cuerpo = await leerCuerpo(req, 1_000_000);
+export async function leerJson(req: IncomingMessage, limite = 1_000_000): Promise<Record<string, unknown>> {
+  const cuerpo = await leerCuerpo(req, limite);
   try {
     const j = JSON.parse(cuerpo.toString('utf8'));
     if (typeof j === 'object' && j !== null && !Array.isArray(j)) return j as Record<string, unknown>;
@@ -228,7 +228,8 @@ export function crearServidor(o: OpcionesServidor) {
     },
 
     'POST pizarra/operacion': async (req, res) => {
-      const b = await leerJson(req);
+      // Una fusión lleva dos pizarras enteras: se deja más sitio que en el resto de peticiones.
+      const b = await leerJson(req, 8_000_000);
       const carpeta = carpetaDe(asignaturaDe(b.asignatura), conversacionDe(b.id));
       const n = numeroPizarra(b.n);
       let op: Operacion;

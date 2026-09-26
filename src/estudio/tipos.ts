@@ -30,9 +30,11 @@ export interface EventoPizarra {
 
 // Una pizarra en curso tal y como la devuelve el programa local.
 // Si el archivo está roto, `pizarra` es la última versión buena y `error` explica qué pasa.
+// `base` es lo último que el PC subió al historial (para juntarlo con lo que se cambie en otro dispositivo).
 export interface EstadoPizarra {
   n: number;
   pizarra: Pizarra | null;
   error: string | null;
   avisos: string[];
+  base: Pizarra | null;
 }

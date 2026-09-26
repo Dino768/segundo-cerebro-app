@@ -17,6 +17,7 @@ Estás en la zona de estudio de la app de Diego. Diego estudia primero de Ingeni
 - Cada conversación tiene su carpeta (la de «Pizarras de esta conversación» en la cabecera). Dentro, las pizarras son `pizarra-1.json`, `pizarra-2.json`…
 - Escribe en la **pizarra abierta**. Si no hay ninguna abierta, o Diego pide «pizarra nueva», o cambiáis de tema, crea la siguiente `pizarra-<n>.json` (n = el número más alto + 1). Diego puede borrar pizarras, así que puede faltar algún número: no rellenes huecos ni vuelvas a crear las que ha borrado.
 - Antes de cambiar una pizarra, léela: Diego puede haber movido o borrado piezas, o haber añadido notas (tipo `nota`). Respeta lo que haya hecho y mira sus notas: a veces te pregunta algo en ellas.
+- La pizarra puede tener `capas`, `trazos` (dibujos a mano de Diego) y un campo `capa` en las piezas. Son de Diego: no los cambies ni los borres, y deja `version` como esté (1 o 2). Tus piezas nuevas no necesitan `capa` (van solas a tu capa, «Claude»).
 - Formato (JSON, sin comentarios):
   ```json
   { "version": 1, "titulo": "Leyes de Newton",

@@ -11,6 +11,15 @@ const ultimasBuenas = new Map<string, Pizarra>();
 const colas = new Map<string, Promise<unknown>>();
 
 export const rutaPizarra = (carpeta: string, n: number) => path.join(carpeta, `pizarra-${n}.json`);
+export const rutaBase = (carpeta: string, n: number) => path.join(carpeta, `pizarra-${n}.subida.json`);
+
+async function leerBase(carpeta: string, n: number): Promise<Pizarra | null> {
+  try {
+    return validarPizarra(JSON.parse(await readFile(rutaBase(carpeta, n), 'utf8'))).pizarra;
+  } catch {
+    return null;
+  }
+}
 
 async function numeros(carpeta: string): Promise<number[]> {
   try {
@@ -29,10 +38,10 @@ export async function leerPizarra(carpeta: string, n: number): Promise<EstadoPiz
   try {
     const { pizarra, avisos } = validarPizarra(JSON.parse(await readFile(ruta, 'utf8')));
     ultimasBuenas.set(ruta, pizarra);
-    return { n, pizarra, error: null, avisos };
+    return { n, pizarra, error: null, avisos, base: await leerBase(carpeta, n) };
   } catch (e) {
     const error = e instanceof SyntaxError ? `JSON mal escrito: ${e.message}` : e instanceof Error ? e.message : String(e);
-    return { n, pizarra: ultimasBuenas.get(ruta) ?? null, error, avisos: [] };
+    return { n, pizarra: ultimasBuenas.get(ruta) ?? null, error, avisos: [], base: await leerBase(carpeta, n) };
   }
 }
 
@@ -65,6 +74,9 @@ export function operarPizarra(carpeta: string, n: number, op: Operacion): Promis
       const nueva = aplicarOperacion(estado.pizarra, op);
       await escribirAtomico(ruta, serializarPizarra(nueva));
       ultimasBuenas.set(ruta, nueva);
+      // La copia base es lo que hay ahora en el historial: lo que se acaba de subir, o lo que se acaba de juntar.
+      if (op.tipo === 'guardada' && op.subida) await escribirAtomico(rutaBase(carpeta, n), serializarPizarra(op.subida));
+      if (op.tipo === 'fusionar') await escribirAtomico(rutaBase(carpeta, n), serializarPizarra(op.suya));
       return nueva;
     });
   colas.set(ruta, siguiente);
@@ -78,6 +90,7 @@ export function borrarPizarra(carpeta: string, n: number): Promise<void> {
     .catch(() => undefined)
     .then(async () => {
       await rm(ruta, { force: true });
+      await rm(rutaBase(carpeta, n), { force: true });
       ultimasBuenas.delete(ruta);
     });
   colas.set(ruta, siguiente);

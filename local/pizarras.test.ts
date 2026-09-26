@@ -1,7 +1,8 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { aplicarOperacion, pizarraVacia } from '../src/estudio/pizarra.ts';
 import type { EventoPizarra } from '../src/estudio/tipos.ts';
 import { borrarPizarra, crearPizarra, interpretarCambio, leerPizarra, listarPizarras, operarPizarra, pizarrasNoValidas, rutaPizarra, vigilarPizarras } from './pizarras.ts';
 
@@ -50,6 +51,25 @@ describe('pizarras en el disco', () => {
     expect((await listarPizarras(c)).map((e) => e.n)).toEqual([1, 3]);
     await borrarPizarra(c, 2); // ya no estaba: no pasa nada
     expect(await crearPizarra(c)).toBe(4);
+  });
+  it('guardar en el historial deja una copia base, y fusionar la cambia por la del historial', async () => {
+    const c = carpetaNueva();
+    await crearPizarra(c);
+    const subida = pizarraVacia('Newton');
+    await operarPizarra(c, 1, { tipo: 'guardada', ruta: 'estudios/fisica/pizarras/a.json', subida });
+    expect((await leerPizarra(c, 1)).base?.titulo).toBe('Newton');
+    const suya = aplicarOperacion(pizarraVacia('Newton'), { tipo: 'nota', id: null, nuevoId: 'd-ipad', x: 0, y: 0, contenido: 'Del iPad' });
+    const p = await operarPizarra(c, 1, { tipo: 'fusionar', base: subida, suya });
+    expect(p.piezas.map((x) => x.id)).toEqual(['d-ipad']);
+    expect(p.guardadaEn).toBe('estudios/fisica/pizarras/a.json');
+    expect((await leerPizarra(c, 1)).base?.piezas).toHaveLength(1);
+    await borrarPizarra(c, 1);
+    expect(existsSync(path.join(c, 'pizarra-1.subida.json'))).toBe(false);
+  });
+  it('sin copia base, base es null', async () => {
+    const c = carpetaNueva();
+    await crearPizarra(c);
+    expect((await leerPizarra(c, 1)).base).toBeNull();
   });
   it('una pizarra borrada no reaparece con su última versión buena', async () => {
     const c = carpetaNueva();

@@ -159,6 +159,11 @@ describe('pizarras', () => {
     expect(p.piezas).toHaveLength(1);
     const lista = await (await fetch(`${API}pizarras?asignatura=fisica&id=${id}`)).json();
     expect(lista[0]).toMatchObject({ n: 1, error: null });
+    const t = await (await post('pizarra/operacion', {
+      asignatura: 'fisica', id, n: 1,
+      op: { tipo: 'trazos', quitar: [], poner: [{ id: 'd-1', herramienta: 'lapiz', color: '#000000', grosor: 2, puntos: [0, 0, 5, 5] }] },
+    })).json();
+    expect(t.trazos).toHaveLength(1);
     expect((await post('pizarra/operacion', { asignatura: 'fisica', id, n: 1, op: { tipo: 'volar' } })).status).toBe(400);
   });
   it('borrar una pizarra', async () => {

@@ -38,12 +38,14 @@ export function Estudio() {
       />
       {local.estado === 'comprobando' && <p className="cargando">Buscando el programa local…</p>}
       {local.estado === 'si' && <EstudioLocal key={asignatura.id} asignatura={asignatura} local={local} />}
-      {(local.estado === 'no' || local.estado === 'cerrado') && (
+      {(local.estado === 'no' || local.estado === 'cerrado' || local.estado === 'antiguo') && (
         <>
           <div className="banner aviso">
-            {local.estado === 'cerrado'
-              ? 'El programa local se ha cerrado. Vuelve a abrirlo (npm run local) para seguir con el chat.'
-              : 'El chat solo está disponible en tu PC.'}
+            {local.estado === 'antiguo'
+              ? 'El programa local sigue abierto desde antes de la última actualización. Ciérralo (en su ventana, Ctrl+C) y vuelve a abrirlo con npm run local.'
+              : local.estado === 'cerrado'
+                ? 'El programa local se ha cerrado. Vuelve a abrirlo (npm run local) para seguir con el chat.'
+                : 'El chat solo está disponible en tu PC.'}
           </div>
           <Historial key={asignatura.id} asignatura={asignatura} />
         </>

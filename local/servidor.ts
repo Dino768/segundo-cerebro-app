@@ -4,7 +4,7 @@ import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import path from 'node:path';
 import { conContexto } from '../src/estudio/contexto.ts';
 import { ErrorPizarra, validarOperacion, type Operacion } from '../src/estudio/pizarra.ts';
-import type { EventoChat, EventoPizarra } from '../src/estudio/tipos.ts';
+import { VERSION_PROGRAMA, type EventoChat, type EventoPizarra } from '../src/estudio/tipos.ts';
 import { lanzarClaude, type Comando, type Proceso } from './claude.ts';
 import { avisoCarpetaConversaciones, carpetaConversaciones, leerConversacionDe, listarConversaciones } from './conversaciones.ts';
 import { borrarPizarra, crearPizarra, listarPizarras, operarPizarra, pizarrasNoValidas, vigilarPizarras } from './pizarras.ts';
@@ -131,7 +131,7 @@ export function crearServidor(o: OpcionesServidor) {
   }
 
   const rutas: Record<string, Manejador> = {
-    'GET estado': async (_req, res) => enviarJson(res, 200, { ok: true }),
+    'GET estado': async (_req, res) => enviarJson(res, 200, { ok: true, version: VERSION_PROGRAMA }),
 
     'GET conversaciones': async (_req, res, url) => {
       const asig = asignaturaDe(url.searchParams.get('asignatura'));

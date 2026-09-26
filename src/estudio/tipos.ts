@@ -1,6 +1,9 @@
 // Tipos que comparten la app y el programa local.
 import type { Pizarra } from './pizarra.ts';
 
+// Sube cuando el programa local cambia de forma que la app necesita el nuevo (si no, hay que reiniciarlo).
+export const VERSION_PROGRAMA = 2;
+
 export interface Mensaje {
   rol: 'diego' | 'claude' | 'herramienta';
   texto: string;

@@ -1,4 +1,5 @@
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { VERSION_PROGRAMA } from '../src/estudio/tipos.ts';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
@@ -71,7 +72,7 @@ describe('app', () => {
     expect(r.status).toBe(302);
   });
   it('estado', async () => {
-    expect(await (await fetch(`${API}estado`)).json()).toEqual({ ok: true });
+    expect(await (await fetch(`${API}estado`)).json()).toEqual({ ok: true, version: VERSION_PROGRAMA });
   });
 });
 

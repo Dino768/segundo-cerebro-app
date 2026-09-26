@@ -1,5 +1,5 @@
-import type { Operacion, Pizarra } from './pizarra';
-import type { EstadoPizarra, EventoChat, Mensaje, ResumenConversacion } from './tipos';
+import { validarPizarra, type Operacion, type Pizarra } from './pizarra';
+import { VERSION_PROGRAMA, type EstadoPizarra, type EventoChat, type Mensaje, type ResumenConversacion } from './tipos';
 
 // Habla con el programa local (npm run local). En la web publicada no existe y todo falla en silencio.
 const BASE = `${import.meta.env.BASE_URL}api/local`;
@@ -31,13 +31,26 @@ const enviarJson = (cuerpo: unknown): RequestInit => ({
   body: JSON.stringify(cuerpo),
 });
 
-export async function hayProgramaLocal(): Promise<boolean> {
+// 'antiguo': el programa local sigue abierto desde antes de una actualización y hay que cerrarlo y volver a abrirlo.
+export async function comprobarProgramaLocal(): Promise<'si' | 'antiguo' | 'no'> {
   try {
     const r = await fetch(`${BASE}/estado`, { cache: 'no-store' });
-    if (!r.ok) return false;
-    return ((await r.json()) as { ok?: boolean }).ok === true;
+    if (!r.ok) return 'no';
+    const j = (await r.json()) as { ok?: boolean; version?: number };
+    if (j.ok !== true) return 'no';
+    return j.version === VERSION_PROGRAMA ? 'si' : 'antiguo';
   } catch {
-    return false;
+    return 'no';
+  }
+}
+
+// Lo que manda el programa local se revisa igual que lo que llega de GitHub (así siempre trae capas y trazos).
+function revisada(p: unknown): Pizarra | null {
+  if (!p) return null;
+  try {
+    return validarPizarra(p).pizarra;
+  } catch {
+    return null;
   }
 }
 
@@ -129,7 +142,8 @@ export async function leerArchivoBase64(asignatura: string, id: string, ruta: st
   return btoa(binario);
 }
 
-export const leerPizarras = (asignatura: string, id: string) => pedir<EstadoPizarra[]>(`pizarras?${consulta({ asignatura, id })}`);
+export const leerPizarras = async (asignatura: string, id: string): Promise<EstadoPizarra[]> =>
+  (await pedir<EstadoPizarra[]>(`pizarras?${consulta({ asignatura, id })}`)).map((e) => ({ ...e, pizarra: revisada(e.pizarra), base: revisada(e.base ?? null) }));
 
 export async function nuevaPizarra(asignatura: string, id: string): Promise<number> {
   return (await pedir<{ n: number }>('pizarra/nueva', enviarJson({ asignatura, id }))).n;
@@ -139,5 +153,7 @@ export async function borrarPizarra(asignatura: string, id: string, n: number): 
   await pedir<{ ok: true }>('pizarra/borrar', enviarJson({ asignatura, id, n }));
 }
 
-export const operarPizarra = (asignatura: string, id: string, n: number, op: Operacion) =>
-  pedir<Pizarra>('pizarra/operacion', enviarJson({ asignatura, id, n, op }));
+export async function operarPizarra(asignatura: string, id: string, n: number, op: Operacion): Promise<Pizarra> {
+  const p = await pedir<Pizarra>('pizarra/operacion', enviarJson({ asignatura, id, n, op }));
+  return revisada(p) ?? p;
+}

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { hayProgramaLocal, urlEventos } from './local';
+import { comprobarProgramaLocal, urlEventos } from './local';
 import type { EventoPizarra } from './tipos';
 
-export type EstadoLocal = 'comprobando' | 'si' | 'no' | 'cerrado';
+export type EstadoLocal = 'comprobando' | 'si' | 'no' | 'cerrado' | 'antiguo';
 
 // ¿Está el programa local? Si se cierra, se vuelve a buscar cada 5 segundos.
 export function useLocal(): { estado: EstadoLocal; suscribir(f: (e: EventoPizarra) => void): () => void } {
@@ -14,9 +14,15 @@ export function useLocal(): { estado: EstadoLocal; suscribir(f: (e: EventoPizarr
     let fuente: EventSource | null = null;
     let reintento: ReturnType<typeof setTimeout> | undefined;
     const conectar = async (yaEstaba: boolean) => {
-      const hay = await hayProgramaLocal();
+      const hay = await comprobarProgramaLocal();
       if (cerrado) return;
-      if (!hay) {
+      // Un programa de antes de la actualización: se avisa y se vuelve a mirar hasta que Diego lo reinicie.
+      if (hay === 'antiguo') {
+        setEstado('antiguo');
+        reintento = setTimeout(() => void conectar(true), 5000);
+        return;
+      }
+      if (hay === 'no') {
         setEstado(yaEstaba ? 'cerrado' : 'no');
         if (yaEstaba) reintento = setTimeout(() => void conectar(true), 5000);
         return;

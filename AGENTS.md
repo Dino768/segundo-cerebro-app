@@ -28,6 +28,7 @@ Node está en `C:\Program Files\nodejs`. En la terminal Bash de Claude Code pued
 - `npm run dev`: app en local, en http://localhost:5173/segundo-cerebro-app/
 - `npm test`: pruebas automáticas (Vitest)
 - `npm run build`: compila y revisa los tipos
+- `scripts/zona-de-estudio.bat` (acceso directo «Zona de estudio» en el escritorio de Diego): cierra la zona de estudio que siguiera abierta, ejecuta `npm run local` y abre el navegador. Es lo que usa Diego; tras cada actualización basta con volver a darle.
 - `npm run local`: zona de estudio en el PC (compila la app y arranca el programa local en http://127.0.0.1:5174/segundo-cerebro-app/). Necesita Claude Code instalado y `my-context` al lado. Guía para otro ordenador: `docs/portatil.md`.
 
 ## Estructura del código

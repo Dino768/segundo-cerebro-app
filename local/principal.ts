@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -32,7 +33,10 @@ servidor.on('error', (e: NodeJS.ErrnoException) => {
   process.exit(1);
 });
 servidor.listen(puerto, '127.0.0.1', () => {
-  console.log(`\nZona de estudio lista: http://127.0.0.1:${puerto}/segundo-cerebro-app/`);
+  const url = `http://127.0.0.1:${puerto}/segundo-cerebro-app/`;
+  console.log(`\nZona de estudio lista: ${url}`);
+  // Con el acceso directo del escritorio se abre sola en el navegador.
+  if (process.env.ABRIR_NAVEGADOR === '1' && process.platform === 'win32') spawn('explorer.exe', [url], { detached: true, stdio: 'ignore' }).unref();
   console.log(`Apuntes y pizarras en: ${estudios}`);
   console.log('Para cerrarla, pulsa Ctrl+C en esta ventana.\n');
 });

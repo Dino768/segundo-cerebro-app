@@ -23,6 +23,8 @@ Para tener el chat y la pizarra en el portátil, se necesitan los mismos program
    npm run local
    ```
    Abre http://127.0.0.1:5174/segundo-cerebro-app/.
+
+   Más cómodo: haz un acceso directo en el escritorio a `segundo-cerebro-app\scripts\zona-de-estudio.bat`. Con doble clic cierra la zona de estudio que siguiera abierta, la arranca y abre el navegador.
 6. **La primera vez, la llave de GitHub**: crea un token nuevo para este portátil (solo `my-context`, permiso *Contents* de lectura y escritura, 90 días) y pégalo en Ajustes. Nunca lo pegues en el chat.
 
 Las conversaciones y las pizarras en curso del portátil se quedan en el portátil. El historial de pizarras, las asignaturas, las tareas y todo lo demás se comparten con el PC y el móvil.

@@ -42,6 +42,9 @@ export function ListaHistorial({ asignatura, alAbrir }: { asignatura: Asignatura
   );
 }
 
+// Cada vez que se abre una pizarra del historial se crea una cola nueva; solo la última guarda lo pendiente en el navegador.
+const generaciones = new Map<string, number>();
+
 const TEXTO_COLA: Record<EstadoCola, string> = { 'al-dia': 'Guardado ✓', guardando: 'Guardando…', pendiente: 'Pendiente de subir' };
 
 export function VisorHistorial({ asignatura, entrada, alVolver }: { asignatura: Asignatura; entrada: EntradaHistorial; alVolver(): void }) {
@@ -62,6 +65,9 @@ export function VisorHistorial({ asignatura, entrada, alVolver }: { asignatura: 
   // Lo que Diego dibuja aquí se junta y se sube de golpe (3 s sin tocar nada, al salir o al pasar a segundo plano).
   useEffect(() => {
     if (!config) return;
+    const k = `${asignatura.id}/${entrada.archivo}`;
+    const generacion = (generaciones.get(k) ?? 0) + 1;
+    generaciones.set(k, generacion);
     const c = crearColaHistorial(
       {
         subir: (ops) => operarEnHistorial(config, asignatura.id, entrada.archivo, ops, entrada.titulo),
@@ -71,6 +77,7 @@ export function VisorHistorial({ asignatura, entrada, alVolver }: { asignatura: 
         },
         alCambiarEstado: setEstadoCola,
         guardarPendientes: (ops) => guardarOpsPendientes(asignatura.id, entrada.archivo, ops),
+        vigente: () => generaciones.get(k) === generacion,
       },
       leerOpsPendientes(asignatura.id, entrada.archivo),
     );
@@ -92,8 +99,11 @@ export function VisorHistorial({ asignatura, entrada, alVolver }: { asignatura: 
 
   useEffect(() => {
     if (!config) return;
+    // Si mientras se lee ya se ha subido algo, lo que llega es más viejo que lo que hay: se ignora.
+    const subidasAntes = cola.current?.subidas() ?? 0;
     leerDeHistorial(config, asignatura.id, entrada.archivo).then(
       (p) => {
+        if ((cola.current?.subidas() ?? 0) !== subidasAntes) return;
         guardarPizarraCache(asignatura.id, entrada.archivo, p);
         setPizarra((cola.current?.pendientes() ?? []).reduce(aplicarOperacion, p));
       },

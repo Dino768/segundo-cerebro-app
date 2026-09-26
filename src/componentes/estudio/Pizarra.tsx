@@ -3,12 +3,12 @@ import { confirmar, pedirTexto } from '../../estado/dialogos';
 import { CAPA_CLAUDE, opCrearCapa, opDuplicarCapa, opMoverCapa, porCapas } from '../../estudio/capas';
 import { aMundo, centro, encuadrar, puntoEnBorde, zoomEn, type Punto, type Rect, type Vista } from '../../estudio/geometria';
 import {
-  borrarSeleccion, cajaDeSeleccion, haySeleccion, limpiarSeleccion, moverSeleccion, pasarGoma, resultadoGoma, seleccionarConLazo, SIN_SELECCION,
-  toqueMultiple, trazoDeGesto, trazosTocados, type Seleccion,
+  borrarSeleccion, cajaDeSeleccion, empezarGoma, haySeleccion, ignorarPuntero, limpiarSeleccion, moverSeleccion, seguirGoma, seleccionarConLazo, SIN_SELECCION,
+  terminarGoma, toqueMultiple, trazoDeGesto, trazosTocados, type Goma, type Seleccion,
 } from '../../estudio/gestos';
 import { aplicarOperacion, type Operacion, type Pieza, type Pizarra as TipoPizarra } from '../../estudio/pizarra';
 import { copiar, guardarRecorte, leerRecorte, pegar } from '../../estudio/portapapeles';
-import { cajaDeTrazo, nuevoId, type Trazo } from '../../estudio/tinta';
+import { cajaDeTrazo, nuevoId } from '../../estudio/tinta';
 import { BarraHerramientas } from './BarraHerramientas';
 import { CapaTinta } from './CapaTinta';
 import { PanelCapas } from './PanelCapas';
@@ -31,7 +31,7 @@ type Gesto =
   | { tipo: 'pieza'; id: string; desde: Punto; origen: Punto; movido: boolean }
   | { tipo: 'trazo'; id: string; puntos: Punto[]; presiones: number[] | null }
   | { tipo: 'borrar-trazos'; ids: Set<string> }
-  | { tipo: 'goma'; ultimo: Punto; trabajo: Trazo[] }
+  | { tipo: 'goma'; goma: Goma }
   | { tipo: 'lazo'; poligono: Punto[] }
   | { tipo: 'mover-seleccion'; desde: Punto; dx: number; dy: number };
 
@@ -57,6 +57,7 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
   const pinza = useRef<{ d: number; medio: Punto } | null>(null);
   const toque = useRef<{ inicio: number; dedos: number; movido: number; origen: Map<number, Punto> } | null>(null);
   const lapizVisto = useRef(false);
+  const lapizAbajo = useRef(false);
   const espacio = useRef(false);
   const encuadrada = useRef(false);
 
@@ -135,24 +136,19 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
   function pasarLaGoma(m: Punto) {
     const g = gesto.current;
     if (g?.tipo !== 'goma' || !activa) return;
-    const usados = new Set([...g.trabajo.map((t) => t.id), ...mostrada.trazos.map((t) => t.id)]);
-    const r = pasarGoma(g.trabajo, activa, [g.ultimo, m], radio(), () => {
+    const usados = new Set([...g.goma.trabajo.map((t) => t.id), ...mostrada.trazos.map((t) => t.id)]);
+    seguirGoma(g.goma, activa, m, radio(), () => {
       const id = nuevoId('d', usados);
       usados.add(id);
       return id;
     });
-    if (r.quitar.length) {
-      const fuera = new Set(r.quitar);
-      g.trabajo = [...g.trabajo.filter((t) => !fuera.has(t.id)), ...r.poner];
-    }
-    g.ultimo = m;
-    const res = resultadoGoma(mostrada.trazos, g.trabajo);
+    const res = terminarGoma(g.goma);
     setProvisional(res.quitar.length ? { tipo: 'trazos', ...res } : null);
   }
 
   function alPulsar(e: PointerEvent<HTMLDivElement>) {
-    if ((e.target as HTMLElement).closest('textarea, a') || e.button === 2) return;
-    if (e.pointerType === 'pen') lapizVisto.current = true;
+    if ((e.target as HTMLElement).closest('textarea, a') || e.button === 2 || ignorarPuntero(e.pointerType, lapizAbajo.current)) return;
+    if (e.pointerType === 'pen') lapizVisto.current = lapizAbajo.current = true;
     marco.current?.focus({ preventScroll: true });
     marco.current?.setPointerCapture(e.pointerId);
     const p = local(e);
@@ -219,7 +215,7 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
           gesto.current = { tipo: 'borrar-trazos', ids };
           setProvisional({ tipo: 'trazos', quitar: [...ids], poner: [] });
         } else {
-          gesto.current = { tipo: 'goma', ultimo: m, trabajo: mostrada.trazos };
+          gesto.current = { tipo: 'goma', goma: empezarGoma(mostrada.trazos, m) };
           pasarLaGoma(m);
         }
         return;
@@ -296,6 +292,8 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
   }
 
   function alSoltar(e: PointerEvent<HTMLDivElement>) {
+    if (!punteros.current.has(e.pointerId)) return;
+    if (e.pointerType === 'pen') lapizAbajo.current = false;
     punteros.current.delete(e.pointerId);
     if (punteros.current.size < 2) pinza.current = null;
     const t = toque.current;
@@ -332,7 +330,7 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
         return;
       case 'goma': {
         setProvisional(null);
-        const r = resultadoGoma(mostrada.trazos, g.trabajo);
+        const r = terminarGoma(g.goma);
         if (r.quitar.length) ed.hacer({ tipo: 'trazos', ...r });
         return;
       }
@@ -350,6 +348,8 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
   }
 
   function alCancelar(e: PointerEvent<HTMLDivElement>) {
+    if (!punteros.current.has(e.pointerId)) return;
+    if (e.pointerType === 'pen') lapizAbajo.current = false;
     punteros.current.delete(e.pointerId);
     if (punteros.current.size < 2) pinza.current = null;
     toque.current = null;

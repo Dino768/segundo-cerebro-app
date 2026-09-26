@@ -69,6 +69,11 @@ async function peticion(cfg: Config, ruta: string, init: RequestInit = {}): Prom
 export async function leerArchivo(cfg: Config, ruta: string): Promise<Archivo> {
   const j = await (await peticion(cfg, ruta)).json();
   if (Array.isArray(j) || j.type !== 'file') throw new ErrorGitHub('otro', `${ruta} no es un archivo`);
+  // De más de 1 MB, GitHub no manda el contenido: se pide en crudo (el sha es el de arriba; si cambió entre medias, escribir dará conflicto y se reintenta).
+  if (j.encoding === 'none' || (!j.content && j.size > 0)) {
+    const crudo = await peticion(cfg, ruta, { headers: { Accept: 'application/vnd.github.raw+json' } });
+    return { texto: await crudo.text(), sha: j.sha };
+  }
   return { texto: base64ATexto(j.content), sha: j.sha };
 }
 

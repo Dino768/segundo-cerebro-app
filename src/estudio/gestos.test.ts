@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ajustarForma, borrarSeleccion, cajaDeSeleccion, grosorDe, limpiarSeleccion, moverSeleccion, pasarGoma, resultadoGoma, seleccionarConLazo,
+  ajustarForma, borrarSeleccion, empezarGoma, ignorarPuntero, seguirGoma, terminarGoma, cajaDeSeleccion, grosorDe, limpiarSeleccion, moverSeleccion, pasarGoma, resultadoGoma, seleccionarConLazo,
   toqueMultiple, trazoDeGesto, trazosTocados,
 } from './gestos';
 import { INICIALES } from './herramientas';
@@ -73,5 +73,32 @@ describe('borradores, lazo y selección', () => {
     expect(toqueMultiple(2, 500, 3)).toBeNull();
     expect(toqueMultiple(2, 150, 40)).toBeNull();
     expect(toqueMultiple(1, 100, 0)).toBeNull();
+  });
+});
+
+describe('goma durante cambios de fuera', () => {
+  const p = validarPizarra({
+    version: 2, titulo: 'x', piezas: [], flechas: [],
+    trazos: [
+      { id: 'd-1', herramienta: 'lapiz', color: '#000000', grosor: 2, puntos: [0, 0, 100, 0] },
+      { id: 'd-2', herramienta: 'lapiz', color: '#000000', grosor: 2, puntos: [0, 50, 100, 50] },
+    ],
+  }).pizarra;
+  it('solo quita lo que la goma ha cortado; lo que llega o se borra fuera mientras tanto no se toca', () => {
+    let n = 0;
+    const g = empezarGoma(p.trazos, { x: 50, y: -10 });
+    seguirGoma(g, 'capa-1', { x: 50, y: 10 }, 5, () => `d-g${++n}`);
+    const r = terminarGoma(g);
+    expect(r.quitar).toEqual(['d-1']);
+    expect(r.poner.map((t) => t.id)).toEqual(['d-g1', 'd-g2']);
+  });
+});
+
+describe('lápiz y dedos', () => {
+  it('mientras el lápiz está apoyado, los dedos (o la palma) no cuentan', () => {
+    expect(ignorarPuntero('touch', true)).toBe(true);
+    expect(ignorarPuntero('pen', true)).toBe(false);
+    expect(ignorarPuntero('touch', false)).toBe(false);
+    expect(ignorarPuntero('mouse', true)).toBe(false);
   });
 });

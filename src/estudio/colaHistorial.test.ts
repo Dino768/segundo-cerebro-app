@@ -81,3 +81,26 @@ describe('cola del historial', () => {
     expect(m.subidas).toHaveLength(1);
   });
 });
+
+describe('varias colas de la misma pizarra', () => {
+  it('una cola que ya no vale (se abrió otra) no toca lo guardado en el navegador', async () => {
+    let vigente = true;
+    const guardadas: Operacion[][] = [];
+    const cola = crearColaHistorial({
+      subir: async () => pizarraVacia('x'), alSubir: () => undefined, alCambiarEstado: () => undefined,
+      guardarPendientes: (ops) => guardadas.push(ops), vigente: () => vigente,
+    });
+    cola.poner(op(1));
+    vigente = false;
+    const antes = guardadas.length;
+    await cola.vaciar();
+    expect(guardadas).toHaveLength(antes);
+  });
+  it('cuenta las subidas hechas (para no pisar la pantalla con una lectura más vieja)', async () => {
+    const m = montar(async () => pizarraVacia('x'));
+    expect(m.cola.subidas()).toBe(0);
+    m.cola.poner(op(1));
+    await m.cola.vaciar();
+    expect(m.cola.subidas()).toBe(1);
+  });
+});

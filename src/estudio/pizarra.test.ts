@@ -217,3 +217,15 @@ describe('operaciones de la v1.4', () => {
     expect(validarOperacion({ tipo: 'piezas', quitar: [], poner: [ejemplo.piezas[5]] })).toMatchObject({ tipo: 'piezas' });
   });
 });
+
+describe('tamaño del archivo', () => {
+  it('cada trazo va en una sola línea (los puntos no ocupan una línea cada uno) y se vuelve a leer igual', () => {
+    const puntos = Array.from({ length: 200 }, (_, i) => i);
+    const { pizarra } = validarPizarra({ ...ejemplo, trazos: [{ id: 'd-1', herramienta: 'lapiz', color: '#000000', grosor: 2, puntos }, { id: 'd-2', herramienta: 'linea', color: '#000000', grosor: 2, puntos: [0, 0, 1, 1] }] });
+    const texto = serializarPizarra(pizarra);
+    expect(texto.split('\n').filter((l) => l.includes('"herramienta"'))).toHaveLength(2);
+    const sinLargo = serializarPizarra({ ...pizarra, trazos: pizarra.trazos.slice(1) }).split('\n').length;
+    expect(texto.split('\n').length - sinLargo).toBeLessThan(3);
+    expect(validarPizarra(JSON.parse(texto)).pizarra).toEqual(pizarra);
+  });
+});

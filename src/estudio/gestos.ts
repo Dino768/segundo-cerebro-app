@@ -120,3 +120,23 @@ export function toqueMultiple(dedos: number, duracionMs: number, movidoPx: numbe
   if (duracionMs > 300 || movidoPx > 12) return null;
   return dedos === 2 ? 'deshacer' : dedos === 3 ? 'rehacer' : null;
 }
+
+// Una pasada de goma. Se compara siempre con la foto de al empezar: lo que llegue o se borre fuera mientras tanto no se toca.
+export interface Goma {
+  originales: Trazo[];
+  trabajo: Trazo[];
+  ultimo: Punto;
+}
+export const empezarGoma = (trazos: Trazo[], p: Punto): Goma => ({ originales: trazos, trabajo: trazos, ultimo: p });
+export function seguirGoma(g: Goma, capa: string, p: Punto, radio: number, crearId: () => string): void {
+  const r = pasarGoma(g.trabajo, capa, [g.ultimo, p], radio, crearId);
+  if (r.quitar.length) {
+    const fuera = new Set(r.quitar);
+    g.trabajo = [...g.trabajo.filter((t) => !fuera.has(t.id)), ...r.poner];
+  }
+  g.ultimo = p;
+}
+export const terminarGoma = (g: Goma) => resultadoGoma(g.originales, g.trabajo);
+
+// Como en Procreate: mientras el lápiz está apoyado, los dedos y la palma no cuentan.
+export const ignorarPuntero = (tipo: string, lapizAbajo: boolean) => tipo === 'touch' && lapizAbajo;

@@ -19,6 +19,13 @@ const archivo = (texto: string, sha: string) =>
 const cuerpoDe = (llamada: number) => JSON.parse(fetchMock.mock.calls[llamada][1].body);
 
 describe('leerArchivo', () => {
+  it('un archivo de más de 1 MB (GitHub no manda el contenido) se lee en crudo', async () => {
+    fetchMock.mockResolvedValueOnce(json(200, { type: 'file', content: '', encoding: 'none', sha: 's2', size: 2_000_000 }));
+    fetchMock.mockResolvedValueOnce(new Response('{"grande": true}', { status: 200 }));
+    expect(await leerArchivo(cfg, 'estudios/fisica/pizarras/a.json')).toEqual({ texto: '{"grande": true}', sha: 's2' });
+    expect(fetchMock.mock.calls[1][1].headers.Accept).toBe('application/vnd.github.raw+json');
+  });
+
   it('lee texto con acentos, ñ y emojis', async () => {
     fetchMock.mockResolvedValueOnce(archivo('Ñandú: práctica de Cálculo 🎮\n', 's1'));
     expect(await leerArchivo(cfg, 'agenda/tareas.yaml')).toEqual({ texto: 'Ñandú: práctica de Cálculo 🎮\n', sha: 's1' });

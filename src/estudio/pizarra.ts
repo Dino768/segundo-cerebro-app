@@ -226,7 +226,12 @@ export function pizarraVacia(titulo: string): Pizarra {
 
 // Sin nada de la v1.4 se escribe igual que siempre (versión 1, sin capas ni trazos), para que Claude y las apps antiguas la lean igual.
 export function serializarPizarra(p: Pizarra): string {
-  if (necesitaVersion2(p)) return JSON.stringify({ ...p, version: 2 }, null, 2) + '\n';
+  if (necesitaVersion2(p)) {
+    // Cada trazo en una sola línea: con un número por línea, una página de dibujo pasaría de 1 MB.
+    const marca = '__trazos__';
+    const trazos = p.trazos.length ? `[\n${p.trazos.map((t) => `    ${JSON.stringify(t)}`).join(',\n')}\n  ]` : '[]';
+    return JSON.stringify({ ...p, version: 2, trazos: marca }, null, 2).replace(`"${marca}"`, () => trazos) + '\n';
+  }
   const { capas: _capas, trazos: _trazos, ...resto } = p;
   return JSON.stringify({ ...resto, version: 1, piezas: p.piezas.map(({ capa: _capa, ...x }) => x) }, null, 2) + '\n';
 }

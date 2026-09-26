@@ -7,6 +7,7 @@ export interface OpcionesCola {
   alSubir(p: Pizarra, quedan: Operacion[]): void; // `quedan`: lo que se hizo mientras se subía
   alCambiarEstado(e: EstadoCola): void;
   guardarPendientes(ops: Operacion[]): void; // en el navegador, por si se cierra la app sin conexión
+  vigente?(): boolean; // false si ya se abrió otra cola para la misma pizarra: entonces esta no toca lo guardado
   espera?: number; // ms sin tocar nada antes de subir
   reintento?: number; // ms antes de reintentar si falló
 }
@@ -20,8 +21,11 @@ export function crearColaHistorial(o: OpcionesCola, iniciales: Operacion[] = [])
   let temporizador: ReturnType<typeof setTimeout> | null = null;
   let subiendo: Promise<void> | null = null;
   let parado = false;
+  let hechas = 0;
 
-  const guardar = () => o.guardarPendientes([...enVuelo, ...cola]);
+  const guardar = () => {
+    if (o.vigente?.() ?? true) o.guardarPendientes([...enVuelo, ...cola]);
+  };
   const programar = (ms: number) => {
     if (temporizador) clearTimeout(temporizador);
     temporizador = parado ? null : setTimeout(() => void vaciar(), ms);
@@ -42,6 +46,7 @@ export function crearColaHistorial(o: OpcionesCola, iniciales: Operacion[] = [])
       try {
         const p = await o.subir(enVuelo);
         enVuelo = [];
+        hechas++;
         guardar();
         o.alSubir(p, [...cola]);
         o.alCambiarEstado(cola.length ? 'guardando' : 'al-dia');
@@ -70,6 +75,7 @@ export function crearColaHistorial(o: OpcionesCola, iniciales: Operacion[] = [])
     },
     vaciar,
     pendientes: () => [...enVuelo, ...cola],
+    subidas: () => hechas,
     parar() {
       parado = true;
       if (temporizador) clearTimeout(temporizador);

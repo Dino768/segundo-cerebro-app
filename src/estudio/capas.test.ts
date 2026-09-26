@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { activaInicial, activaVisible, CAPAS_INICIALES, completarCapas, idCapaLibre, normalizarCapas, porCapas } from './capas.ts';
+import { activaInicial, activaVisible, CAPAS_INICIALES, completarCapas, idCapaLibre, normalizarCapas, opCrearCapa, opDuplicarCapa, opMoverCapa, porCapas } from './capas.ts';
+import { aplicarOperacion, validarPizarra } from './pizarra.ts';
 
 describe('capas', () => {
   it('siempre están la de Claude (abajo si falta) y una de Diego', () => {
@@ -35,5 +36,29 @@ describe('capas', () => {
     );
     expect(r).toHaveLength(1);
     expect(r[0]).toMatchObject({ capa: { id: 'capa-1' }, piezas: [], subrayados: [{ id: 'a' }], trazos: [{ id: 'b' }] });
+  });
+});
+
+describe('operaciones de capas', () => {
+  const p = validarPizarra({
+    version: 2, titulo: 'x',
+    piezas: [{ id: 't1', tipo: 'texto', x: 0, y: 0, ancho: 100, contenido: 'a' }, { id: 't2', tipo: 'texto', x: 0, y: 0, ancho: 100, contenido: 'b' }],
+    flechas: [{ id: 'a1', de: 't1', a: 't2' }],
+    trazos: [{ id: 'c1', herramienta: 'flecha', color: '#000000', grosor: 2, puntos: [0, 0, 9, 9], autor: 'claude' }],
+  }).pizarra;
+  it('crear pone la capa encima de la activa', () => {
+    expect(opCrearCapa(p, 'claude')).toEqual({ id: 'capa-2', op: { tipo: 'capa', accion: 'crear', id: 'capa-2', nombre: 'Capa 2', posicion: 1 } });
+  });
+  it('duplicar la de Claude da una capa de Diego con copias (flechas incluidas) y sin autor', () => {
+    const r = opDuplicarCapa(p, 'claude')!;
+    const q = aplicarOperacion(p, r.op);
+    expect(q.capas.map((c) => c.nombre)).toEqual(['Claude', 'Claude (copia)', 'Capa 1']);
+    expect(q.piezas.filter((x) => x.capa === r.id)).toHaveLength(2);
+    expect(q.flechas).toHaveLength(2);
+    expect(q.trazos.find((t) => t.capa === r.id)?.autor).toBeUndefined();
+  });
+  it('subir y bajar una capa', () => {
+    expect(opMoverCapa(p, 'claude', 1)).toEqual({ tipo: 'capa', accion: 'ordenar', id: 'claude', posicion: 1 });
+    expect(opMoverCapa(p, 'claude', -1)).toBeNull();
   });
 });

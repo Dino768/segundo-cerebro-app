@@ -1,5 +1,6 @@
-import { CAPAS_INICIALES, capaPorDefecto, esCapaInicial, esDeClaudePieza, normalizarCapas, type Capa } from './capas.ts';
+import { CAPA_CLAUDE, CAPAS_INICIALES, capaPorDefecto, esCapaInicial, esDeClaudePieza, normalizarCapas, type Capa } from './capas.ts';
 import { compilarExpresion, ErrorExpresion } from './expresion.ts';
+import { fusionar } from './fusion.ts';
 import { ErrorTrazo, LIMITE_TRAZOS, validarTrazo, type Trazo } from './tinta.ts';
 
 // Formato de pizarra-<n>.json. Lo escribe Claude y lo lee la app (ver docs/diseno.md).
@@ -25,8 +26,13 @@ export interface Pizarra {
 export type Operacion =
   | { tipo: 'mover'; id: string; x: number; y: number }
   | { tipo: 'borrar'; id: string }
-  | { tipo: 'nota'; id: string | null; x: number; y: number; contenido: string }
-  | { tipo: 'guardada'; ruta: string };
+  | { tipo: 'nota'; id: string | null; x: number; y: number; contenido: string; nuevoId?: string; capa?: string }
+  | { tipo: 'guardada'; ruta: string; subida?: Pizarra }
+  | { tipo: 'trazos'; quitar: string[]; poner: Trazo[] }
+  | { tipo: 'piezas'; quitar: string[]; poner: Pieza[]; flechas?: Flecha[] }
+  | { tipo: 'capa'; accion: 'crear' | 'borrar' | 'renombrar' | 'ordenar'; id: string; nombre?: string; posicion?: number }
+  | { tipo: 'lote'; ops: Operacion[] }
+  | { tipo: 'fusionar'; base: Pizarra | null; suya: Pizarra };
 
 export class ErrorPizarra extends Error {
   constructor(mensaje: string) {
@@ -230,6 +236,50 @@ function idLibre(p: Pizarra, prefijo: string): string {
   for (let n = 1; ; n++) if (!usados.has(`${prefijo}${n}`)) return `${prefijo}${n}`;
 }
 
+// Quita (por id) y luego pone: lo que se sustituye se queda en su sitio y lo nuevo va al final (encima).
+function quitarYPoner<T extends { id: string }>(xs: T[], quitar: string[], poner: T[]): T[] {
+  const fuera = new Set(quitar);
+  const nuevos = new Map(poner.map((x) => [x.id, x]));
+  const quedan = xs.filter((x) => !fuera.has(x.id) || nuevos.has(x.id)).map((x) => nuevos.get(x.id) ?? x);
+  const estan = new Set(quedan.map((x) => x.id));
+  return [...quedan, ...poner.filter((x) => !estan.has(x.id))];
+}
+
+function colocar<T>(xs: T[], x: T, posicion: number | undefined): T[] {
+  const r = [...xs];
+  r.splice(Math.max(0, Math.min(r.length, posicion ?? r.length)), 0, x);
+  return r;
+}
+
+const nombreCapa = (v: string | undefined) => (v ?? '').trim().slice(0, 40);
+
+function aplicarCapa(p: Pizarra, op: Extract<Operacion, { tipo: 'capa' }>): Pizarra {
+  const i = p.capas.findIndex((c) => c.id === op.id);
+  if (op.accion === 'ordenar')
+    return i < 0 ? p : { ...p, capas: colocar(p.capas.filter((c) => c.id !== op.id), p.capas[i], op.posicion) };
+  if (op.id === CAPA_CLAUDE) return p; // la de Claude solo se cambia de sitio
+  switch (op.accion) {
+    case 'crear':
+      return i >= 0 ? p : { ...p, capas: colocar(p.capas, { id: op.id, nombre: nombreCapa(op.nombre) || 'Capa' }, op.posicion) };
+    case 'renombrar':
+      return i < 0 ? p : { ...p, capas: p.capas.map((c) => (c.id === op.id ? { ...c, nombre: nombreCapa(op.nombre) || c.nombre } : c)) };
+    case 'borrar': {
+      if (i < 0) return p;
+      const fuera = new Set(p.piezas.filter((x) => x.capa === op.id).map((x) => x.id));
+      return {
+        ...p,
+        capas: p.capas.filter((c) => c.id !== op.id),
+        piezas: p.piezas.filter((x) => !fuera.has(x.id)),
+        trazos: p.trazos.filter((t) => t.capa !== op.id),
+        flechas: p.flechas.filter((f) => !fuera.has(f.de) && !fuera.has(f.a)),
+      };
+    }
+    default:
+      return p;
+  }
+}
+
+// Todas las operaciones son idempotentes: aplicarlas dos veces da lo mismo que una.
 function aplicar(p: Pizarra, op: Operacion): Pizarra {
   switch (op.tipo) {
     case 'mover':
@@ -237,19 +287,42 @@ function aplicar(p: Pizarra, op: Operacion): Pizarra {
     case 'borrar':
       return { ...p, piezas: p.piezas.filter((x) => x.id !== op.id), flechas: p.flechas.filter((f) => f.de !== op.id && f.a !== op.id) };
     case 'nota': {
-      const existe = op.id !== null && p.piezas.some((x) => x.id === op.id && x.tipo === 'nota');
-      if (existe) return { ...p, piezas: p.piezas.map((x) => (x.id === op.id && x.tipo === 'nota' ? { ...x, contenido: op.contenido } : x)) };
-      const nueva: Pieza = { id: idLibre(p, 'nota'), tipo: 'nota', x: Math.round(op.x), y: Math.round(op.y), ancho: 240, contenido: op.contenido };
+      const objetivo = op.id ?? op.nuevoId;
+      if (objetivo !== undefined && p.piezas.some((x) => x.id === objetivo && x.tipo === 'nota'))
+        return { ...p, piezas: p.piezas.map((x) => (x.id === objetivo && x.tipo === 'nota' ? { ...x, contenido: op.contenido } : x)) };
+      const usados = new Set(p.piezas.map((x) => x.id));
+      const id = op.nuevoId && !usados.has(op.nuevoId) ? op.nuevoId : idLibre(p, 'nota');
+      const nueva = sinVacios({ id, tipo: 'nota' as const, x: Math.round(op.x), y: Math.round(op.y), ancho: 240, contenido: op.contenido, capa: op.capa });
       return { ...p, piezas: [...p.piezas, nueva] };
     }
     case 'guardada':
       return { ...p, guardadaEn: op.ruta, guardarComo: null };
+    case 'trazos':
+      return { ...p, trazos: quitarYPoner(p.trazos, op.quitar, op.poner).slice(0, LIMITE_TRAZOS) };
+    case 'piezas': {
+      const piezas = quitarYPoner(p.piezas, op.quitar, op.poner);
+      const ids = new Set(piezas.map((x) => x.id));
+      return { ...p, piezas, flechas: quitarYPoner(p.flechas, [], op.flechas ?? []).filter((f) => ids.has(f.de) && ids.has(f.a)) };
+    }
+    case 'capa':
+      return aplicarCapa(p, op);
+    case 'lote':
+      return op.ops.reduce(aplicar, p);
+    case 'fusionar':
+      return fusionar(op.base, p, op.suya);
   }
 }
 
 export function aplicarOperacion(p: Pizarra, op: Operacion): Pizarra {
   return lista(aplicar(p, op));
 }
+
+function listaIds(v: unknown, donde: string): string[] {
+  if (!Array.isArray(v) || v.length > 2 * LIMITE_TRAZOS || v.some((x) => typeof x !== 'string')) throw new ErrorPizarra(`${donde} debe ser una lista de ids`);
+  return v as string[];
+}
+
+const ACCIONES_CAPA = ['crear', 'borrar', 'renombrar', 'ordenar'] as const;
 
 export function validarOperacion(bruto: unknown): Operacion {
   const o = objeto(bruto, 'La operación');
@@ -259,12 +332,66 @@ export function validarOperacion(bruto: unknown): Operacion {
     case 'borrar':
       return { tipo: 'borrar', id: texto(o.id, 'id') };
     case 'nota':
-      return { tipo: 'nota', id: o.id === null ? null : texto(o.id, 'id'), x: numero(o.x, 'x'), y: numero(o.y, 'y'), contenido: texto(o.contenido, 'contenido').slice(0, 5000) };
+      return sinVacios({
+        tipo: 'nota' as const,
+        id: o.id === null ? null : texto(o.id, 'id'),
+        x: numero(o.x, 'x'),
+        y: numero(o.y, 'y'),
+        contenido: texto(o.contenido, 'contenido').slice(0, 5000),
+        nuevoId: opcional(o.nuevoId, 'nuevoId'),
+        capa: opcional(o.capa, 'capa'),
+      });
     case 'guardada': {
       const ruta = texto(o.ruta, 'ruta');
       if (!/^estudios\/[a-z0-9-]+\/pizarras\/[\w.-]+\.json$/.test(ruta) || ruta.includes('..')) throw new ErrorPizarra('ruta no válida');
-      return { tipo: 'guardada', ruta };
+      return sinVacios({ tipo: 'guardada' as const, ruta, subida: o.subida === undefined || o.subida === null ? undefined : validarPizarra(o.subida).pizarra });
     }
+    case 'trazos': {
+      if (!Array.isArray(o.poner) || o.poner.length > LIMITE_TRAZOS) throw new ErrorPizarra('poner debe ser una lista de trazos');
+      const poner = o.poner.map((t, i) => {
+        try {
+          return validarTrazo(t, `poner[${i}]`);
+        } catch (e) {
+          if (e instanceof ErrorTrazo) throw new ErrorPizarra(e.message);
+          throw e;
+        }
+      });
+      return { tipo: 'trazos', quitar: listaIds(o.quitar, 'quitar'), poner };
+    }
+    case 'piezas': {
+      if (!Array.isArray(o.poner) || o.poner.length > 500) throw new ErrorPizarra('poner debe ser una lista de 500 piezas como mucho');
+      const avisos: string[] = [];
+      const poner = o.poner.map((x, i) => validarPieza(x, `poner[${i}]`, avisos)).filter((x): x is Pieza => x !== null);
+      if (avisos.length) throw new ErrorPizarra(avisos[0]);
+      if (o.flechas !== undefined && !Array.isArray(o.flechas)) throw new ErrorPizarra('flechas debe ser una lista');
+      const flechas = (o.flechas as unknown[] | undefined)?.map((f, i) => validarFlecha(f, `flechas[${i}]`));
+      return sinVacios({ tipo: 'piezas' as const, quitar: listaIds(o.quitar, 'quitar'), poner, flechas });
+    }
+    case 'capa': {
+      if (!ACCIONES_CAPA.includes(o.accion as (typeof ACCIONES_CAPA)[number])) throw new ErrorPizarra('Acción de capa desconocida');
+      const id = texto(o.id, 'id');
+      if (!/^[a-z0-9-]{1,40}$/.test(id)) throw new ErrorPizarra('id de capa no válido');
+      return sinVacios({
+        tipo: 'capa' as const,
+        accion: o.accion as (typeof ACCIONES_CAPA)[number],
+        id,
+        nombre: opcional(o.nombre, 'nombre'),
+        posicion: o.posicion === undefined || o.posicion === null ? undefined : numero(o.posicion, 'posicion'),
+      });
+    }
+    case 'lote': {
+      if (!Array.isArray(o.ops) || o.ops.length > 500) throw new ErrorPizarra('ops debe ser una lista de 500 operaciones como mucho');
+      return {
+        tipo: 'lote',
+        ops: o.ops.map((x) => {
+          const op = validarOperacion(x);
+          if (op.tipo === 'guardada' || op.tipo === 'fusionar') throw new ErrorPizarra('Esa operación no puede ir en un lote');
+          return op;
+        }),
+      };
+    }
+    case 'fusionar':
+      return { tipo: 'fusionar', base: o.base === undefined || o.base === null ? null : validarPizarra(o.base).pizarra, suya: validarPizarra(o.suya).pizarra };
     default:
       throw new ErrorPizarra('Operación desconocida');
   }

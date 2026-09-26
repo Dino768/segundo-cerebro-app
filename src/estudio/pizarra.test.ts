@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { aplicarOperacion, ErrorPizarra, pizarraVacia, serializarPizarra, validarOperacion, validarPizarra, type Pizarra } from './pizarra.ts';
+import { aplicarOperacion, ErrorPizarra, pizarraVacia, serializarPizarra, validarOperacion, validarPizarra, type Operacion, type Pizarra } from './pizarra.ts';
+import { validarTrazo } from './tinta.ts';
 
 const ejemplo = {
   version: 1,
@@ -140,5 +141,79 @@ describe('formato de la v1.4', () => {
     const p = aplicarOperacion(pizarraVacia('x'), { tipo: 'nota', id: null, x: 0, y: 0, contenido: 'Hola' });
     expect(p.piezas[0].capa).toBe('capa-1');
     expect(p.version).toBe(1);
+  });
+});
+
+describe('operaciones de la v1.4', () => {
+  const base = validarPizarra(ejemplo).pizarra;
+  const trazo = (id: string, extra: Record<string, unknown> = {}) =>
+    validarTrazo({ id, herramienta: 'lapiz', color: '#000000', grosor: 2, puntos: [0, 0, 5, 5], capa: 'capa-1', ...extra }, 't');
+  it('trazos: pone, sustituye en su sitio y quita', () => {
+    const a = aplicarOperacion(base, { tipo: 'trazos', quitar: [], poner: [trazo('d-1'), trazo('d-2')] });
+    expect(a.trazos.map((t) => t.id)).toEqual(['d-1', 'd-2']);
+    expect(a.version).toBe(2);
+    const b = aplicarOperacion(a, { tipo: 'trazos', quitar: ['d-1'], poner: [trazo('d-2', { color: '#ff0000' }), trazo('d-3')] });
+    expect(b.trazos.map((t) => [t.id, t.color])).toEqual([['d-2', '#ff0000'], ['d-3', '#000000']]);
+  });
+  it('aplicar dos veces la misma operación da lo mismo que una', () => {
+    const ops: Operacion[] = [
+      { tipo: 'trazos', quitar: [], poner: [trazo('d-1')] },
+      { tipo: 'nota', id: null, nuevoId: 'd-n', x: 0, y: 0, contenido: 'Hola', capa: 'capa-1' },
+      { tipo: 'piezas', quitar: ['t1'], poner: [] },
+      { tipo: 'capa', accion: 'crear', id: 'capa-2', nombre: 'A', posicion: 2 },
+      { tipo: 'lote', ops: [{ tipo: 'mover', id: 'f1', x: 3, y: 3 }, { tipo: 'trazos', quitar: [], poner: [trazo('d-9')] }] },
+    ];
+    for (const op of ops) {
+      const una = aplicarOperacion(base, op);
+      expect(aplicarOperacion(una, op)).toEqual(una);
+    }
+    expect(aplicarOperacion(base, ops[1]).piezas.at(-1)).toMatchObject({ id: 'd-n', capa: 'capa-1' });
+  });
+  it('piezas: quitar se lleva sus flechas; poner puede traer flechas', () => {
+    const t1 = base.piezas[0];
+    const sin = aplicarOperacion(base, { tipo: 'piezas', quitar: ['t1'], poner: [] });
+    expect(sin.flechas).toEqual([]);
+    const otra = aplicarOperacion(sin, { tipo: 'piezas', quitar: [], poner: [t1], flechas: [{ id: 'a1', de: 't1', a: 'f1' }] });
+    expect(otra.flechas).toHaveLength(1);
+  });
+  it('capas: crear, renombrar, ordenar y borrar (con lo que tiene)', () => {
+    let p = aplicarOperacion(base, { tipo: 'capa', accion: 'crear', id: 'capa-2', nombre: 'Ejercicio', posicion: 2 });
+    p = aplicarOperacion(p, { tipo: 'trazos', quitar: [], poner: [trazo('d-1', { capa: 'capa-2' })] });
+    p = aplicarOperacion(p, { tipo: 'capa', accion: 'renombrar', id: 'capa-2', nombre: 'Mío' });
+    p = aplicarOperacion(p, { tipo: 'capa', accion: 'ordenar', id: 'claude', posicion: 2 });
+    expect(p.capas.map((c) => `${c.id}:${c.nombre}`)).toEqual(['capa-1:Capa 1', 'capa-2:Mío', 'claude:Claude']);
+    p = aplicarOperacion(p, { tipo: 'capa', accion: 'borrar', id: 'capa-2' });
+    expect(p.capas.map((c) => c.id)).toEqual(['capa-1', 'claude']);
+    expect(p.trazos).toEqual([]);
+  });
+  it('la capa de Claude no se borra ni se renombra, y borrar la última de Diego crea «Capa 1»', () => {
+    expect(aplicarOperacion(base, { tipo: 'capa', accion: 'borrar', id: 'claude' }).capas).toEqual(base.capas);
+    expect(aplicarOperacion(base, { tipo: 'capa', accion: 'renombrar', id: 'claude', nombre: 'X' }).capas[0].nombre).toBe('Claude');
+    const p = aplicarOperacion(base, { tipo: 'capa', accion: 'borrar', id: 'capa-1' });
+    expect(p.capas).toEqual([{ id: 'claude', nombre: 'Claude' }, { id: 'capa-1', nombre: 'Capa 1' }]);
+    expect(p.piezas.find((x) => x.id === 'n1')).toBeUndefined();
+  });
+  it('lote aplica todas en orden', () => {
+    const p = aplicarOperacion(base, {
+      tipo: 'lote',
+      ops: [{ tipo: 'trazos', quitar: [], poner: [trazo('d-1')] }, { tipo: 'trazos', quitar: ['d-1'], poner: [] }, { tipo: 'borrar', id: 'f1' }],
+    });
+    expect(p.trazos).toEqual([]);
+    expect(p.piezas.map((x) => x.id)).not.toContain('f1');
+  });
+  it('fusionar junta con la versión del historial', () => {
+    const suya = aplicarOperacion(base, { tipo: 'trazos', quitar: [], poner: [trazo('ipad')] });
+    expect(aplicarOperacion(base, { tipo: 'fusionar', base, suya }).trazos.map((t) => t.id)).toEqual(['ipad']);
+  });
+  it('validarOperacion con las nuevas', () => {
+    expect(validarOperacion({ tipo: 'trazos', quitar: ['a'], poner: [{ id: 'd-1', herramienta: 'lapiz', color: '#000000', grosor: 2, puntos: [0, 0] }] })).toMatchObject({ tipo: 'trazos' });
+    expect(() => validarOperacion({ tipo: 'trazos', quitar: [], poner: [{ id: 'd-1' }] })).toThrow(ErrorPizarra);
+    expect(validarOperacion({ tipo: 'capa', accion: 'crear', id: 'capa-2', nombre: 'A', posicion: 1 })).toEqual({ tipo: 'capa', accion: 'crear', id: 'capa-2', nombre: 'A', posicion: 1 });
+    expect(() => validarOperacion({ tipo: 'capa', accion: 'volar', id: 'x' })).toThrow(ErrorPizarra);
+    expect(() => validarOperacion({ tipo: 'lote', ops: [{ tipo: 'guardada', ruta: 'estudios/f/pizarras/a.json' }] })).toThrow(ErrorPizarra);
+    expect(validarOperacion({ tipo: 'nota', id: null, x: 0, y: 0, contenido: 'a', nuevoId: 'd-1', capa: 'capa-1' })).toMatchObject({ nuevoId: 'd-1', capa: 'capa-1' });
+    expect(validarOperacion({ tipo: 'guardada', ruta: 'estudios/fisica/pizarras/a.json', subida: pizarraVacia('x') })).toMatchObject({ tipo: 'guardada', subida: { titulo: 'x' } });
+    expect(validarOperacion({ tipo: 'fusionar', base: null, suya: pizarraVacia('x') })).toMatchObject({ tipo: 'fusionar', base: null });
+    expect(validarOperacion({ tipo: 'piezas', quitar: [], poner: [ejemplo.piezas[5]] })).toMatchObject({ tipo: 'piezas' });
   });
 });

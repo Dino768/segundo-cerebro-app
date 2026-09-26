@@ -17,6 +17,7 @@
     "dompurify": "^3.4.16",
     "katex": "^0.18.9",
     "marked": "^18.0.14",
+    "perfect-freehand": "^1.2.3",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "yaml": "^2.9.1"

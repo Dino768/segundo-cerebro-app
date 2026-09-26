@@ -257,6 +257,8 @@ main.ancho { max-width: none; }
 .texto-nota { margin: 0; white-space: pre-wrap; }
 .editor-nota { position: absolute; width: 240px; min-height: 90px; background: #fff4c2; border: 2px solid var(--acento); }
 .pizarra-vacia { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 20px; margin: 0; color: var(--suave); pointer-events: none; }
+.tinta { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.tinta .subrayados { mix-blend-mode: multiply; }
 .controles-pizarra { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding: 8px 10px; border-top: 1px solid var(--borde); background: var(--superficie); }
 .grafica svg { display: block; }
 .rejilla { stroke: #efe7d9; }

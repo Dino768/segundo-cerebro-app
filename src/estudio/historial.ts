@@ -1,6 +1,6 @@
 import { isISODate, type ISODate } from '../fechas';
 import { aSlug } from '../texto';
-import type { Pizarra } from './pizarra';
+import { serializarPizarra, type Pizarra } from './pizarra';
 
 export interface EntradaHistorial {
   archivo: string;
@@ -38,3 +38,8 @@ export function imagenesDe(p: Pizarra): string[] {
 export function paraHistorial(p: Pizarra, titulo: string): Pizarra {
   return { ...p, titulo, guardarComo: null, guardadaEn: null };
 }
+
+// ¿La copia del historial ha cambiado desde que el PC la subió? Sin copia base, se junta por si acaso.
+export const cambioEnHistorial = (base: Pizarra | null, suya: Pizarra) => !base || serializarPizarra(base) !== serializarPizarra(suya);
+
+export const archivoDeRuta = (ruta: string) => ruta.slice(ruta.lastIndexOf('/') + 1);

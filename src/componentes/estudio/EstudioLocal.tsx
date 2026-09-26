@@ -5,13 +5,13 @@ import { useDatos } from '../../estado/datos';
 import { confirmar, pedirTexto } from '../../estado/dialogos';
 import { useHoy } from '../../estado/hoy';
 import { guardarYMarcar } from '../../estudio/guardado';
-import type { EntradaHistorial } from '../../estudio/historial';
-import { subirAlHistorial } from '../../estudio/historialRemoto';
+import { archivoDeRuta, cambioEnHistorial, paraHistorial, type EntradaHistorial } from '../../estudio/historial';
+import { leerDeHistorial, subirAlHistorial } from '../../estudio/historialRemoto';
 import {
   borrarPizarra, enviarMensaje, leerArchivoBase64, leerConversacion, leerPizarras, listarConversaciones, nuevaPizarra, operarPizarra, pararRespuesta,
   urlArchivo,
 } from '../../estudio/local';
-import type { Operacion } from '../../estudio/pizarra';
+import type { Operacion, Pizarra as TipoPizarra } from '../../estudio/pizarra';
 import { guardarPreferencia, leerPreferencia } from '../../estudio/preferencias';
 import type { EstadoPizarra, Mensaje } from '../../estudio/tipos';
 import type { useLocal } from '../../estudio/useLocal';
@@ -41,6 +41,10 @@ export function EstudioLocal({ asignatura, local }: Props) {
   const [error, setError] = useState<ErrorChat | null>(null);
   const [ultimoEnvio, setUltimoEnvio] = useState<{ texto: string; imagenes: string[] } | null>(null);
   const [pizarras, setPizarras] = useState<EstadoPizarra[]>([]);
+  const pizarrasActuales = useRef(pizarras);
+  pizarrasActuales.current = pizarras;
+  // Pizarras ya juntadas con el historial en esta sesión (al abrirlas).
+  const traidas = useRef(new Set<string>());
   const [abierta, setAbierta] = useState<number | null>(null);
   const [avisoPizarra, setAvisoPizarra] = useState<string | null>(null);
   const [anchoChat, setAnchoChat] = useState(() => Number(leerPreferencia(CLAVE_ANCHO)) || 36);
@@ -130,18 +134,35 @@ export function EstudioLocal({ asignatura, local }: Props) {
     await recargarPizarras(conv.id);
   }
 
-  // Devuelve si se pudo aplicar (para que el guardado sepa si quedó marcado).
-  async function operar(n: number, op: Operacion): Promise<boolean> {
-    if (!conv) return false;
+  // Devuelve la pizarra ya cambiada, o null si no se pudo (para que el guardado sepa si quedó marcado).
+  async function operar(n: number, op: Operacion): Promise<TipoPizarra | null> {
+    if (!conv) return null;
     try {
       const p = await operarPizarra(asignatura.id, conv.id, n, op);
       setPizarras((ps) => ps.map((e) => (e.n === n ? { ...e, pizarra: p, error: null } : e)));
-      return true;
+      // Guardar y juntar cambian también la copia base: se vuelve a leer.
+      if (op.tipo === 'guardada' || op.tipo === 'fusionar') await recargarPizarras(conv.id);
+      return p;
     } catch (e) {
       setAvisoPizarra(e instanceof Error ? e.message : String(e));
       await recargarPizarras(conv.id);
-      return false;
+      return null;
     }
+  }
+
+  // Si la pizarra ya está en el historial y allí la cambiaron (iPad, móvil), se junta con la del PC.
+  async function traerDelHistorial(n: number): Promise<TipoPizarra | null> {
+    const estado = pizarrasActuales.current.find((e) => e.n === n);
+    const p = estado?.pizarra ?? null;
+    if (!config || !estado || !p?.guardadaEn) return p;
+    let suya: TipoPizarra;
+    try {
+      suya = await leerDeHistorial(config, asignatura.id, archivoDeRuta(p.guardadaEn));
+    } catch {
+      return p; // sin conexión o ya no está: se sigue con la del PC
+    }
+    if (!cambioEnHistorial(estado.base, suya)) return p;
+    return (await operar(n, { tipo: 'fusionar', base: estado.base, suya })) ?? p;
   }
 
   async function crearPizarra() {
@@ -176,9 +197,11 @@ export function EstudioLocal({ asignatura, local }: Props) {
     if (!config || !conv || !estado?.pizarra || subiendo.current.has(n)) return;
     subiendo.current.add(n);
     setGuardado((g) => ({ ...g, [n]: 'subiendo' }));
-    const r = await guardarYMarcar(estado.pizarra, rutasSubidas.current.get(n) ?? null, {
+    const fresca = (await traerDelHistorial(n)) ?? estado.pizarra;
+    const r = await guardarYMarcar(fresca, rutasSubidas.current.get(n) ?? null, {
       subir: (p) => subirAlHistorial(config, asignatura.id, p, titulo, hoy, (ruta) => leerArchivoBase64(asignatura.id, conv.id, ruta)),
-      marcar: (ruta) => operar(n, { tipo: 'guardada', ruta }),
+      // Lo subido queda como copia base para la próxima vez que haya que juntar.
+      marcar: async (ruta) => (await operar(n, { tipo: 'guardada', ruta, subida: paraHistorial(fresca, titulo) })) !== null,
     });
     if (r.ruta) rutasSubidas.current.set(n, r.ruta);
     if (r.estado === 'hecho') pendientes.current.delete(n);
@@ -231,6 +254,16 @@ export function EstudioLocal({ asignatura, local }: Props) {
       : guardado[n] === 'pendiente' ? 'Pendiente de subir (reintentar)'
         : guardadaEn ? 'Guardada ✓ (actualizar)'
           : 'Guardar en el historial ⤓';
+
+  // Al abrir una pizarra que ya está en el historial, se trae lo que se haya cambiado en otro dispositivo (una vez por sesión).
+  const abiertaAhora = pizarras.find((e) => e.n === abierta) ?? pizarras.at(-1) ?? null;
+  useEffect(() => {
+    if (!conv || !abiertaAhora?.pizarra?.guardadaEn) return;
+    const k = `${conv.id}-${abiertaAhora.n}`;
+    if (traidas.current.has(k)) return;
+    traidas.current.add(k);
+    void traerDelHistorial(abiertaAhora.n);
+  });
 
   if (!conv) return <p className="cargando">Cargando…</p>;
 

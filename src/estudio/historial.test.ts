@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { entradaDeArchivo, imagenesDe, nombreHistorial, ordenarHistorial, paraHistorial } from './historial';
-import { pizarraVacia, type Pizarra } from './pizarra';
+import { archivoDeRuta, cambioEnHistorial, entradaDeArchivo, imagenesDe, nombreHistorial, ordenarHistorial, paraHistorial } from './historial';
+import { aplicarOperacion, pizarraVacia, type Pizarra } from './pizarra';
 
 describe('historial', () => {
   it('nombre del archivo: fecha y título, sin repetir', () => {
@@ -30,5 +30,17 @@ describe('historial', () => {
     };
     expect(imagenesDe(p)).toEqual(['imagenes/a.png']);
     expect(paraHistorial(p, 'Newton')).toMatchObject({ titulo: 'Newton', guardarComo: null, guardadaEn: null });
+  });
+});
+
+describe('juntar con el historial', () => {
+  it('solo hay que juntar si el historial cambió desde la copia base (o si no hay base)', () => {
+    const base = pizarraVacia('Newton');
+    expect(cambioEnHistorial(base, pizarraVacia('Newton'))).toBe(false);
+    expect(cambioEnHistorial(base, aplicarOperacion(base, { tipo: 'nota', id: null, x: 0, y: 0, contenido: 'iPad' }))).toBe(true);
+    expect(cambioEnHistorial(null, base)).toBe(true);
+  });
+  it('archivo de una ruta del historial', () => {
+    expect(archivoDeRuta('estudios/fisica/pizarras/2026-09-26-newton.json')).toBe('2026-09-26-newton.json');
   });
 });

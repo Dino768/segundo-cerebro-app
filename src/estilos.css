@@ -337,3 +337,29 @@ main.ancho { max-width: none; }
 }
 .acciones-idea { display: flex; gap: 8px; }
 @media (max-width: 600px) { .acciones-idea { flex-basis: 100%; } }
+
+/* Pizarra: herramientas y capas (v1.4) */
+.barra-herramientas { display: flex; flex-direction: column; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--borde); background: var(--superficie); }
+.grupo-herramientas, .opciones-herramienta { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.opciones-herramienta:empty { display: none; }
+.barra-herramientas button { padding: 4px 10px; font-size: 14px; }
+.barra-herramientas .herramienta { min-width: 38px; font-size: 16px; }
+.barra-herramientas .encendida { border-color: var(--acento); background: var(--acento-suave); }
+.hueco-barra { flex: 1; }
+.barra-herramientas .color { width: 24px; height: 24px; min-width: 0; padding: 0; border-radius: 50%; border: 2px solid var(--borde); }
+.barra-herramientas .color.encendida { outline: 2px solid var(--acento); outline-offset: 1px; }
+.color-propio { display: inline-grid; place-items: center; font-size: 14px; color: var(--suave); cursor: pointer; position: relative; overflow: hidden; background: var(--superficie); }
+.color-propio input { position: absolute; inset: 0; opacity: 0; cursor: pointer; padding: 0; }
+.panel-capas { position: absolute; right: 10px; top: 10px; z-index: 4; width: 270px; max-height: calc(100% - 20px); overflow-y: auto; background: var(--superficie); border: 1px solid var(--borde); border-radius: 12px; box-shadow: 0 8px 24px rgb(59 48 39 / 0.18); padding: 8px; }
+.cabecera-capas { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.cabecera-capas strong { flex: 1; }
+.lista-capas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.capa { display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 8px; }
+.capa.activa { background: var(--acento-suave); }
+.capa.oculta .nombre-capa { opacity: 0.5; }
+.capa button { padding: 2px 6px; font-size: 13px; border: none; background: none; }
+.capa .nombre-capa { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.acciones-capa { display: flex; }
+@media (max-width: 899px) {
+  .panel-capas { left: 10px; right: 10px; top: auto; bottom: 10px; width: auto; max-height: 55%; }
+}

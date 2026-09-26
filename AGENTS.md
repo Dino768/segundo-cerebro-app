@@ -28,7 +28,7 @@ Node está en `C:\Program Files\nodejs`. En la terminal Bash de Claude Code pued
 - `npm run dev`: app en local, en http://localhost:5173/segundo-cerebro-app/
 - `npm test`: pruebas automáticas (Vitest)
 - `npm run build`: compila y revisa los tipos
-- `scripts/zona-de-estudio.bat` (acceso directo «Zona de estudio» en el escritorio de Diego): cierra la zona de estudio que siguiera abierta, ejecuta `npm run local` y abre el navegador. Es lo que usa Diego; tras cada actualización basta con volver a darle.
+- `scripts/zona-de-estudio.bat`: la zona de estudio automática. Se enciende sola al arrancar Windows, sin ventana (`Zona de estudio.vbs` en la carpeta Inicio de Windows lo lanza con `/inicio`; registro en `%TEMP%zona-de-estudio.log`). El acceso directo «Zona de estudio» del escritorio la reinicia y abre el navegador. Cuando cambia el commit de este repositorio, `local/principal.ts` sale con el código 75 (sin cortar a Claude si está contestando) y el `.bat` la vuelve a arrancar con el código nuevo (`local/reinicio.ts`). Si cambias el programa local de forma incompatible con la app, sube `VERSION_PROGRAMA` en `src/estudio/tipos.ts`.
 - `npm run local`: zona de estudio en el PC (compila la app y arranca el programa local en http://127.0.0.1:5174/segundo-cerebro-app/). Necesita Claude Code instalado y `my-context` al lado. Guía para otro ordenador: `docs/portatil.md`.
 
 ## Estructura del código

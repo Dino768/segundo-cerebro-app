@@ -9,13 +9,11 @@ cd /d "%~dp0.."
 set "PATH=%PATH%;C:\Program Files\nodejs"
 set ZONA_AUTOMATICA=1
 set "REGISTRO=%TEMP%\zona-de-estudio.log"
-if /i "%~1"=="/inicio" goto bucle
-
 for /f "tokens=5" %%p in ('netstat -ano ^| findstr /r /c:":5174 .*LISTENING"') do (
   echo Cerrando la zona de estudio que seguia abierta...
   taskkill /PID %%p /F >nul 2>&1
 )
-set ABRIR_NAVEGADOR=1
+if /i not "%~1"=="/inicio" set ABRIR_NAVEGADOR=1
 
 :bucle
 if /i "%~1"=="/inicio" (

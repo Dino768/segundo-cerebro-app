@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aplicarOperacion, ErrorPizarra, pizarraVacia, validarOperacion, validarPizarra, type Pizarra } from './pizarra.ts';
+import { aplicarOperacion, ErrorPizarra, pizarraVacia, serializarPizarra, validarOperacion, validarPizarra, type Pizarra } from './pizarra.ts';
 
 const ejemplo = {
   version: 1,
@@ -27,14 +27,14 @@ describe('validarPizarra', () => {
     expect(pizarra.flechas).toHaveLength(1);
     expect((pizarra.piezas[2].contenido as { puntos: unknown[] }).puntos).toHaveLength(1);
   });
-  it('ignora con aviso los tipos que no conoce (como los trazos de la fase siguiente)', () => {
+  it('ignora con aviso los tipos de pieza que no conoce', () => {
     const r = validarPizarra(con({ piezas: [...ejemplo.piezas, { id: 'z1', tipo: 'trazo', x: 0, y: 0, ancho: 50, contenido: [] }] }));
     expect(r.pizarra.piezas).toHaveLength(6);
     expect(r.avisos[0]).toMatch(/trazo/);
   });
   it('errores', () => {
     const malas: [unknown, RegExp][] = [
-      [con({ version: 2 }), /version/],
+      [con({ version: 3 }), /version/],
       [con({ piezas: 'x' }), /piezas/],
       [pieza(1, { id: 't1' }), /repetido/],
       [pieza(0, { ancho: 10 }), /ancho/],
@@ -47,7 +47,7 @@ describe('validarPizarra', () => {
       ['no es un objeto', /objeto/],
     ];
     for (const [mala, patron] of malas) expect(() => validarPizarra(mala)).toThrow(patron);
-    expect(() => validarPizarra(con({ version: 2 }))).toThrow(ErrorPizarra);
+    expect(() => validarPizarra(con({ version: 3 }))).toThrow(ErrorPizarra);
   });
   it('guardarComo vacío cuenta como null', () => {
     expect(validarPizarra(con({ guardarComo: '  ' })).pizarra.guardarComo).toBeNull();
@@ -94,5 +94,51 @@ describe('validarOperacion', () => {
     expect(() => validarOperacion({ tipo: 'volar' })).toThrow(ErrorPizarra);
     expect(() => validarOperacion({ tipo: 'mover', id: 'a', x: 'x', y: 0 })).toThrow(ErrorPizarra);
     expect(() => validarOperacion({ tipo: 'guardada', ruta: '../../fuera.json' })).toThrow(ErrorPizarra);
+  });
+});
+
+describe('formato de la v1.4', () => {
+  const trazo = { id: 'd-1', herramienta: 'lapiz', color: '#b8603d', grosor: 4, puntos: [0, 0, 10, 10] };
+  it('una pizarra antigua se abre con las capas por defecto y se sigue escribiendo como versión 1', () => {
+    const { pizarra } = validarPizarra(ejemplo);
+    expect(pizarra.version).toBe(1);
+    expect(pizarra.capas.map((c) => c.id)).toEqual(['claude', 'capa-1']);
+    expect(pizarra.piezas.find((x) => x.id === 'n1')?.capa).toBe('capa-1');
+    expect(pizarra.piezas.find((x) => x.id === 't1')?.capa).toBe('claude');
+    const json = JSON.parse(serializarPizarra(pizarra));
+    expect(json.version).toBe(1);
+    expect(json).not.toHaveProperty('capas');
+    expect(json).not.toHaveProperty('trazos');
+    expect(json.piezas[0]).not.toHaveProperty('capa');
+  });
+  it('con trazos se escribe como versión 2, y se vuelve a leer igual', () => {
+    const { pizarra } = validarPizarra({ ...ejemplo, trazos: [trazo] });
+    expect(pizarra.version).toBe(2);
+    expect(pizarra.trazos[0].capa).toBe('capa-1');
+    const texto = serializarPizarra(pizarra);
+    expect(JSON.parse(texto).version).toBe(2);
+    expect(validarPizarra(JSON.parse(texto)).pizarra).toEqual(pizarra);
+  });
+  it('trazos de Claude sin capa, o con una capa que no existe, van a su sitio', () => {
+    const { pizarra } = validarPizarra({ ...ejemplo, version: 2, trazos: [{ ...trazo, autor: 'claude' }, { ...trazo, id: 'd-2', capa: 'inventada' }] });
+    expect(pizarra.trazos.map((t) => t.capa)).toEqual(['claude', 'capa-1']);
+  });
+  it('un trazo roto o repetido se ignora con aviso', () => {
+    const r = validarPizarra({ ...ejemplo, trazos: [trazo, { ...trazo }, { ...trazo, id: 'd-2', color: 'rojo' }] });
+    expect(r.pizarra.trazos).toHaveLength(1);
+    expect(r.avisos).toHaveLength(2);
+  });
+  it('capas, letra a mano y versión', () => {
+    const r = validarPizarra({ ...ejemplo, version: 2, flechas: [], capas: [{ id: 'capa-5', nombre: '  Ejercicio  ' }], piezas: [{ ...ejemplo.piezas[0], letra: 'mano' }] });
+    expect(r.pizarra.capas).toEqual([{ id: 'claude', nombre: 'Claude' }, { id: 'capa-5', nombre: 'Ejercicio' }]);
+    expect(r.pizarra.piezas[0].letra).toBe('mano');
+    expect(() => validarPizarra({ ...ejemplo, version: 3 })).toThrow(/version/);
+    expect(() => validarPizarra({ ...ejemplo, capas: [{ id: 'A B', nombre: 'x' }] })).toThrow(/capas/);
+    expect(() => validarPizarra({ ...ejemplo, flechas: [], piezas: [{ ...ejemplo.piezas[0], letra: 'gotica' }] })).toThrow(/letra/);
+  });
+  it('una nota nueva lleva la capa de Diego y la pizarra sigue siendo versión 1', () => {
+    const p = aplicarOperacion(pizarraVacia('x'), { tipo: 'nota', id: null, x: 0, y: 0, contenido: 'Hola' });
+    expect(p.piezas[0].capa).toBe('capa-1');
+    expect(p.version).toBe(1);
   });
 });

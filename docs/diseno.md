@@ -171,6 +171,8 @@ asignaturas:
 - En curso (solo en el ordenador, git las ignora): `estudios/<asignatura>/.en-curso/<id-conversación>/pizarra-<n>.json` y sus capturas en `…/imagenes/`.
 - Historial (se sincroniza): `estudios/<asignatura>/pizarras/AAAA-MM-DD-<titulo>.json` y `…/pizarras/imagenes/`.
 - Formato: `{ "version": 1, "titulo", "piezas": [...], "flechas": [...], "guardarComo": null, "guardadaEn": null }`. Cada pieza lleva `id`, `tipo`, `x`, `y`, `ancho` (entre 40 y 2000), `contenido` y, opcional, `color`. Tipos: `texto` (Markdown con `$…$`), `formula` (LaTeX), `grafica` (`{x:[min,max], y:[min,max], curvas:[{expr, etiqueta?, color?}], puntos:[{x,y,etiqueta?}]}`), `dibujo` (SVG), `imagen` (`imagenes/<nombre>`) y `nota` (de Diego). Las flechas son `{id, de, a, etiqueta?}`. Detalle en `docs/superpowers/specs/2026-09-24-zona-de-estudio-design.md`, sección 6.
+- Desde la v1.4, una pizarra puede tener `capas` (de abajo arriba; la de Claude, id `claude`, siempre existe), `trazos` (dibujo a mano: `id`, `herramienta` = `lapiz` | `subrayador` | `linea` | `flecha` | `rectangulo` | `elipse`, `color` `#rrggbb`, `grosor` 1-40, `puntos` `[x, y, x, y…]`, `presion` opcional, `autor: "claude"` opcional, `capa`) y un campo `capa` en las piezas. Con algo de esto se escribe como `version: 2`; si no, sigue siendo `version: 1`. Detalle en `docs/superpowers/specs/2026-09-26-dibujo-a-mano-design.md`, sección 3.
+- Junto a cada pizarra en curso ya guardada en el historial está `pizarra-<n>.subida.json`: lo último que subió el PC, para juntarlo con lo que se dibuje en otro dispositivo.
 
 ## 4. Arquitectura
 

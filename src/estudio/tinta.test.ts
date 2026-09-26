@@ -34,12 +34,19 @@ describe('simplificar', () => {
     const ps = [{ x: 0, y: 0 }, { x: 5, y: 0.2 }, { x: 10, y: 0 }, { x: 10, y: 10 }];
     expect(puntosQueQuedan(ps, 0.5)).toEqual([0, 2, 3]);
   });
-  it('terminarTrazo simplifica, redondea y mantiene la presión con sus puntos', () => {
+  it('terminarTrazo simplifica y redondea el subrayador', () => {
+    const t = terminarTrazo({
+      id: 'd-1', herramienta: 'subrayador', color: '#000000', grosor: 2, capa: 'capa-1',
+      puntos: [{ x: 0, y: 0 }, { x: 5, y: 0.1 }, { x: 10.04, y: 0 }],
+    });
+    expect(t).toEqual({ id: 'd-1', herramienta: 'subrayador', color: '#000000', grosor: 2, capa: 'capa-1', puntos: [0, 0, 10, 0] });
+  });
+  it('el lápiz guarda todos sus puntos y su presión (al simplificarlo cambiaba de forma al soltar)', () => {
     const t = terminarTrazo({
       id: 'd-1', herramienta: 'lapiz', color: '#000000', grosor: 2, capa: 'capa-1',
       puntos: [{ x: 0, y: 0 }, { x: 5, y: 0.1 }, { x: 10.04, y: 0 }], presion: [0.1, 0.5, 0.9],
     });
-    expect(t).toEqual({ id: 'd-1', herramienta: 'lapiz', color: '#000000', grosor: 2, capa: 'capa-1', puntos: [0, 0, 10, 0], presion: [0.1, 0.9] });
+    expect(t).toEqual({ id: 'd-1', herramienta: 'lapiz', color: '#000000', grosor: 2, capa: 'capa-1', puntos: [0, 0, 5, 0.1, 10, 0], presion: [0.1, 0.5, 0.9] });
   });
   it('con tolerancia 0 no simplifica (para enseñar el trazo mientras se dibuja)', () => {
     const t = terminarTrazo({ id: 'd', herramienta: 'lapiz', color: '#000000', grosor: 2, capa: 'capa-1', puntos: [{ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 10, y: 0 }] }, 0);
@@ -103,6 +110,12 @@ describe('goma y lazo', () => {
   it('la presión sigue alineada con los puntos en los trozos', () => {
     const conPresion = validarTrazo({ id: 'd-1', herramienta: 'lapiz', color: '#000000', grosor: 2, puntos: [0, 0, 50, 30, 100, 0], presion: [0.2, 0.6, 1] }, 't');
     for (const t of cortarConGoma(conPresion, [{ x: 50, y: 30 }], 5, crearId)!) expect(t.presion).toHaveLength(t.puntos.length / 2);
+  });
+  it('en el lápiz, la goma no cambia la forma de lo que queda (solo quita los puntos que añadió para cortar)', () => {
+    const t = validarTrazo({ id: 'd-1', herramienta: 'lapiz', color: '#000000', grosor: 2, puntos: [0, 0, 50, 0.3, 100, 0] }, 't');
+    const [trozo] = cortarConGoma(t, [{ x: 95, y: -20 }, { x: 95, y: 20 }], 2, crearId)!;
+    expect(trozo.puntos.slice(0, 4)).toEqual([0, 0, 50, 0.3]);
+    expect(trozo.puntos).toHaveLength(6);
   });
   it('una forma tocada por la goma pasa a trazo libre', () => {
     const rect = validarTrazo({ id: 'r', herramienta: 'rectangulo', color: '#000000', grosor: 2, puntos: [0, 0, 100, 100] }, 't');

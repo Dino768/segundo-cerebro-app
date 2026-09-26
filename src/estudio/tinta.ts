@@ -122,11 +122,16 @@ export interface TrazoNuevo {
   capa: string;
 }
 
-// El trazo tal y como se guarda: simplificado (menos puntos casi alineados) y redondeado.
+// Tolerancia de la goma en el lápiz: solo quita los puntos que ella misma añadió en línea recta.
+const TOLERANCIA_GOMA_LAPIZ = 0.01;
+
+// El trazo tal y como se guarda: redondeado y, el subrayador, simplificado (menos puntos casi alineados).
+// El lápiz guarda todos sus puntos: su contorno (perfect-freehand) depende de cada punto y su presión,
+// y al quitarle puntos cambiaba de forma al levantar el lápiz (como si le dieran mordiscos).
 export function terminarTrazo(t: TrazoNuevo, tolerancia = 0.5): Trazo {
   const { id, herramienta, color, grosor, capa } = t;
   if (!esLibre(herramienta)) return { id, herramienta, color, grosor, puntos: aPlano([t.puntos[0], t.puntos[t.puntos.length - 1]]), capa };
-  const indices = puntosQueQuedan(t.puntos, tolerancia).slice(0, LIMITE_PUNTOS);
+  const indices = puntosQueQuedan(t.puntos, herramienta === 'lapiz' ? 0 : tolerancia).slice(0, LIMITE_PUNTOS);
   const trazo: Trazo = { id, herramienta, color, grosor, puntos: aPlano(indices.map((i) => t.puntos[i])), capa };
   if (herramienta === 'lapiz' && t.presion && t.presion.length === t.puntos.length) trazo.presion = indices.map((i) => redondear(t.presion![i], 2));
   return trazo;
@@ -245,7 +250,7 @@ export function cortarConGoma(t: Trazo, camino: Punto[], radio: number, crearId:
   return trozos
     .filter((tr) => tr.length >= 2)
     .map((tr) => {
-      const indices = puntosQueQuedan(tr, 0.5);
+      const indices = puntosQueQuedan(tr, herramienta === 'lapiz' ? TOLERANCIA_GOMA_LAPIZ : 0.5);
       const nuevo: Trazo = { id: crearId(), herramienta, color: t.color, grosor: t.grosor, puntos: aPlano(indices.map((i) => tr[i])) };
       if (herramienta === 'lapiz' && tr.every((q) => q.p !== undefined)) nuevo.presion = indices.map((i) => redondear(tr[i].p!, 2));
       if (t.autor) nuevo.autor = t.autor;

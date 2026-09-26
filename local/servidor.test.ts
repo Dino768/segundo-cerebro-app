@@ -20,6 +20,7 @@ const dist = path.join(raiz, 'dist');
 const home = path.join(raiz, 'casa');
 const registro = path.join(raiz, 'registro.jsonl');
 let cerrar: () => void;
+let ocupado: () => boolean;
 
 const post = (ruta: string, cuerpo: unknown, headers: Record<string, string> = {}) =>
   fetch(API + ruta, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(cuerpo) });
@@ -34,7 +35,9 @@ beforeAll(async () => {
   mkdirSync(convs, { recursive: true });
   writeFileSync(path.join(convs, `${ID}.jsonl`), JSON.stringify({ type: 'user', message: { role: 'user', content: 'Primera pregunta' } }) + '\n');
   process.env.FALSO_REGISTRO = registro;
-  const { servidor } = crearServidor({ puerto: PUERTO, estudios, dist, home, comando: FALSO, instrucciones: path.join(raiz, 'i.md') });
+  const creado = crearServidor({ puerto: PUERTO, estudios, dist, home, comando: FALSO, instrucciones: path.join(raiz, 'i.md') });
+  const { servidor } = creado;
+  ocupado = creado.ocupado;
   await new Promise<void>((r) => servidor.listen(PUERTO, '127.0.0.1', r));
   cerrar = () => servidor.close();
 });
@@ -105,8 +108,10 @@ describe('mensaje', () => {
     const primera = post('mensaje', { asignatura: 'fisica', id, nueva: true, texto: 'LENTO', imagenes: [] });
     await new Promise((r) => setTimeout(r, 800));
     expect((await post('mensaje', { asignatura: 'fisica', id, nueva: false, texto: 'otra', imagenes: [] })).status).toBe(409);
+    expect(ocupado()).toBe(true); // mientras contesta, el programa no se reinicia para actualizarse
     await post('parar', { id });
     expect((await eventos(await primera)).at(-1)).toEqual({ tipo: 'fin', parado: true });
+    expect(ocupado()).toBe(false);
   }, 10000);
   it('si Diego cierra la pestaña, Claude se para y la conversación queda libre', async () => {
     const id = '44444444-4444-4444-8444-444444444444';

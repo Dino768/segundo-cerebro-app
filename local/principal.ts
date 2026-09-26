@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { debeReiniciar, leerCommit, SALIDA_REINICIAR } from './reinicio.ts';
 import { crearServidor } from './servidor.ts';
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
@@ -17,7 +18,7 @@ if (!existsSync(myContext)) {
 }
 
 const estudios = path.join(myContext, 'estudios');
-const { servidor } = crearServidor({
+const { servidor, ocupado } = crearServidor({
   puerto,
   estudios,
   dist: path.join(raiz, 'dist'),
@@ -40,3 +41,18 @@ servidor.listen(puerto, '127.0.0.1', () => {
   console.log(`Apuntes y pizarras en: ${estudios}`);
   console.log('Para cerrarla, pulsa Ctrl+C en esta ventana.\n');
 });
+
+// Cada 30 segundos se mira si el código se ha actualizado. Arrancado desde scripts/zona-de-estudio.bat
+// (al encender Windows o con el acceso directo), el programa sale para que el .bat lo vuelva a arrancar con lo nuevo.
+const gitDir = path.join(raiz, '.git');
+const commitInicial = leerCommit(gitDir);
+let avisado = false;
+setInterval(() => {
+  if (!debeReiniciar(commitInicial, leerCommit(gitDir), ocupado())) return;
+  if (process.env.ZONA_AUTOMATICA === '1') {
+    console.log('Hay una versión nueva de la app: reiniciando la zona de estudio…');
+    process.exit(SALIDA_REINICIAR);
+  }
+  if (!avisado) console.log('Hay una versión nueva de la app: cierra esta ventana (Ctrl+C) y vuelve a abrir la zona de estudio.');
+  avisado = true;
+}, 30_000).unref();

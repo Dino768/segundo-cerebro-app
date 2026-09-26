@@ -300,5 +300,7 @@ export function crearServidor(o: OpcionesServidor) {
   const servidor = http.createServer((req, res) => void manejar(req, res));
   const pararVigia = vigilarPizarras(o.estudios, emitirATodos);
   servidor.on('close', pararVigia);
-  return { servidor, emitirATodos, rutas, carpetaDe, conversar };
+  // Si Claude está contestando en alguna conversación (entonces el programa no se reinicia para actualizarse).
+  const ocupado = () => activos.size > 0;
+  return { servidor, emitirATodos, rutas, carpetaDe, conversar, ocupado };
 }

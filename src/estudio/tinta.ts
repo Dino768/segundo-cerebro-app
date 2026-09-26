@@ -177,3 +177,98 @@ export function nuevoId(prefijo: string, usados: Set<string>, azar: () => number
     if (!usados.has(id)) return id;
   }
 }
+
+export function distanciaATrazo(t: Trazo, p: Punto): number {
+  let min = Infinity;
+  for (const linea of polilineas(t)) {
+    if (linea.length === 1) min = Math.min(min, Math.hypot(p.x - linea[0].x, p.y - linea[0].y));
+    for (let i = 1; i < linea.length; i++) min = Math.min(min, distanciaASegmento(p, linea[i - 1], linea[i]));
+  }
+  return min;
+}
+
+export const tocaTrazo = (t: Trazo, p: Punto, radio: number) => distanciaATrazo(t, p) <= radio + t.grosor / 2;
+
+function distanciaACamino(p: Punto, camino: Punto[]): number {
+  if (camino.length === 1) return Math.hypot(p.x - camino[0].x, p.y - camino[0].y);
+  let min = Infinity;
+  for (let i = 1; i < camino.length; i++) min = Math.min(min, distanciaASegmento(p, camino[i - 1], camino[i]));
+  return min;
+}
+
+interface PuntoP extends Punto {
+  p?: number;
+}
+
+// Añade puntos intermedios para que ningún tramo mida más de `paso` (así la goma corta justo por donde pasa).
+function densificar(ps: PuntoP[], paso: number): PuntoP[] {
+  const r: PuntoP[] = [];
+  ps.forEach((b, i) => {
+    if (i > 0) {
+      const a = ps[i - 1];
+      const n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / paso);
+      for (let k = 1; k < n; k++) {
+        const f = k / n;
+        r.push({ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, p: a.p === undefined || b.p === undefined ? undefined : a.p + (b.p - a.p) * f });
+      }
+    }
+    r.push(b);
+  });
+  return r;
+}
+
+// Goma: borra de `t` lo que queda cerca del camino. null = no lo toca; [] = lo borra entero.
+// Las formas tocadas pasan a ser trazos de lápiz, cortados igual.
+export function cortarConGoma(t: Trazo, camino: Punto[], radio: number, crearId: () => string): Trazo[] | null {
+  const alcance = radio + t.grosor / 2;
+  const caja = cajaDeTrazo(t);
+  const xs = camino.map((c) => c.x);
+  const ys = camino.map((c) => c.y);
+  if (Math.max(...xs) < caja.x - alcance || Math.min(...xs) > caja.x + caja.w + alcance || Math.max(...ys) < caja.y - alcance || Math.min(...ys) > caja.y + caja.h + alcance)
+    return null;
+  const trozos: PuntoP[][] = [];
+  let tocado = false;
+  for (const linea of polilineas(t)) {
+    const conPresion: PuntoP[] = linea.map((q, i) => ({ ...q, p: t.presion?.[i] }));
+    let actual: PuntoP[] = [];
+    for (const q of densificar(conPresion, Math.max(1, radio / 2))) {
+      if (distanciaACamino(q, camino) <= alcance) {
+        tocado = true;
+        if (actual.length) trozos.push(actual);
+        actual = [];
+      } else actual.push(q);
+    }
+    if (actual.length) trozos.push(actual);
+  }
+  if (!tocado) return null;
+  const herramienta: Herramienta = t.herramienta === 'subrayador' ? 'subrayador' : 'lapiz';
+  return trozos
+    .filter((tr) => tr.length >= 2)
+    .map((tr) => {
+      const indices = puntosQueQuedan(tr, 0.5);
+      const nuevo: Trazo = { id: crearId(), herramienta, color: t.color, grosor: t.grosor, puntos: aPlano(indices.map((i) => tr[i])) };
+      if (herramienta === 'lapiz' && tr.every((q) => q.p !== undefined)) nuevo.presion = indices.map((i) => redondear(tr[i].p!, 2));
+      if (t.autor) nuevo.autor = t.autor;
+      if (t.capa) nuevo.capa = t.capa;
+      return nuevo;
+    });
+}
+
+export function dentroDePoligono(p: Punto, poligono: Punto[]): boolean {
+  let dentro = false;
+  for (let i = 0, j = poligono.length - 1; i < poligono.length; j = i++) {
+    const a = poligono[i];
+    const b = poligono[j];
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) dentro = !dentro;
+  }
+  return dentro;
+}
+
+export function trazoEnLazo(t: Trazo, poligono: Punto[]): boolean {
+  const ps = polilineas(t).flat();
+  return ps.filter((p) => dentroDePoligono(p, poligono)).length * 2 > ps.length;
+}
+
+export function moverTrazo(t: Trazo, dx: number, dy: number): Trazo {
+  return { ...t, puntos: t.puntos.map((v, i) => redondear(v + (i % 2 === 0 ? dx : dy), 1)) };
+}

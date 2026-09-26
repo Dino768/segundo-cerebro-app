@@ -26,7 +26,7 @@ interface Props {
 }
 
 export function PaginaProyecto({ proyecto, volver, editar, ir, guardian }: Props) {
-  const { datos, soloLectura, tareasBloqueadas, guardarProyecto, recargar } = useDatos();
+  const { datos, soloLectura, tareasBloqueadas, guardarProyecto, borrarProyecto, recargar } = useDatos();
   const [estado, setEstado] = useState<Estado>(proyecto.estado);
   const [area, setArea] = useState(proyecto.area ?? '');
   const [prioridad, setPrioridad] = useState<Prioridad>(proyecto.prioridad ?? 'media');
@@ -68,6 +68,20 @@ export function PaginaProyecto({ proyecto, volver, editar, ir, guardian }: Props
     setGuardando(true);
     await guardarProyecto(nuevo, proyecto);
     setGuardando(false);
+  }
+
+  async function borrar() {
+    const tareas = datos.tareas.filter((t) => t.proyecto === proyecto.id).length;
+    const ideas = datos.ideas.filter((i) => i.proyecto === proyecto.id).length;
+    const quedan = tareas || ideas ? ` Sus tareas (${tareas}) e ideas (${ideas}) no se borran: se quedan sin proyecto.` : '';
+    if (!(await confirmar(`¿Borrar el proyecto «${proyecto.titulo}»? No se puede deshacer.${quedan}`, { aceptar: 'Borrar', peligro: true }))) return;
+    setGuardando(true);
+    const ok = await borrarProyecto(proyecto);
+    setGuardando(false);
+    if (ok) {
+      guardian.marcar(false);
+      volver();
+    }
   }
 
   async function salir() {
@@ -127,6 +141,9 @@ export function PaginaProyecto({ proyecto, volver, editar, ir, guardian }: Props
           {guardando ? 'Guardando…' : 'Guardar'}
         </button>
         <button onClick={() => void recargar()}>Recargar</button>
+        <button className="peligro borrar-proyecto" onClick={() => void borrar()} disabled={soloLectura || guardando}>
+          Borrar proyecto
+        </button>
       </div>
       <section className="tarjeta seccion-proyecto">
         <h2 className="titulo-seccion">

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as cliente from './github/cliente';
 import { parseProyecto } from './datos/proyectos';
 import { ErrorDatos } from './datos/yaml';
-import { cargarAgenda, cargarTodo, guardarProyecto, listarIdsProyectos, migrarBandeja, modificarAreas, modificarAsignaturas, modificarIdeas, modificarTareas, moverYBorrarArea } from './repositorio';
+import { borrarProyecto, cargarAgenda, cargarTodo, guardarProyecto, listarIdsProyectos, migrarBandeja, modificarAreas, modificarAsignaturas, modificarIdeas, modificarTareas, moverYBorrarArea } from './repositorio';
 
 vi.mock('./github/cliente', async (importOriginal) => {
   const real = await importOriginal<typeof import('./github/cliente')>();
@@ -168,6 +168,59 @@ describe('guardarProyecto', () => {
   it('no pisa un proyecto existente al crear uno nuevo', async () => {
     simularRemoto(texto);
     await expect(guardarProyecto(cfg, original, null)).rejects.toMatchObject({ tipo: 'conflicto' });
+  });
+});
+
+describe('borrarProyecto', () => {
+  const texto = '---\nestado: idea\n---\n# Juego\nNotas\n';
+  const original = parseProyecto('juego', texto);
+  const TAREAS = '- id: t-1\n  titulo: Modelar\n  fecha: 2026-09-25\n  area: uni\n  proyecto: juego\n- id: t-2\n  titulo: Otra\n  fecha: 2026-09-25\n  area: uni\n';
+  const IDEAS = '- id: i-1\n  fecha: 2026-09-25\n  texto: Enemigos\n  proyecto: juego\n';
+
+  function remoto(archivos: Record<string, string>) {
+    const escritos: Record<string, string> = {};
+    const orden: string[] = [];
+    leer.mockImplementation(async (_c, ruta) => {
+      if (!(ruta in archivos)) throw new cliente.ErrorGitHub('no-existe', 'no', 404);
+      return { texto: archivos[ruta], sha: `sha-${ruta}` };
+    });
+    actualizar.mockImplementation(async (_c, ruta, transformar) => {
+      orden.push(`escribir ${ruta}`);
+      escritos[ruta] = transformar(archivos[ruta] ?? null);
+      return escritos[ruta];
+    });
+    borrar.mockImplementation(async (_c, ruta, sha) => void orden.push(`borrar ${ruta} ${sha}`));
+    return { escritos, orden };
+  }
+
+  it('suelta las tareas e ideas del proyecto (sin borrarlas) y al final borra el archivo', async () => {
+    const { escritos, orden } = remoto({ 'proyectos/juego.md': texto, 'agenda/tareas.yaml': TAREAS, 'ideas/ideas.yaml': IDEAS });
+    const r = await borrarProyecto(cfg, original);
+    expect(orden).toEqual(['escribir agenda/tareas.yaml', 'escribir ideas/ideas.yaml', 'borrar proyectos/juego.md sha-proyectos/juego.md']);
+    expect(escritos['agenda/tareas.yaml']).toContain('Modelar');
+    expect(escritos['agenda/tareas.yaml']).not.toContain('proyecto');
+    expect(escritos['ideas/ideas.yaml']).toContain('Enemigos');
+    expect(escritos['ideas/ideas.yaml']).not.toContain('proyecto');
+    expect(r.tareas).toHaveLength(2);
+    expect(r.ideas[0].proyecto).toBeUndefined();
+  });
+
+  it('no escribe tareas ni ideas si nada era del proyecto', async () => {
+    const { orden } = remoto({ 'proyectos/juego.md': texto, 'agenda/tareas.yaml': TAREAS.replace('  proyecto: juego\n', '') });
+    await borrarProyecto(cfg, original);
+    expect(orden).toEqual(['borrar proyectos/juego.md sha-proyectos/juego.md']);
+  });
+
+  it('no borra si el proyecto cambió desde que se abrió', async () => {
+    const { orden } = remoto({ 'proyectos/juego.md': texto.replace('Notas', 'Cambiado por Claude') });
+    await expect(borrarProyecto(cfg, original)).rejects.toMatchObject({ tipo: 'conflicto' });
+    expect(orden).toEqual([]);
+  });
+
+  it('si el archivo ya no existe, no falla', async () => {
+    const { orden } = remoto({});
+    await borrarProyecto(cfg, original);
+    expect(orden).toEqual([]);
   });
 });
 

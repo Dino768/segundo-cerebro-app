@@ -10,7 +10,7 @@ import type { Tarea } from '../datos/tareas';
 import { ErrorDatos } from '../datos/yaml';
 import { ErrorGitHub, type Config } from '../github/cliente';
 import {
-  cargarAgenda, cargarTodo, guardarProyecto as guardarProyectoRemoto, listarIdsProyectos, migrarBandeja, modificarAreas, modificarAsignaturas, modificarIdeas, modificarTareas, moverYBorrarArea, type Datos,
+  borrarProyecto as borrarProyectoRemoto, cargarAgenda, cargarTodo, guardarProyecto as guardarProyectoRemoto, listarIdsProyectos, migrarBandeja, modificarAreas, modificarAsignaturas, modificarIdeas, modificarTareas, moverYBorrarArea, type Datos,
 } from '../repositorio';
 import { borrarCache, guardarCache, leerCache } from './cache';
 import { crearCola } from './cola';
@@ -36,6 +36,7 @@ export interface ValorDatos {
   cambiarTareasAlInstante(cambio: (ts: Tarea[]) => Tarea[], deshacer: (ts: Tarea[]) => Tarea[], mensaje: string): Promise<boolean>;
   cambiarIdeas(cambio: (is: Idea[]) => Idea[], mensaje: string): Promise<boolean>;
   guardarProyecto(p: Proyecto, original: Proyecto | null): Promise<boolean>;
+  borrarProyecto(p: Proyecto): Promise<boolean>;
   idsProyectos(): Promise<string[]>;
   cambiarAsignaturas(cambio: (l: Asignatura[]) => Asignatura[], mensaje: string): Promise<boolean>;
   cambiarAreas(cambio: (as: Area[]) => Area[], mensaje: string): Promise<boolean>;
@@ -294,6 +295,23 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
     [config, alFallar],
   );
 
+  // En la cola, para no pisarse con un cambio de tareas o ideas que esté a medias.
+  const borrarProyecto = useCallback(
+    (p: Proyecto) =>
+      encolar(async () => {
+        if (!config) return false;
+        try {
+          const r = await borrarProyectoRemoto(config, p);
+          setDatos((d) => ({ ...d, tareas: r.tareas, ideas: r.ideas, proyectos: d.proyectos.filter((x) => x.id !== p.id) }));
+          return true;
+        } catch (e) {
+          alFallar(e, false);
+          return false;
+        }
+      }),
+    [config, alFallar, encolar],
+  );
+
   // Ids de proyectos que hay en GitHub ahora mismo (puede haber alguno nuevo de Claude sin refrescar).
   const idsProyectos = useCallback(async () => {
     const locales = datos.proyectos.map((p) => p.id);
@@ -332,12 +350,13 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
       cambiarTareasAlInstante,
       cambiarIdeas,
       guardarProyecto,
+      borrarProyecto,
       idsProyectos,
       cambiarAsignaturas,
       cambiarAreas,
       borrarArea,
     }),
-    [estado, datos, config, aviso, recargar, conectar, desconectar, cambiarTareas, cambiarTareasAlInstante, cambiarIdeas, guardarProyecto, idsProyectos, cambiarAsignaturas, cambiarAreas, borrarArea],
+    [estado, datos, config, aviso, recargar, conectar, desconectar, cambiarTareas, cambiarTareasAlInstante, cambiarIdeas, guardarProyecto, borrarProyecto, idsProyectos, cambiarAsignaturas, cambiarAreas, borrarArea],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

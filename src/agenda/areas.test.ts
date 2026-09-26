@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parseAreas } from '../datos/areas';
 import {
   areaMadre, buscarArea, colorDeArea, crearArea, destinosPosibles, editarArea, ErrorArea, idsDeArea, moverDeArea,
-  nombreDeArea, nuevoIdArea, opcionesDeArea, quitarArea, todosLosIds,
+  nombreDeArea, nuevoIdArea, quitarArea, todosLosIds,
 } from './areas';
 
 const AREAS = parseAreas(`- id: uni
@@ -90,13 +90,3 @@ describe('borrar', () => {
   });
 });
 
-describe('opcionesDeArea', () => {
-  it('cada área seguida de sus subáreas', () => {
-    expect(opcionesDeArea(AREAS)).toEqual([
-      { id: 'uni', nombre: 'Uni', sub: false },
-      { id: 'videojuegos', nombre: 'Videojuegos', sub: false },
-      { id: 'blender', nombre: 'Blender', sub: true },
-      { id: 'unreal', nombre: 'Unreal', sub: true },
-    ]);
-  });
-});

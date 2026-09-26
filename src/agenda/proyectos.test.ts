@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Proyecto } from '../datos/proyectos';
 import type { Tarea } from '../datos/tareas';
-import { necesitaAvisoActivos, ordenarProyectos, progresoProyecto } from './proyectos';
+import { necesitaAvisoActivos, ordenarProyectos, progresoProyecto, soltarProyecto } from './proyectos';
 
 const p = (x: Partial<Proyecto> & { id: string }): Proyecto => ({
   estado: 'idea', titulo: x.id, cuerpo: '', meta: {}, ...x,
@@ -51,5 +51,12 @@ describe('progresoProyecto', () => {
   });
   it('un proyecto sin tareas da 0 de 0', () => {
     expect(progresoProyecto([], 'juego')).toEqual({ hechas: 0, total: 0 });
+  });
+});
+
+describe('soltarProyecto', () => {
+  it('quita el proyecto solo a lo que era suyo y deja lo demás igual', () => {
+    const xs = [{ id: 'a', proyecto: 'juego' }, { id: 'b', proyecto: 'otro' }, { id: 'c' }];
+    expect(soltarProyecto(xs, 'juego')).toEqual([{ id: 'a' }, { id: 'b', proyecto: 'otro' }, { id: 'c' }]);
   });
 });

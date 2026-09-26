@@ -26,3 +26,12 @@ export function progresoProyecto(ts: Tarea[], id: string): { hechas: number; tot
   const delProyecto = ts.filter((t) => t.proyecto === id && !esRepetida(t));
   return { hechas: delProyecto.filter((t) => t.hecha).length, total: delProyecto.length };
 }
+
+// Al borrar un proyecto, sus tareas e ideas se quedan, pero ya sin proyecto.
+export function soltarProyecto<T extends { proyecto?: string }>(xs: T[], id: string): T[] {
+  return xs.map((x) => {
+    if (x.proyecto !== id) return x;
+    const { proyecto: _, ...resto } = x;
+    return resto as T;
+  });
+}

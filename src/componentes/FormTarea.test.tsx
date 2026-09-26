@@ -19,6 +19,6 @@ describe('FormTarea', () => {
   it('al editar se conserva el icono guardado', () => {
     const html = renderToString(<FormTarea edicion={{ tarea: { id: 'a', titulo: 'Examen', area: 'fisica', icono: 'cube' } }} cerrar={() => undefined} />);
     expect(html).toContain('title="cube"');
-    expect(html).toMatch(/<option value="fisica" selected="">/);
+    expect(html).toContain('Uni › Física');
   });
 });

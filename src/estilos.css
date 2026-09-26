@@ -310,3 +310,28 @@ main.ancho { max-width: none; }
 .lista-areas ul ul { padding-left: 22px; }
 .lapiz { border: none; background: none; padding: 2px 4px; font-size: 12px; opacity: 0.6; }
 .lapiz:hover:not(:disabled) { opacity: 1; background: none; }
+
+/* Selector de área: solo áreas; las subáreas se despliegan al tocar su área */
+.selector-area { position: relative; flex: 1; min-width: 140px; }
+.boton-selector { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px; text-align: left; color: var(--texto); }
+.texto-selector { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.boton-selector .flecha, .opcion-area .flecha { color: var(--suave); }
+.menu-areas { position: absolute; top: calc(100% + 4px); left: 0; right: 0; min-width: 200px; z-index: 15; max-height: 280px; overflow-y: auto; background: var(--superficie); border: 1px solid var(--borde); border-radius: 10px; padding: 4px; box-shadow: 0 8px 24px rgb(59 48 39 / 0.18); display: flex; flex-direction: column; }
+.opcion-area { display: flex; align-items: center; gap: 8px; border: none; background: none; border-radius: 6px; padding: 8px 10px; text-align: left; color: var(--texto); }
+.opcion-area.elegida { background: var(--acento-suave); }
+.opcion-area.subopcion { padding-left: 28px; }
+.opcion-area em { color: var(--suave); }
+
+/* Borrar proyecto: a un lado, para no pulsarlo sin querer */
+.borrar-proyecto { margin-left: auto; }
+
+/* Ideas en el móvil: el título ocupa su línea y lo demás va debajo */
+.titulo-idea > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+@media (max-width: 600px) {
+  .lista.tarjeta { padding: 6px 12px; }
+  .fila-idea { gap: 6px 10px; }
+  .titulo-idea { flex: 1 1 100%; }
+  .fila-idea .fecha-idea { min-width: 0; margin-left: auto; }
+}
+.acciones-idea { display: flex; gap: 8px; }
+@media (max-width: 600px) { .acciones-idea { flex-basis: 100%; } }

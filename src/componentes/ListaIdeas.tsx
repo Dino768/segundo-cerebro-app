@@ -57,8 +57,10 @@ export function ListaIdeas({ editar, ir }: Props) {
       )}
       {idea.proyecto && <span className="detalle">📁 {datos.proyectos.find((p) => p.id === idea.proyecto)?.titulo ?? idea.proyecto}</span>}
       <span className="detalle fecha-idea">{formatoCorto(idea.fecha)}</span>
-      <button disabled={soloLectura || tareasBloqueadas || ideasBloqueadas || ocupada(idea)} onClick={() => aTarea(idea)}>→ Tarea</button>
-      <button disabled={soloLectura || ideasBloqueadas || ocupada(idea)} onClick={() => setConvirtiendo(idea)}>→ Proyecto</button>
+      <span className="acciones-idea">
+        <button disabled={soloLectura || tareasBloqueadas || ideasBloqueadas || ocupada(idea)} onClick={() => aTarea(idea)}>→ Tarea</button>
+        <button disabled={soloLectura || ideasBloqueadas || ocupada(idea)} onClick={() => setConvirtiendo(idea)}>→ Proyecto</button>
+      </span>
     </li>
   );
 

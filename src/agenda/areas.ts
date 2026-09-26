@@ -88,9 +88,3 @@ export function moverDeArea<T extends { area?: string }>(xs: T[], ids: string[],
   return xs.map((x) => (x.area !== undefined && ids.includes(x.area) ? { ...x, area: destino } : x));
 }
 
-export function opcionesDeArea(areas: Area[]): { id: string; nombre: string; sub: boolean }[] {
-  return areas.flatMap((a) => [
-    { id: a.id, nombre: a.nombre, sub: false },
-    ...a.subareas.map((s) => ({ id: s.id, nombre: s.nombre, sub: true })),
-  ]);
-}

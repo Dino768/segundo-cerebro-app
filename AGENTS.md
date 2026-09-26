@@ -18,6 +18,7 @@ La app no tiene servidor. Lee y escribe los archivos de `my-context` con la API 
 - Habla con Diego en español, con palabras sencillas. Es principiante: explícale qué haces y por qué.
 - El plan se ejecuta tarea a tarea con el método de `superpowers:executing-plans`. Primero la prueba (que falle) y luego el código. Cada tarea deja su línea en el registro `.superpowers/sdd/plan-v1/progress.md`.
 - Cualquier decisión que se aparte del plan se apunta en el registro como `Ruling:`.
+- Al terminar una versión, sustituye el párrafo de "Dónde lo dejamos" en `my-context/proyectos/segundo-cerebro.md` (solo el punto actual, sin historial) y súbelo.
 - Nunca subas (`git push`) sin que Diego lo sepa. Nunca pongas tokens ni datos personales en este repositorio. La carpeta `.superpowers/` está en `.gitignore` y no se sube.
 - Diego nunca debe pegar su token en el chat, solo en la app.
 
@@ -47,7 +48,7 @@ Node está en `C:\Program Files\nodejs`. En la terminal Bash de Claude Code pued
 El token se guarda en el `localStorage` del navegador, y ese almacenamiento es compartido por todo el dominio `https://dino768.github.io`. Cualquier otra web que Diego publique con GitHub Pages en su cuenta (un juego, un portfolio…) podría leerlo. Recuérdaselo si va a publicar otra web y recomiéndale tokens con caducidad corta (90 días o menos). La alternativa gratuita es mover la app a una organización de GitHub propia, con su propio dominio: está pendiente de proponérselo.
 
 ## Estado actual
-Última actualización: 2026-09-25 (v1.3 probada por Diego y publicada).
+Última actualización: 2026-09-26 (arreglos tras probar la v1.3).
 - **Versión 1 terminada y publicada** en https://dino768.github.io/segundo-cerebro-app/. Diego la tiene instalada en el PC, el portátil y el iPhone, con un token por dispositivo. Tasks 0 a 15 del plan hechas.
 - **Arreglos de la revisión final hechos** (2026-09-24): casilla que "fija" en vez de alternar, con cola (`src/estado/cola.ts`); editar una tarea solo aplica los campos cambiados (`aplicarEdicion`) y tareas/áreas se refrescan al volver a la app; "hoy" cambia a medianoche (`src/estado/hoy.ts`); aviso del token en Ajustes.
 - Detalles, decisiones y los arreglos menores aplazados: `.superpowers/sdd/plan-v1/progress.md` (líneas `Final:`).
@@ -62,6 +63,7 @@ El token se guarda en el `localStorage` del navegador, y ese almacenamiento es c
 - **Versión 1.3 (organización) publicada** (2026-09-25), probada por Diego con sus datos en el PC. Diseño: `docs/superpowers/specs/2026-09-25-organizacion-design.md`. Plan: `docs/superpowers/plans/2026-09-25-organizacion.md`. Registro: `.superpowers/sdd/2026-09-25-organizacion/progress.md`.
   - Qué hay: áreas con subáreas (un solo nivel), gestionadas con una ventana (crear, editar, borrar moviendo lo de dentro) desde Calendario, Ajustes y Proyectos. Icono opcional (Tabler) en tareas, ideas y proyectos, sugerido solo a partir del título y cambiable con un buscador (`src/iconos/`, componentes `Icono` y `SelectorIcono`). Ideas ahora en `ideas/ideas.yaml` (título opcional, texto de varias líneas, icono, área y proyecto; se pueden editar), con paso automático desde la antigua `ideas/bandeja.md` la primera vez que se carga la app. Pantalla Proyectos con pestañas Proyectos e Ideas, agrupadas por área y subárea; en el móvil la barra de abajo pierde el botón Ideas y en el PC aparece como desplegable bajo Proyectos en la barra lateral.
   - Revisión final hecha (revisor nuevo): sin críticos; 2 importantes y 10 menores arreglados; menores aplazados en el registro. Las ideas de Diego ya están en `ideas/ideas.yaml` (la bandeja se borró sola) y `my-context/AGENTS.md` explica los formatos nuevos. 349 pruebas en verde.
+  - Arreglos tras la prueba de Diego (2026-09-26): borrar proyectos (botón en la página del proyecto; sus tareas e ideas se quedan sin proyecto, `borrarProyecto` en `src/repositorio.ts`), selector de área propio que solo enseña áreas y despliega las subáreas al tocar su área (`SelectorArea.tsx`), y lista de ideas legible en el móvil.
   - **Siguiente:** Diego comprueba la v1.3 en el iPhone y el portátil (la primera vez puede tener que tocar una vez el filtro del calendario). Después, la fase de dibujo a mano en la pizarra (v1.4).
 
 Mantén esta sección al día cuando avances.

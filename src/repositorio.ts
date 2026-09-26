@@ -1,4 +1,5 @@
 import { idsDeArea, moverDeArea, quitarArea, ErrorArea } from './agenda/areas';
+import { soltarProyecto } from './agenda/proyectos';
 import { parseAreas, serializarAreas, type Area } from './datos/areas';
 import { parseAsignaturas, serializarAsignaturas, type Asignatura } from './datos/asignaturas';
 import { parseProyecto, serializarProyecto, type Proyecto } from './datos/proyectos';
@@ -199,4 +200,33 @@ export async function moverYBorrarArea(
 
 export async function listarIdsProyectos(cfg: Config): Promise<string[]> {
   return (await listarCarpeta(cfg, CARPETA_PROYECTOS)).filter((n) => n.endsWith('.md')).map((n) => n.slice(0, -3));
+}
+
+// Borrar un proyecto: primero sus tareas e ideas se quedan sin proyecto y al final se borra el archivo.
+// Si algo falla a mitad, el proyecto sigue existiendo y se puede volver a intentar.
+export async function borrarProyecto(cfg: Config, original: Proyecto): Promise<{ tareas: Tarea[]; ideas: Idea[] }> {
+  const ruta = `${CARPETA_PROYECTOS}/${original.id}.md`;
+  let archivo;
+  try {
+    archivo = await leerArchivo(cfg, ruta);
+  } catch (e) {
+    if (!(e instanceof ErrorGitHub && e.tipo === 'no-existe')) throw e;
+  }
+  if (archivo && serializarProyecto(parseProyecto(original.id, archivo.texto)) !== serializarProyecto(original))
+    throw new ErrorGitHub('conflicto', 'Este proyecto ha cambiado desde que lo abriste (quizá lo editó Claude). Pulsa Recargar y vuelve a intentarlo.');
+
+  const textoTareas = await leerOpcional(cfg, RUTA_TAREAS);
+  const tareasActuales = textoTareas === null ? [] : parseTareas(textoTareas);
+  const tareas = tareasActuales.some((t) => t.proyecto === original.id)
+    ? await modificarTareas(cfg, (ts) => soltarProyecto(ts, original.id), `Quitar el proyecto ${original.id} de sus tareas`)
+    : tareasActuales;
+
+  const textoIdeas = await leerOpcional(cfg, RUTA_IDEAS);
+  const ideasActuales = textoIdeas === null ? [] : parseIdeas(textoIdeas);
+  const ideas = ideasActuales.some((i) => i.proyecto === original.id)
+    ? await modificarIdeas(cfg, (is) => soltarProyecto(is, original.id), `Quitar el proyecto ${original.id} de sus ideas`)
+    : ideasActuales;
+
+  if (archivo) await borrarArchivo(cfg, ruta, archivo.sha, `Borrar proyecto: ${original.titulo}`);
+  return { tareas, ideas };
 }

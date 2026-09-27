@@ -374,3 +374,18 @@ main.ancho { max-width: none; }
 .aviso-herramienta { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 3; margin: 0; padding: 6px 12px; border-radius: 8px; background: var(--aviso); font-size: 13px; pointer-events: none; max-width: calc(100% - 20px); }
 .estado-cola { font-size: 13px; }
 .estado-cola.pendiente { color: var(--peligro); }
+.barrita-pieza { position: absolute; z-index: 3; display: flex; gap: 4px; align-items: center; padding: 4px; background: var(--superficie); border: 1px solid var(--borde); border-radius: 10px; box-shadow: 0 4px 14px rgb(59 48 39 / 0.18); transform: translateY(calc(-100% - 8px)); white-space: nowrap; }
+.barrita-pieza.abajo { transform: translateY(8px); }
+.barrita-pieza button { padding: 4px 8px; font-size: 14px; }
+.barrita-pieza .encendida { border-color: var(--acento); background: var(--acento-suave); }
+.con-menu { position: relative; }
+.menu-colores { position: absolute; top: calc(100% + 4px); left: 0; z-index: 4; display: flex; flex-wrap: wrap; gap: 6px; width: 212px; padding: 8px; background: var(--superficie); border: 1px solid var(--borde); border-radius: 10px; box-shadow: 0 8px 24px rgb(59 48 39 / 0.18); white-space: normal; }
+.menu-colores .sin-color { width: 100%; }
+.menu-colores .color { width: 28px; height: 28px; min-width: 0; padding: 0; border-radius: 50%; border: 2px solid var(--borde); }
+.menu-colores .color.encendida, .menu-colores .sin-color.encendida { outline: 2px solid var(--acento); outline-offset: 1px; }
+.muestra-color { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: middle; border: 1px solid var(--borde); }
+.tirador { position: absolute; z-index: 3; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 4px; background: var(--superficie); border: 2px solid var(--acento); cursor: nwse-resize; touch-action: none; }
+@media (pointer: coarse) {
+  .barrita-pieza button { min-width: 40px; min-height: 40px; }
+  .tirador { width: 26px; height: 26px; margin: -13px 0 0 -13px; }
+}

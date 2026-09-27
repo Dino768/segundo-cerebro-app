@@ -9,9 +9,12 @@ import {
 import { aplicarOperacion, type Operacion, type Pieza, type Pizarra as TipoPizarra } from '../../estudio/pizarra';
 import { copiar, guardarRecorte, leerRecorte, pegar } from '../../estudio/portapapeles';
 import { cajaDeTrazo, nuevoId } from '../../estudio/tinta';
-import { aspectoDe, CLAVE_ESTILO_NOTA, esSinFondo, estiloDeNota, leerEstiloNota, opEstiloNueva, type AspectoNota } from '../../estudio/estiloNota';
-import { leerPreferencia } from '../../estudio/preferencias';
+import {
+  aspectoDe, CLAVE_ESTILO_NOTA, esSinFondo, estiloDeNota, leerEstiloNota, opEstiloNueva, recordarEstilo, redimensionar, type AspectoNota, type CambioEstilo,
+} from '../../estudio/estiloNota';
+import { guardarPreferencia, leerPreferencia } from '../../estudio/preferencias';
 import { BarraHerramientas } from './BarraHerramientas';
+import { BarritaPieza } from './BarritaPieza';
 import { CapaTinta } from './CapaTinta';
 import { PanelCapas } from './PanelCapas';
 import { PiezaPizarra } from './PiezaPizarra';
@@ -35,7 +38,8 @@ type Gesto =
   | { tipo: 'borrar-trazos'; ids: Set<string> }
   | { tipo: 'goma'; goma: Goma }
   | { tipo: 'lazo'; poligono: Punto[] }
-  | { tipo: 'mover-seleccion'; desde: Punto; dx: number; dy: number };
+  | { tipo: 'mover-seleccion'; desde: Punto; dx: number; dy: number }
+  | { tipo: 'tirador'; id: string; desde: Punto; ancho: number; alto: number; cambio: { ancho: number; alto?: number } | null };
 
 interface Edicion { id: string | null; nuevoId: string; x: number; y: number; texto: string; ancho: number; aspecto: AspectoNota }
 
@@ -178,6 +182,13 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
       return;
     }
     const m = aMundo(vista, p);
+    // El tirador de la esquina de una nota: cambiar ancho y alto.
+    const tirador = (e.target as HTMLElement).closest<HTMLElement>('[data-tirador]')?.dataset.tirador;
+    const conTirador = editable && tirador ? mostrada.piezas.find((x) => x.id === tirador) : undefined;
+    if (conTirador) {
+      gesto.current = { tipo: 'tirador', id: conTirador.id, desde: p, ancho: conTirador.ancho, alto: tamanos[conTirador.id]?.h ?? 60, cambio: null };
+      return;
+    }
     // La rueda del ratón, la barra espaciadora o el dedo cuando hay lápiz: mover la pizarra.
     if (!editable || e.button === 1 || espacio.current || (e.pointerType === 'touch' && lapizVisto.current)) {
       gesto.current = { tipo: 'fondo', desde: p, vista };
@@ -296,6 +307,10 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
         g.dy = m.y - g.desde.y;
         setProvisional(moverSeleccion(mostrada, seleccion, g.dx, g.dy));
         return;
+      case 'tirador':
+        g.cambio = redimensionar(g.ancho, g.alto, (p.x - g.desde.x) / vista.escala, (p.y - g.desde.y) / vista.escala, e.shiftKey);
+        setProvisional({ tipo: 'estilo', id: g.id, ...g.cambio });
+        return;
     }
   }
 
@@ -350,6 +365,10 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
         setProvisional(null);
         if (g.dx || g.dy) ed.hacer(moverSeleccion(mostrada, seleccion, g.dx, g.dy));
         return;
+      case 'tirador':
+        setProvisional(null);
+        if (g.cambio) ed.hacer({ tipo: 'estilo', id: g.id, ...g.cambio });
+        return;
       default:
         return;
     }
@@ -400,6 +419,13 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
     if (!haySeleccion(seleccion)) return;
     ed.hacer(borrarSeleccion(seleccion));
     setSeleccion(SIN_SELECCION);
+  }
+
+  function cambiarEstilo(id: string, c: CambioEstilo) {
+    ed.hacer({ tipo: 'estilo', id, ...c });
+    const u = recordarEstilo(ultimo, c);
+    setUltimo(u);
+    guardarPreferencia(CLAVE_ESTILO_NOTA, JSON.stringify(u));
   }
 
   function copiarSel() {
@@ -493,6 +519,12 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
   const porId = new Map(vistaPizarra.piezas.map((p) => [p.id, p]));
   const cajaSel = h.herramienta === 'lazo' && haySeleccion(seleccion) ? cajaDeSeleccion(vistaPizarra, seleccion, rectDe) : null;
   const vacia = vistaPizarra.piezas.length === 0 && vistaPizarra.trazos.length === 0 && !editando;
+  // Barrita: una sola pieza seleccionada, que se ve, y sin estar escribiendo.
+  const unaSola =
+    editable && !editando && seleccion.trazos.length === 0 && seleccion.piezas.length === 1 && ['mover', 'lazo', 'texto'].includes(h.herramienta)
+      ? vistaPizarra.piezas.find((x) => x.id === seleccion.piezas[0] && visibles.has(x.id))
+      : undefined;
+  const cajaBarrita = unaSola ? rectDe(unaSola) : null;
 
   return (
     <div className="pizarra">
@@ -585,7 +617,19 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
               />
             )}
           </div>
-          {aviso && <p className="aviso-herramienta" role="status">{aviso}</p>}
+          {unaSola && cajaBarrita && (
+            <BarritaPieza
+              x={vista.x + cajaBarrita.x * vista.escala}
+              y={vista.y + cajaBarrita.y * vista.escala}
+              ancho={cajaBarrita.w * vista.escala}
+              alto={cajaBarrita.h * vista.escala}
+              idPieza={unaSola.id}
+              nota={unaSola.tipo === 'nota' ? unaSola : null}
+              alBorrar={borrarSel}
+              alEstilo={(c) => cambiarEstilo(unaSola.id, c)}
+            />
+          )}
+          {aviso && <p className="aviso-herramienta" role="status" data-fuera-de-foto>{aviso}</p>}
           {vacia && (
             <p className="pizarra-vacia">
               {editable ? 'Pizarra en blanco. Pídele a Claude que te lo explique aquí, dibuja con ✏️ o escribe con T.' : 'Esta pizarra está vacía.'}

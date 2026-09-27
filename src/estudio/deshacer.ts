@@ -1,5 +1,5 @@
 import { CAPA_CLAUDE } from './capas';
-import { aplicarOperacion, type Operacion, type Pizarra } from './pizarra';
+import { aplicarOperacion, type Operacion, type OpEstilo, type Pizarra } from './pizarra';
 
 function devolverPiezas(p: Pizarra, ids: string[]): Operacion | null {
   const fuera = new Set(ids);
@@ -62,6 +62,18 @@ export function contraria(p: Pizarra, op: Operacion): Operacion | null {
         }
       }
       return null;
+    }
+    case 'estilo': {
+      const x = p.piezas.find((y) => y.id === op.id);
+      if (!x) return null;
+      // Por cada campo que cambia, el valor de antes (null = no lo tenía).
+      const c: OpEstilo = { tipo: 'estilo', id: x.id };
+      if (op.ancho !== undefined) c.ancho = x.ancho;
+      if (op.fondo !== undefined) c.fondo = x.fondo ?? null;
+      if (op.colorTexto !== undefined) c.colorTexto = x.colorTexto ?? null;
+      if (op.tamanoLetra !== undefined) c.tamanoLetra = x.tamanoLetra ?? null;
+      if (op.alto !== undefined) c.alto = x.alto ?? null;
+      return c;
     }
     case 'lote': {
       const pasos: Operacion[] = [];

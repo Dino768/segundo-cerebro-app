@@ -10,6 +10,7 @@ const base = validarPizarra({
 }).pizarra;
 const trazo = (id: string) => validarTrazo({ id, herramienta: 'lapiz', color: '#000000', grosor: 2, puntos: [0, 0, 5, 5], capa: 'capa-1' }, 't');
 const conTrazo = aplicarOperacion(base, { tipo: 'trazos', quitar: [], poner: [trazo('d-1')] });
+const conEstilo = aplicarOperacion(base, { tipo: 'estilo', id: 'n1', fondo: '#ffffff', alto: 100 });
 
 // El orden dentro de las listas puede cambiar al deshacer (lo restaurado va encima): se compara sin orden.
 const porId = (a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id);
@@ -21,6 +22,12 @@ describe('contraria: hacer y deshacer deja la pizarra como estaba', () => {
     ['borrar una pieza con su flecha', base, { tipo: 'borrar', id: 't1' }],
     ['nota nueva', base, { tipo: 'nota', id: null, nuevoId: 'd-n', x: 1, y: 2, contenido: 'Otra', capa: 'capa-1' }],
     ['editar una nota', base, { tipo: 'nota', id: 'n1', x: 5, y: 5, contenido: 'Cambiada' }],
+    ['estilo de una nota', base, { tipo: 'estilo', id: 'n1', fondo: 'ninguno', tamanoLetra: 'grande', ancho: 300 }],
+    ['quitar el estilo de una nota', conEstilo, { tipo: 'estilo', id: 'n1', fondo: null, alto: null }],
+    ['nota nueva con su estilo (lote)', base, { tipo: 'lote', ops: [
+      { tipo: 'nota', id: null, nuevoId: 'd-n', x: 1, y: 2, contenido: 'Otra', capa: 'capa-1' },
+      { tipo: 'estilo', id: 'd-n', fondo: 'ninguno', tamanoLetra: 'normal' },
+    ] }],
     ['poner trazos', base, { tipo: 'trazos', quitar: [], poner: [trazo('d-1')] }],
     ['goma (quitar y poner trozos)', conTrazo, { tipo: 'trazos', quitar: ['d-1'], poner: [trazo('d-2'), trazo('d-3')] }],
     ['quitar piezas', base, { tipo: 'piezas', quitar: ['n1'], poner: [] }],

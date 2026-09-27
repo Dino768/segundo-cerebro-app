@@ -8,7 +8,14 @@ export type TipoTexto = 'texto' | 'formula' | 'dibujo' | 'imagen' | 'nota';
 export interface Curva { expr: string; etiqueta?: string; color?: string }
 export interface PuntoGrafica { x: number; y: number; etiqueta?: string }
 export interface ContenidoGrafica { x: [number, number]; y: [number, number]; curvas: Curva[]; puntos: PuntoGrafica[] }
-interface BasePieza { id: string; x: number; y: number; ancho: number; color?: string; capa?: string; letra?: 'mano' }
+export type TamanoLetra = 'pequena' | 'normal' | 'grande' | 'enorme';
+export const TAMANOS_LETRA: readonly TamanoLetra[] = ['pequena', 'normal', 'grande', 'enorme'];
+export const SIN_FONDO = 'ninguno';
+// fondo, colorTexto, tamanoLetra y alto: solo en las notas de Diego (v1.4 parte 2).
+interface BasePieza {
+  id: string; x: number; y: number; ancho: number; color?: string; capa?: string; letra?: 'mano';
+  fondo?: string; colorTexto?: string; tamanoLetra?: TamanoLetra; alto?: number;
+}
 export type Pieza =
   | (BasePieza & { tipo: TipoTexto; contenido: string })
   | (BasePieza & { tipo: 'grafica'; contenido: ContenidoGrafica });
@@ -32,7 +39,10 @@ export type Operacion =
   | { tipo: 'piezas'; quitar: string[]; poner: Pieza[]; flechas?: Flecha[] }
   | { tipo: 'capa'; accion: 'crear' | 'borrar' | 'renombrar' | 'ordenar'; id: string; nombre?: string; posicion?: number }
   | { tipo: 'lote'; ops: Operacion[] }
-  | { tipo: 'fusionar'; base: Pizarra | null; suya: Pizarra };
+  | { tipo: 'fusionar'; base: Pizarra | null; suya: Pizarra }
+  | { tipo: 'estilo'; id: string; fondo?: string | null; colorTexto?: string | null; tamanoLetra?: TamanoLetra | null; ancho?: number; alto?: number | null };
+
+export type OpEstilo = Extract<Operacion, { tipo: 'estilo' }>;
 
 export class ErrorPizarra extends Error {
   constructor(mensaje: string) {
@@ -71,6 +81,31 @@ function sinVacios<T extends object>(o: T): T {
   return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as T;
 }
 
+const esHex = (v: unknown): v is string => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
+function fondoValido(v: unknown, donde: string): string {
+  if (v === SIN_FONDO) return SIN_FONDO;
+  if (esHex(v)) return v.toLowerCase();
+  throw new ErrorPizarra(`${donde} debe ser «ninguno» o un color #rrggbb`);
+}
+function colorValido(v: unknown, donde: string): string {
+  if (esHex(v)) return v.toLowerCase();
+  throw new ErrorPizarra(`${donde} debe ser un color #rrggbb`);
+}
+function tamanoValido(v: unknown, donde: string): TamanoLetra {
+  if (TAMANOS_LETRA.includes(v as TamanoLetra)) return v as TamanoLetra;
+  throw new ErrorPizarra(`${donde} debe ser pequena, normal, grande o enorme`);
+}
+function anchoValido(v: unknown, donde: string): number {
+  const n = numero(v, donde);
+  if (n < 40 || n > 2000) throw new ErrorPizarra(`${donde} debe estar entre 40 y 2000`);
+  return n;
+}
+function altoValido(v: unknown, donde: string): number {
+  const n = numero(v, donde);
+  if (n < 30 || n > 4000) throw new ErrorPizarra(`${donde} debe estar entre 30 y 4000`);
+  return Math.round(n);
+}
+
 function validarGrafica(v: unknown, donde: string): ContenidoGrafica {
   const g = objeto(v, donde);
   if (!Array.isArray(g.curvas) || g.curvas.length === 0 || g.curvas.length > 8)
@@ -103,8 +138,10 @@ function validarPieza(bruta: unknown, donde: string, avisos: string[]): Pieza | 
     avisos.push(`${donde}: no conozco el tipo «${String(o.tipo)}», la ignoro`);
     return null;
   }
-  const ancho = numero(o.ancho, `${donde}.ancho`);
-  if (ancho < 40 || ancho > 2000) throw new ErrorPizarra(`${donde}.ancho debe estar entre 40 y 2000`);
+  const ancho = anchoValido(o.ancho, `${donde}.ancho`);
+  const nota = o.tipo === 'nota';
+  const deNota = <T,>(v: unknown, f: (v: unknown, d: string) => T, campo: string): T | undefined =>
+    nota && v !== undefined && v !== null ? f(v, `${donde}.${campo}`) : undefined;
   if (o.letra !== undefined && o.letra !== null && o.letra !== 'mano') throw new ErrorPizarra(`${donde}.letra solo puede ser «mano»`);
   const base = sinVacios({
     id,
@@ -114,6 +151,10 @@ function validarPieza(bruta: unknown, donde: string, avisos: string[]): Pieza | 
     color: opcional(o.color, `${donde}.color`),
     capa: opcional(o.capa, `${donde}.capa`),
     letra: o.letra === 'mano' && (o.tipo === 'texto' || o.tipo === 'nota') ? ('mano' as const) : undefined,
+    fondo: deNota(o.fondo, fondoValido, 'fondo'),
+    colorTexto: deNota(o.colorTexto, colorValido, 'colorTexto'),
+    tamanoLetra: deNota(o.tamanoLetra, tamanoValido, 'tamanoLetra'),
+    alto: deNota(o.alto, altoValido, 'alto'),
   });
   if (o.tipo === 'grafica') return { ...base, tipo: 'grafica', contenido: validarGrafica(o.contenido, `${donde}.contenido`) };
   const contenido = texto(o.contenido, `${donde}.contenido`);
@@ -167,12 +208,17 @@ function validarTrazos(v: unknown, avisos: string[]): Trazo[] {
   return trazos;
 }
 
-// Con algo de la v1.4 (trazos, letra a mano, capas propias, notas en otra capa) la pizarra es de la versión 2.
+// Con algo de la v1.4 (trazos, letra a mano, estilo de notas, capas propias, notas en otra capa) la pizarra es de la versión 2.
 export function necesitaVersion2(p: Pick<Pizarra, 'capas' | 'piezas' | 'trazos'>): boolean {
   return (
     p.trazos.length > 0 ||
     !esCapaInicial(p.capas) ||
-    p.piezas.some((x) => x.letra !== undefined || x.capa !== capaPorDefecto(p.capas, esDeClaudePieza(x)))
+    p.piezas.some(
+      (x) =>
+        x.letra !== undefined ||
+        x.fondo !== undefined || x.colorTexto !== undefined || x.tamanoLetra !== undefined || x.alto !== undefined ||
+        x.capa !== capaPorDefecto(p.capas, esDeClaudePieza(x)),
+    )
   );
 }
 
@@ -284,6 +330,21 @@ function aplicarCapa(p: Pizarra, op: Extract<Operacion, { tipo: 'capa' }>): Piza
   }
 }
 
+const CAMPOS_ESTILO = ['fondo', 'colorTexto', 'tamanoLetra', 'alto'] as const;
+
+// El ancho vale en cualquier pieza; fondo, colorTexto, tamanoLetra y alto, solo en notas. null quita el campo.
+function conEstilo(x: Pieza, op: OpEstilo): Pieza {
+  const r: Record<string, unknown> = { ...x };
+  if (op.ancho !== undefined) r.ancho = Math.round(op.ancho);
+  if (x.tipo === 'nota')
+    for (const k of CAMPOS_ESTILO) {
+      const v = op[k];
+      if (v === null) delete r[k];
+      else if (v !== undefined) r[k] = k === 'alto' ? Math.round(v as number) : v;
+    }
+  return r as unknown as Pieza;
+}
+
 // Todas las operaciones son idempotentes: aplicarlas dos veces da lo mismo que una.
 function aplicar(p: Pizarra, op: Operacion): Pizarra {
   switch (op.tipo) {
@@ -311,6 +372,8 @@ function aplicar(p: Pizarra, op: Operacion): Pizarra {
     }
     case 'capa':
       return aplicarCapa(p, op);
+    case 'estilo':
+      return { ...p, piezas: p.piezas.map((x) => (x.id === op.id ? conEstilo(x, op) : x)) };
     case 'lote':
       return op.ops.reduce(aplicar, p);
     case 'fusionar':
@@ -382,6 +445,19 @@ export function validarOperacion(bruto: unknown): Operacion {
         id,
         nombre: opcional(o.nombre, 'nombre'),
         posicion: o.posicion === undefined || o.posicion === null ? undefined : numero(o.posicion, 'posicion'),
+      });
+    }
+    case 'estilo': {
+      const campo = <T,>(v: unknown, f: (v: unknown, d: string) => T, d: string): T | null | undefined =>
+        v === undefined ? undefined : v === null ? null : f(v, d);
+      return sinVacios({
+        tipo: 'estilo' as const,
+        id: texto(o.id, 'id'),
+        fondo: campo(o.fondo, fondoValido, 'fondo'),
+        colorTexto: campo(o.colorTexto, colorValido, 'colorTexto'),
+        tamanoLetra: campo(o.tamanoLetra, tamanoValido, 'tamanoLetra'),
+        ancho: o.ancho === undefined || o.ancho === null ? undefined : anchoValido(o.ancho, 'ancho'),
+        alto: campo(o.alto, altoValido, 'alto'),
       });
     }
     case 'lote': {

@@ -229,3 +229,66 @@ describe('tamaño del archivo', () => {
     expect(validarPizarra(JSON.parse(texto)).pizarra).toEqual(pizarra);
   });
 });
+
+describe('estilo de las notas', () => {
+  const conNota = (cambios: Record<string, unknown>) => pieza(5, cambios);
+  it('una nota acepta fondo, colorTexto, tamanoLetra y alto', () => {
+    const { pizarra } = validarPizarra(conNota({ fondo: 'ninguno', colorTexto: '#3B82F6', tamanoLetra: 'grande', alto: 120 }));
+    expect(pizarra.piezas[5]).toMatchObject({ fondo: 'ninguno', colorTexto: '#3b82f6', tamanoLetra: 'grande', alto: 120 });
+    expect(pizarra.version).toBe(2);
+  });
+  it('en las demás piezas esos campos se ignoran', () => {
+    const { pizarra } = validarPizarra(pieza(0, { fondo: '#ffffff', alto: 50 }));
+    expect(pizarra.piezas[0]).not.toHaveProperty('fondo');
+    expect(pizarra.piezas[0]).not.toHaveProperty('alto');
+  });
+  it('valores que no valen', () => {
+    expect(() => validarPizarra(conNota({ fondo: 'rojo' }))).toThrow(ErrorPizarra);
+    expect(() => validarPizarra(conNota({ colorTexto: 'ninguno' }))).toThrow(ErrorPizarra);
+    expect(() => validarPizarra(conNota({ tamanoLetra: 'gigante' }))).toThrow(ErrorPizarra);
+    expect(() => validarPizarra(conNota({ alto: 10 }))).toThrow(ErrorPizarra);
+  });
+  it('una nota antigua, sin estilo, sigue siendo versión 1', () => {
+    const { pizarra } = validarPizarra(ejemplo);
+    expect(pizarra.version).toBe(1);
+    expect(JSON.parse(serializarPizarra(pizarra)).version).toBe(1);
+  });
+  it('el estilo se conserva al escribir y volver a leer', () => {
+    const { pizarra } = validarPizarra(conNota({ fondo: '#f7e3d9', tamanoLetra: 'enorme' }));
+    const otra = validarPizarra(JSON.parse(serializarPizarra(pizarra))).pizarra;
+    expect(otra.piezas[5]).toMatchObject({ fondo: '#f7e3d9', tamanoLetra: 'enorme' });
+  });
+});
+
+describe('operación estilo', () => {
+  const p = validarPizarra(ejemplo).pizarra;
+  it('cambia solo lo que trae, y null quita el campo', () => {
+    const a = aplicarOperacion(p, { tipo: 'estilo', id: 'n1', fondo: 'ninguno', tamanoLetra: 'grande', alto: 99.6 });
+    expect(a.piezas[5]).toMatchObject({ fondo: 'ninguno', tamanoLetra: 'grande', alto: 100, contenido: '¿Y con rozamiento?' });
+    const b = aplicarOperacion(a, { tipo: 'estilo', id: 'n1', fondo: null, alto: null });
+    expect(b.piezas[5]).not.toHaveProperty('fondo');
+    expect(b.piezas[5]).not.toHaveProperty('alto');
+    expect(b.piezas[5]).toMatchObject({ tamanoLetra: 'grande' });
+  });
+  it('ancho vale en cualquier pieza; el resto, solo en notas', () => {
+    const a = aplicarOperacion(p, { tipo: 'estilo', id: 't1', ancho: 400.4, fondo: '#ffffff' });
+    expect(a.piezas[0].ancho).toBe(400);
+    expect(a.piezas[0]).not.toHaveProperty('fondo');
+  });
+  it('es idempotente y no hace nada si la pieza no existe', () => {
+    const op: Operacion = { tipo: 'estilo', id: 'n1', colorTexto: '#b3412e' };
+    expect(aplicarOperacion(aplicarOperacion(p, op), op)).toEqual(aplicarOperacion(p, op));
+    expect(aplicarOperacion(p, { tipo: 'estilo', id: 'no-existe', fondo: 'ninguno' })).toEqual(p);
+  });
+  it('validarOperacion', () => {
+    expect(validarOperacion({ tipo: 'estilo', id: 'n1', fondo: null, tamanoLetra: 'pequena', ancho: 300 })).toEqual({
+      tipo: 'estilo', id: 'n1', fondo: null, tamanoLetra: 'pequena', ancho: 300,
+    });
+    expect(() => validarOperacion({ tipo: 'estilo', id: 'n1', ancho: 20 })).toThrow(ErrorPizarra);
+    expect(() => validarOperacion({ tipo: 'estilo', id: 'n1', alto: 5000 })).toThrow(ErrorPizarra);
+    expect(() => validarOperacion({ tipo: 'estilo', id: 'n1', fondo: 'azul' })).toThrow(ErrorPizarra);
+    expect(validarOperacion({ tipo: 'lote', ops: [{ tipo: 'estilo', id: 'n1', fondo: 'ninguno' }] })).toEqual({
+      tipo: 'lote', ops: [{ tipo: 'estilo', id: 'n1', fondo: 'ninguno' }],
+    });
+  });
+});

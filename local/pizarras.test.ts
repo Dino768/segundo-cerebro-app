@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -79,6 +79,16 @@ describe('pizarras en el disco', () => {
     expect(await crearPizarra(c)).toBe(1);
     writeFileSync(rutaPizarra(c, 1), '{ roto');
     expect((await leerPizarra(c, 1)).pizarra).toBeNull();
+  });
+  it('acepta la operación estilo y la guarda en el archivo', async () => {
+    const c = carpetaNueva();
+    await crearPizarra(c);
+    await operarPizarra(c, 1, { tipo: 'nota', id: null, nuevoId: 'd-1', x: 0, y: 0, contenido: 'Hola' });
+    const p = await operarPizarra(c, 1, { tipo: 'estilo', id: 'd-1', fondo: 'ninguno', tamanoLetra: 'grande' });
+    expect(p.piezas[0]).toMatchObject({ fondo: 'ninguno', tamanoLetra: 'grande' });
+    const enDisco = JSON.parse(readFileSync(rutaPizarra(c, 1), 'utf8'));
+    expect(enDisco.version).toBe(2);
+    expect(enDisco.piezas[0]).toMatchObject({ fondo: 'ninguno', tamanoLetra: 'grande' });
   });
 });
 

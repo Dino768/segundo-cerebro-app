@@ -397,4 +397,4 @@ body.con-pantalla-completa { overflow: hidden; }
 .estudio-local.pantalla-completa > :not(.zona-pizarra) { display: none; }
 .estudio-local.pantalla-completa .zona-pizarra { border-left: none; }
 .pantalla-completa .pestanas-pizarra, .visor-historial.pantalla-completa > .chat-cabecera { display: none; }
-.estudio-local.pantalla-completa.chat-flotante > .chat { display: flex; position: absolute; top: 0; right: 0; bottom: 0; z-index: 6; width: min(420px, 92vw); background: var(--superficie); border-left: 1px solid var(--borde); box-shadow: -8px 0 24px rgb(59 48 39 / 0.18); }
+.estudio-local.pantalla-completa.chat-flotante > .chat, .estudio-local.pantalla-completa.chat-flotante > .lista-conversaciones { display: flex; position: absolute; top: 0; right: 0; bottom: 0; z-index: 6; width: min(420px, 92vw); background: var(--superficie); border-left: 1px solid var(--borde); box-shadow: -8px 0 24px rgb(59 48 39 / 0.18); }

@@ -24,4 +24,11 @@ describe('BarritaPieza', () => {
   it('si la pieza está pegada arriba, la barrita sale debajo', () => {
     expect(renderToString(<BarritaPieza {...base} y={10} nota={null} />)).toContain('barrita-pieza abajo');
   });
+  it('todos los botones llevan data-sin-foco, para no robarle el foco al lienzo al pulsarlos', () => {
+    const html = renderToString(<BarritaPieza {...base} nota={{ tamanoLetra: 'normal' }} />);
+    const botones = html.match(/<button/g) ?? [];
+    const marcados = html.match(/data-sin-foco="true"/g) ?? [];
+    expect(botones.length).toBeGreaterThan(0);
+    expect(marcados.length).toBe(botones.length);
+  });
 });

@@ -12,6 +12,7 @@ interface Props {
   nota: AspectoNota | null; // null: pieza de Claude, solo se puede borrar
   alBorrar(): void;
   alEstilo(c: CambioEstilo): void;
+  alTerminar?(): void; // el selector de color propio se queda con el foco: hay que devolvérselo al lienzo
 }
 
 const HUECO_ARRIBA = 56; // si no cabe encima, sale debajo
@@ -27,15 +28,22 @@ const sinFoco = (e: MouseEvent) => {
 // del selector: aplicarlo en cada uno deshace y guarda de más, y si algo cierra el menú a mitad
 // (como hacía `elegir`), el selector se desconecta con el color a medias. Por eso solo se aplica en
 // el "change" nativo (cuando Diego confirma el color), escuchado a mano porque React solo ofrece
-// onChange, que aquí equivale al evento "input".
-function ColorPropio({ etiqueta, alElegir }: { etiqueta: string; alElegir(color: string): void }) {
+// onChange, que aquí equivale al evento "input". Este <input> no lleva `data-sin-foco` (tiene que
+// poder recibir el foco para abrir el selector nativo), así que al confirmar el color se queda con
+// el foco él mismo; como `elegir` cierra el menú y lo desmonta, hay que devolverle el foco al lienzo.
+function ColorPropio({ etiqueta, alElegir, alTerminar }: { etiqueta: string; alElegir(color: string): void; alTerminar?(): void }) {
   const entrada = useRef<HTMLInputElement>(null);
   const elegirRef = useRef(alElegir);
   elegirRef.current = alElegir;
+  const terminarRef = useRef(alTerminar);
+  terminarRef.current = alTerminar;
   useEffect(() => {
     const el = entrada.current;
     if (!el) return;
-    const alCambiar = () => elegirRef.current(el.value);
+    const alCambiar = () => {
+      elegirRef.current(el.value);
+      terminarRef.current?.();
+    };
     el.addEventListener('change', alCambiar);
     return () => el.removeEventListener('change', alCambiar);
   }, []);
@@ -48,7 +56,7 @@ function ColorPropio({ etiqueta, alElegir }: { etiqueta: string; alElegir(color:
 }
 
 // Barrita que sale sobre la pieza seleccionada: borrar y, en las notas, fondo, color y tamaño de letra. Y el tirador de la esquina.
-export function BarritaPieza({ x, y, ancho, alto, idPieza, nota, alBorrar, alEstilo }: Props) {
+export function BarritaPieza({ x, y, ancho, alto, idPieza, nota, alBorrar, alEstilo, alTerminar }: Props) {
   const [menu, setMenu] = useState<'fondo' | 'letra' | null>(null);
   const abajo = y < HUECO_ARRIBA;
   const elegir = (c: CambioEstilo) => {
@@ -76,7 +84,7 @@ export function BarritaPieza({ x, y, ancho, alto, idPieza, nota, alBorrar, alEst
                   {FONDOS.map((c) => (
                     <button data-sin-foco key={c} className={`color${nota.fondo === c ? ' encendida' : ''}`} style={{ background: c }} aria-label={`Fondo ${c}`} onClick={() => elegir({ fondo: c })} />
                   ))}
-                  <ColorPropio etiqueta="Elegir otro fondo" alElegir={(color) => elegir({ fondo: color })} />
+                  <ColorPropio etiqueta="Elegir otro fondo" alElegir={(color) => elegir({ fondo: color })} alTerminar={alTerminar} />
                 </div>
               )}
             </span>
@@ -90,7 +98,7 @@ export function BarritaPieza({ x, y, ancho, alto, idPieza, nota, alBorrar, alEst
                   {COLORES.map((c) => (
                     <button data-sin-foco key={c} className={`color${nota.colorTexto === c ? ' encendida' : ''}`} style={{ background: c }} aria-label={`Letra ${c}`} onClick={() => elegir({ colorTexto: c })} />
                   ))}
-                  <ColorPropio etiqueta="Elegir otro color de letra" alElegir={(color) => elegir({ colorTexto: color })} />
+                  <ColorPropio etiqueta="Elegir otro color de letra" alElegir={(color) => elegir({ colorTexto: color })} alTerminar={alTerminar} />
                 </div>
               )}
             </span>

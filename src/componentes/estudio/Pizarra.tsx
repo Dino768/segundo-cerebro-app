@@ -627,6 +627,7 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
               nota={unaSola.tipo === 'nota' ? unaSola : null}
               alBorrar={borrarSel}
               alEstilo={(c) => cambiarEstilo(unaSola.id, c)}
+              alTerminar={() => marco.current?.focus({ preventScroll: true })}
             />
           )}
           {aviso && <p className="aviso-herramienta" role="status" data-fuera-de-foto>{aviso}</p>}

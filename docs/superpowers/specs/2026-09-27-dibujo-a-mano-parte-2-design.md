@@ -24,7 +24,7 @@ Se hace en **dos entregas**, que Diego prueba por separado:
 Los cuadros de texto de Diego (piezas `nota`) ganan estos campos opcionales:
 - `fondo`: `"ninguno"` o `#rrggbb`. Si falta, amarillo como hasta ahora (`#fff4c2` con borde `#ecd98a`), para que las notas que ya existen no cambien.
 - `colorTexto`: `#rrggbb`. Si falta, el color de texto normal de la app.
-- `tamanoLetra`: `"pequena"`, `"normal"`, `"grande"` o `"enorme"` (14, 18, 24 y 36 px). Si falta, `normal`.
+- `tamanoLetra`: `"pequena"`, `"normal"`, `"grande"` o `"enorme"` (13, 15, 22 y 32 px; `normal` es el tamaño de ahora). Si falta, `normal`.
 - `alto`: alto mínimo del cuadro, de 30 a 4000. Si falta, el alto que pida el texto. Si el texto necesita más, el cuadro crece (nunca se corta el texto).
 - `ancho` ya existía (40 a 2000); ahora se puede cambiar.
 
@@ -50,7 +50,7 @@ Al seleccionar un cuadro de Diego (con Mover, con el lazo si es lo único selecc
 
 En el móvil la barrita es igual, con botones del tamaño de un dedo. Si no cabe encima (cuadro pegado arriba), sale debajo.
 
-**Piezas de Claude** (textos, fórmulas, gráficas, imágenes, dibujos): si la capa de Claude es la activa, al seleccionarlas sale la barrita solo con 🗑. No se les cambia el estilo.
+**Piezas de Claude** (textos, fórmulas, gráficas, imágenes, dibujos): al seleccionarlas sale la barrita solo con 🗑 (lo mismo que ya permite el botón «🗑 Borrar» de abajo). No se les cambia el estilo.
 
 Todo lo de la barrita se puede deshacer y rehacer.
 
@@ -78,10 +78,10 @@ Solo en la zona de estudio del PC (el chat está allí).
 
 - Se hace con la librería **`html-to-image`** (licencia MIT): copia el trozo de página, mete dentro las fuentes (KaTeX) y las imágenes, y lo dibuja en un lienzo. Funciona sin internet.
 - Tamaño: 1280 px de ancho como mucho (se reduce si la pantalla es más grande), en PNG.
-- Si la foto falla (por ejemplo, una imagen que no carga), el mensaje se manda sin foto y el chat enseña un aviso pequeño: «No he podido mandar la foto de la pizarra».
+- Si la foto falla (por ejemplo, una imagen que no carga), el mensaje se manda sin foto y encima de la pizarra sale el aviso «No he podido mandar la foto de la pizarra».
 
 ### Cuándo se manda
-- **Automático:** si Diego ha hecho alguna operación en la pizarra abierta desde su último mensaje (trazos, borrados, textos, estilos, mover, capas, pegar, deshacer), la foto se adjunta a ese mensaje. Se sube como las capturas (`subirImagen`, a `imagenes/` de la conversación) con el nombre `pizarra-<n>-<hora>.png`.
+- **Automático:** si Diego ha hecho alguna operación en la pizarra abierta desde su último mensaje (trazos, borrados, textos, estilos, mover, capas, pegar, deshacer), la foto se adjunta a ese mensaje. Se sube como las capturas (`subirImagen`, a `imagenes/` de la conversación, con el mismo tipo de nombre).
 - **Botón «👁 Enseñar la pizarra»** junto al botón de adjuntar del chat: manda solo la foto, con el texto «Mira lo que he hecho en la pizarra».
 - Sin pizarra abierta, no hay foto y el botón está desactivado.
 - En la conversación, la foto se ve como una captura más (miniatura en el mensaje de Diego).

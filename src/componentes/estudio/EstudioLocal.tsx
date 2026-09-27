@@ -3,6 +3,7 @@ import type { Asignatura } from '../../datos/asignaturas';
 import { aplicarEvento } from '../../estudio/chat';
 import { useDatos } from '../../estado/datos';
 import { confirmar, pedirTexto } from '../../estado/dialogos';
+import { esOperacionDeDiego, type FotoEnviada } from '../../estudio/foto';
 import { useHoy } from '../../estado/hoy';
 import { usePantallaCompleta } from '../../estado/pantallaCompleta';
 import { guardarYMarcar } from '../../estudio/guardado';
@@ -10,13 +11,14 @@ import { archivoDeRuta, cambioEnHistorial, paraHistorial, type EntradaHistorial 
 import { leerDeHistorial, subirAlHistorial } from '../../estudio/historialRemoto';
 import {
   borrarPizarra, enviarMensaje, leerArchivoBase64, leerConversacion, leerPizarras, listarConversaciones, nuevaPizarra, operarPizarra, pararRespuesta,
-  urlArchivo,
+  subirImagen, urlArchivo,
 } from '../../estudio/local';
 import type { Operacion, Pizarra as TipoPizarra } from '../../estudio/pizarra';
 import { guardarPreferencia, leerPreferencia } from '../../estudio/preferencias';
 import type { EstadoPizarra, Mensaje } from '../../estudio/tipos';
 import type { useLocal } from '../../estudio/useLocal';
 import { Chat, type ErrorChat } from './Chat';
+import type { HacerFoto } from './fotoPizarra';
 import { VisorHistorial } from './Historial';
 import { ListaConversaciones } from './ListaConversaciones';
 import { Pizarra } from './Pizarra';
@@ -40,12 +42,15 @@ export function EstudioLocal({ asignatura, local }: Props) {
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<ErrorChat | null>(null);
-  const [ultimoEnvio, setUltimoEnvio] = useState<{ texto: string; imagenes: string[] } | null>(null);
+  const [ultimoEnvio, setUltimoEnvio] = useState<{ texto: string; imagenes: string[]; foto: FotoEnviada | null } | null>(null);
   const [pizarras, setPizarras] = useState<EstadoPizarra[]>([]);
   const pizarrasActuales = useRef(pizarras);
   pizarrasActuales.current = pizarras;
   // Pizarras ya juntadas con el historial en esta sesión (al abrirlas).
   const traidas = useRef(new Set<string>());
+  const hacerFoto = useRef<HacerFoto | null>(null);
+  // Pizarras en las que Diego ha hecho algo desde su último mensaje: ese mensaje lleva foto.
+  const cambiadas = useRef(new Set<number>());
   const [abierta, setAbierta] = useState<number | null>(null);
   const [avisoPizarra, setAvisoPizarra] = useState<string | null>(null);
   const [anchoChat, setAnchoChat] = useState(() => Number(leerPreferencia(CLAVE_ANCHO)) || 36);
@@ -81,6 +86,7 @@ export function EstudioLocal({ asignatura, local }: Props) {
       cuantas.current = 0;
       setPizarras([]);
       setAbierta(null);
+      cambiadas.current.clear();
       guardarPreferencia(claveUltima(asignatura.id), id);
       await recargarPizarras(id);
     },
@@ -94,6 +100,7 @@ export function EstudioLocal({ asignatura, local }: Props) {
     setPizarras([]);
     setAbierta(null);
     cuantas.current = 0;
+    cambiadas.current.clear();
     setConv({ id: crypto.randomUUID(), nueva: true });
   }, []);
 
@@ -114,14 +121,31 @@ export function EstudioLocal({ asignatura, local }: Props) {
     });
   }, [suscribir, idConv, asignatura.id, recargarPizarras]);
 
-  async function enviar(texto: string, imagenes: string[]) {
+  async function enviar(texto: string, imagenes: string[], pedirFoto = false, fotoPrevia: FotoEnviada | null = null) {
     if (!conv || enviando) return;
-    setUltimoEnvio({ texto, imagenes });
     setError(null);
     setEnviando(true);
-    setMensajes((ms) => [...ms, imagenes.length ? { rol: 'diego', texto, imagenes } : { rol: 'diego', texto }]);
+    // Si Diego ha cambiado la pizarra abierta (o pulsa 👁), el mensaje lleva una foto de lo que ve.
+    let foto = fotoPrevia;
+    const n = abiertaAhora?.n ?? null;
+    if (!foto && n !== null && hacerFoto.current && (pedirFoto || cambiadas.current.has(n))) {
+      try {
+        const f = await hacerFoto.current();
+        foto = { nombre: await subirImagen(asignatura.id, conv.id, f.blob), zona: f.zona };
+        cambiadas.current.delete(n);
+      } catch {
+        setAvisoPizarra('No he podido mandar la foto de la pizarra');
+      }
+    }
+    if (!texto && !imagenes.length && !foto) {
+      setEnviando(false);
+      return;
+    }
+    setUltimoEnvio({ texto, imagenes, foto });
+    const vistas = foto ? [...imagenes, foto.nombre] : imagenes;
+    setMensajes((ms) => [...ms, vistas.length ? { rol: 'diego', texto, imagenes: vistas } : { rol: 'diego', texto }]);
     await enviarMensaje(
-      { asignatura: asignatura.id, id: conv.id, nueva: conv.nueva, texto, imagenes, pizarraAbierta: abierta },
+      { asignatura: asignatura.id, id: conv.id, nueva: conv.nueva, texto, imagenes, pizarraAbierta: abierta, ...(foto ? { foto } : {}) },
       (e) => {
         if (e.tipo === 'error') setError({ mensaje: e.mensaje, uso: e.uso });
         else setMensajes((ms) => aplicarEvento(ms, e));
@@ -141,6 +165,7 @@ export function EstudioLocal({ asignatura, local }: Props) {
   async function operar(n: number, op: Operacion): Promise<TipoPizarra | null> {
     if (!conv) return null;
     try {
+      if (esOperacionDeDiego(op)) cambiadas.current.add(n);
       const p = await operarPizarra(asignatura.id, conv.id, n, op);
       setPizarras((ps) => ps.map((e) => (e.n === n ? { ...e, pizarra: p, error: null } : e)));
       // Guardar y juntar cambian también la copia base: se vuelve a leer.
@@ -305,9 +330,10 @@ export function EstudioLocal({ asignatura, local }: Props) {
           error={error}
           alEnviar={(t, i) => void enviar(t, i)}
           alParar={() => void pararRespuesta(asignatura.id, conv.id).catch(() => undefined)}
-          alReintentar={() => ultimoEnvio && void enviar(ultimoEnvio.texto, ultimoEnvio.imagenes)}
+          alReintentar={() => ultimoEnvio && void enviar(ultimoEnvio.texto, ultimoEnvio.imagenes, false, ultimoEnvio.foto)}
           alVerLista={() => setVista('lista')}
           alNueva={nueva}
+          alEnsenarPizarra={abiertaAhora?.pizarra ? () => void enviar('Mira lo que he hecho en la pizarra', [], true) : undefined}
         />
       )}
       {conPizarra && (
@@ -351,6 +377,7 @@ export function EstudioLocal({ asignatura, local }: Props) {
                 origen={`local:${asignatura.id}:${conv.id}`}
                 maximizada={pantalla.activa}
                 alMaximizar={pantalla.alternar}
+                foto={hacerFoto}
               >
                 {pantalla.activa && (
                   <button

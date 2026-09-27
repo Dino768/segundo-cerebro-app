@@ -13,9 +13,11 @@ import {
   aspectoDe, CLAVE_ESTILO_NOTA, esSinFondo, estiloDeNota, leerEstiloNota, opEstiloNueva, recordarEstilo, redimensionar, type AspectoNota, type CambioEstilo,
 } from '../../estudio/estiloNota';
 import { guardarPreferencia, leerPreferencia } from '../../estudio/preferencias';
+import { etiquetasFoto, zonaVisible } from '../../estudio/foto';
 import { BarraHerramientas } from './BarraHerramientas';
 import { BarritaPieza } from './BarritaPieza';
 import { CapaTinta } from './CapaTinta';
+import { fotografiar, type HacerFoto } from './fotoPizarra';
 import { PanelCapas } from './PanelCapas';
 import { PiezaPizarra } from './PiezaPizarra';
 import { usePizarraEditable } from './usePizarraEditable';
@@ -29,6 +31,7 @@ interface Props {
   children?: ReactNode; // botones extra en la barra de abajo
   maximizada?: boolean;
   alMaximizar?(): void; // sin esto no sale el botón de pantalla completa
+  foto?: { current: HacerFoto | null }; // la zona de estudio la pide al mandar un mensaje
 }
 
 const RADIO_BORRADOR = 10; // en píxeles de pantalla
@@ -45,7 +48,7 @@ type Gesto =
 
 interface Edicion { id: string | null; nuevoId: string; x: number; y: number; texto: string; ancho: number; aspecto: AspectoNota }
 
-export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children, maximizada = false, alMaximizar }: Props) {
+export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children, maximizada = false, alMaximizar, foto }: Props) {
   const editable = !!alOperar;
   const ed = usePizarraEditable(pizarra, clave, alOperar);
   const { mostrada, herramientas: h, activa } = ed;
@@ -527,6 +530,22 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children, ma
       ? vistaPizarra.piezas.find((x) => x.id === seleccion.piezas[0] && visibles.has(x.id))
       : undefined;
   const cajaBarrita = unaSola ? rectDe(unaSola) : null;
+
+  // Cómo hacer la foto de lo que se ve ahora (con las capas visibles). Se renueva en cada pintado.
+  const piezasVisibles = grupos.flatMap((g) => g.piezas).map((x) => ({ id: x.id, rect: rectDe(x) }));
+  useEffect(() => {
+    if (!foto) return;
+    foto.current = async () => {
+      const m = marco.current;
+      if (!m) throw new Error('La pizarra no está abierta');
+      const zona = zonaVisible(vista, m.clientWidth, m.clientHeight);
+      const blob = await fotografiar(m, (escala) => etiquetasFoto(piezasVisibles, vista, m.clientWidth, m.clientHeight, escala));
+      return { blob, zona };
+    };
+    return () => {
+      foto.current = null;
+    };
+  });
 
   return (
     <div className="pizarra">

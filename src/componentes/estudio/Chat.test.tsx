@@ -16,4 +16,10 @@ describe('Chat', () => {
     const html = renderToString(<Chat {...props} enviando={false} />);
     expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>◂ Conversaciones<\/button>/);
   });
+  it('botón para enseñar la pizarra: desactivado sin pizarra o mientras Claude contesta', () => {
+    const boton = /<button[^>]*aria-label="Enseñar la pizarra"[^>]*>/;
+    expect(renderToString(<Chat {...props} enviando={false} />).match(boton)?.[0]).toContain('disabled=""');
+    expect(renderToString(<Chat {...props} enviando={false} alEnsenarPizarra={() => undefined} />).match(boton)?.[0]).not.toContain('disabled=""');
+    expect(renderToString(<Chat {...props} enviando alEnsenarPizarra={() => undefined} />).match(boton)?.[0]).toContain('disabled=""');
+  });
 });

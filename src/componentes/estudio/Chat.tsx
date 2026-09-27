@@ -21,6 +21,7 @@ interface Props {
   alReintentar(): void;
   alVerLista(): void;
   alNueva(): void;
+  alEnsenarPizarra?(): void; // manda solo la foto de la pizarra abierta
 }
 
 export function Chat(p: Props) {
@@ -141,6 +142,15 @@ export function Chat(p: Props) {
           📎
           <input type="file" accept="image/*" multiple hidden onChange={(e) => void adjuntar([...(e.target.files ?? [])])} />
         </label>
+        <button
+          className="boton-adjuntar"
+          aria-label="Enseñar la pizarra"
+          title="Enseñar la pizarra a Claude"
+          disabled={!p.alEnsenarPizarra || p.enviando}
+          onClick={p.alEnsenarPizarra}
+        >
+          👁
+        </button>
         <textarea
           value={texto}
           onChange={(e) => setTexto(e.target.value)}

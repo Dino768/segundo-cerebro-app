@@ -1,5 +1,6 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Pieza } from '../../estudio/pizarra';
+import { esSinFondo, estiloDeNota } from '../../estudio/estiloNota';
 import { limpiarSvg } from '../../estudio/svg';
 import { Markdown } from '../Markdown';
 import { Formula } from './Formula';
@@ -26,12 +27,14 @@ export const PiezaPizarra = memo(function PiezaPizarra({ pieza, x, y, selecciona
     return () => observador.disconnect();
   }, [pieza.id, alMedir]);
 
+  const estilo = pieza.tipo === 'nota' ? estiloDeNota(pieza) : pieza.color ? { borderColor: pieza.color } : {};
+  const sinFondo = pieza.tipo === 'nota' && esSinFondo(pieza);
   return (
     <div
       ref={ref}
       data-pieza={pieza.id}
-      className={`pieza pieza-${pieza.tipo}${seleccionada ? ' seleccionada' : ''}`}
-      style={{ left: x, top: y, width: pieza.ancho, ...(pieza.color ? { borderColor: pieza.color } : {}) }}
+      className={`pieza pieza-${pieza.tipo}${sinFondo ? ' sin-fondo' : ''}${seleccionada ? ' seleccionada' : ''}`}
+      style={{ left: x, top: y, width: pieza.ancho, ...estilo }}
     >
       <Contenido pieza={pieza} imagen={imagen} />
     </div>

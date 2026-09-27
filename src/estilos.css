@@ -248,6 +248,8 @@ main.ancho { max-width: none; }
 .pieza { position: absolute; background: var(--superficie); border: 1px solid var(--borde); border-radius: 12px; padding: 10px 14px; box-shadow: 0 1px 3px rgb(60 40 20 / 0.08); user-select: none; overflow-wrap: anywhere; }
 .pieza.seleccionada { outline: 2px solid var(--acento); outline-offset: 2px; }
 .pieza-nota { background: #fff4c2; border-color: #ecd98a; }
+.pieza.sin-fondo { box-shadow: none; }
+.pieza.sin-fondo.seleccionada { outline: 2px dashed var(--acento); }
 .pieza-dibujo, .pieza-imagen, .pieza-grafica { padding: 6px; }
 .pieza-formula { text-align: center; padding: 6px 14px; }
 .pieza img { display: block; width: 100%; border-radius: 6px; }
@@ -255,7 +257,8 @@ main.ancho { max-width: none; }
 .markdown-pieza > :first-child { margin-top: 0; }
 .markdown-pieza > :last-child { margin-bottom: 0; }
 .texto-nota { margin: 0; white-space: pre-wrap; }
-.editor-nota { position: absolute; width: 240px; min-height: 90px; background: #fff4c2; border: 2px solid var(--acento); }
+.editor-nota { position: absolute; min-height: 90px; padding: 10px 14px; border-radius: 12px; border: 2px solid var(--acento); font: inherit; resize: none; }
+.editor-nota.sin-fondo { border-style: dashed; }
 .pizarra-vacia { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 20px; margin: 0; color: var(--suave); pointer-events: none; }
 .tinta { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 .tinta .subrayados { mix-blend-mode: multiply; }

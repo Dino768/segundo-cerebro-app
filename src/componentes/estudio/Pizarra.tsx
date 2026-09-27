@@ -9,6 +9,8 @@ import {
 import { aplicarOperacion, type Operacion, type Pieza, type Pizarra as TipoPizarra } from '../../estudio/pizarra';
 import { copiar, guardarRecorte, leerRecorte, pegar } from '../../estudio/portapapeles';
 import { cajaDeTrazo, nuevoId } from '../../estudio/tinta';
+import { aspectoDe, CLAVE_ESTILO_NOTA, esSinFondo, estiloDeNota, leerEstiloNota, opEstiloNueva, type AspectoNota } from '../../estudio/estiloNota';
+import { leerPreferencia } from '../../estudio/preferencias';
 import { BarraHerramientas } from './BarraHerramientas';
 import { CapaTinta } from './CapaTinta';
 import { PanelCapas } from './PanelCapas';
@@ -35,7 +37,7 @@ type Gesto =
   | { tipo: 'lazo'; poligono: Punto[] }
   | { tipo: 'mover-seleccion'; desde: Punto; dx: number; dy: number };
 
-interface Edicion { id: string | null; nuevoId: string; x: number; y: number; texto: string }
+interface Edicion { id: string | null; nuevoId: string; x: number; y: number; texto: string; ancho: number; aspecto: AspectoNota }
 
 export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: Props) {
   const editable = !!alOperar;
@@ -52,6 +54,8 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
   const [capasAbiertas, setCapasAbiertas] = useState(false);
   const [hayRecorte, setHayRecorte] = useState(() => leerRecorte() !== null);
   const [aviso, setAviso] = useState<string | null>(null);
+  // El último estilo de nota que eligió Diego (las nuevas lo usan).
+  const [ultimo, setUltimo] = useState(() => leerEstiloNota(leerPreferencia(CLAVE_ESTILO_NOTA)));
   const gesto = useRef<Gesto | null>(null);
   const punteros = useRef(new Map<number, Punto>());
   const pinza = useRef<{ d: number; medio: Punto } | null>(null);
@@ -146,6 +150,10 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
     setProvisional(res.quitar.length ? { tipo: 'trazos', ...res } : null);
   }
 
+  const editarNota = (n: Pieza) =>
+    n.tipo === 'nota' && setEditando({ id: n.id, nuevoId: n.id, x: n.x, y: n.y, texto: n.contenido, ancho: n.ancho, aspecto: n });
+  const notaNueva = (m: Punto) => setEditando({ id: null, nuevoId: idNuevo(), x: m.x, y: m.y, texto: '', ancho: 240, aspecto: aspectoDe(ultimo) });
+
   function alPulsar(e: PointerEvent<HTMLDivElement>) {
     if ((e.target as HTMLElement).closest('textarea, a') || e.button === 2 || ignorarPuntero(e.pointerType, lapizAbajo.current)) return;
     if (e.pointerType === 'pen') lapizVisto.current = lapizAbajo.current = true;
@@ -192,8 +200,8 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
         if (!puedeDibujar) return avisarCapa();
         e.preventDefault();
         const nota = el ? vistaPizarra.piezas.find((x) => x.id === el.dataset.pieza) : undefined;
-        if (nota?.tipo === 'nota') setEditando({ id: nota.id, nuevoId: nota.id, x: nota.x, y: nota.y, texto: nota.contenido });
-        else setEditando({ id: null, nuevoId: idNuevo(), x: m.x, y: m.y, texto: '' });
+        if (nota?.tipo === 'nota') editarNota(nota);
+        else notaNueva(m);
         return;
       }
       case 'lazo': {
@@ -363,12 +371,12 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-pieza]');
     if (el) {
       const p = mostrada.piezas.find((x) => x.id === el.dataset.pieza);
-      if (p?.tipo === 'nota') setEditando({ id: p.id, nuevoId: p.id, x: p.x, y: p.y, texto: p.contenido });
+      if (p?.tipo === 'nota') editarNota(p);
       return;
     }
     if (!puedeDibujar) return avisarCapa();
     const m = aMundo(vista, local(e));
-    setEditando({ id: null, nuevoId: idNuevo(), x: m.x, y: m.y, texto: '' });
+    notaNueva(m);
   }
 
   function terminarNota() {
@@ -382,7 +390,10 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
     }
     const antes = mostrada.piezas.find((x) => x.id === nota.id);
     if (antes?.tipo === 'nota' && antes.contenido === texto) return;
-    ed.hacer({ tipo: 'nota', id: nota.id, nuevoId: nota.nuevoId, x: nota.x, y: nota.y, contenido: texto, capa: puedeDibujar ? activa! : undefined });
+    const op: Operacion = { tipo: 'nota', id: nota.id, nuevoId: nota.nuevoId, x: nota.x, y: nota.y, contenido: texto, capa: puedeDibujar ? activa! : undefined };
+    // Una nota nueva nace con el último estilo elegido; las dos cosas se deshacen juntas.
+    ed.hacer(nota.id ? op : { tipo: 'lote', ops: [op, opEstiloNueva(nota.nuevoId, ultimo)] });
+    setSeleccion({ trazos: [], piezas: [nota.id ?? nota.nuevoId] });
   }
 
   function borrarSel() {
@@ -560,9 +571,9 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
             )}
             {editando && (
               <textarea
-                className="editor-nota"
+                className={`editor-nota${esSinFondo(editando.aspecto) ? ' sin-fondo' : ''}`}
                 autoFocus
-                style={{ left: editando.x, top: editando.y }}
+                style={{ left: editando.x, top: editando.y, width: editando.ancho, ...estiloDeNota(editando.aspecto), borderColor: undefined }}
                 value={editando.texto}
                 placeholder="Escribe… (Ctrl+Enter para terminar)"
                 onChange={(e) => setEditando({ ...editando, texto: e.target.value })}

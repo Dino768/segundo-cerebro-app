@@ -1,3 +1,4 @@
+import type { FotoEnviada } from './foto';
 import { validarPizarra, type Operacion, type Pizarra } from './pizarra';
 import { VERSION_PROGRAMA, type EstadoPizarra, type EventoChat, type Mensaje, type ResumenConversacion } from './tipos';
 
@@ -67,6 +68,7 @@ export interface Envio {
   texto: string;
   imagenes: string[];
   pizarraAbierta: number | null;
+  foto?: FotoEnviada;
 }
 
 export function crearLectorLineas(alLinea: (l: string) => void): ((trozo: string) => void) & { fin(): void } {

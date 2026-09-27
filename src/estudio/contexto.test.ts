@@ -19,4 +19,10 @@ describe('contexto del mensaje', () => {
   it('un mensaje escrito en la terminal se queda igual', () => {
     expect(sinContexto('hola')).toEqual({ texto: 'hola', imagenes: [] });
   });
+  it('con foto de la pizarra: su ruta y su zona, y al leer sale como una imagen más', () => {
+    const m = conContexto({ ...c, foto: { ruta: 'C:\\e\\fisica\\.en-curso\\id\\imagenes\\captura-2.png', zona: { x1: -20, y1: 0, x2: 780, y2: 450 } } }, 'Mira');
+    expect(m).toContain('Foto de la pizarra: C:\\e\\fisica\\.en-curso\\id\\imagenes\\captura-2.png');
+    expect(m).toContain('Zona de la foto: x -20–780, y 0–450 (coordenadas de la pizarra)');
+    expect(sinContexto(m)).toEqual({ texto: 'Mira', imagenes: ['captura-1.png', 'captura-2.png'] });
+  });
 });

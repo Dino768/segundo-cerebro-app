@@ -75,6 +75,7 @@ describe('app', () => {
     expect(r.status).toBe(302);
   });
   it('estado', async () => {
+    expect(VERSION_PROGRAMA).toBe(3); // la app avisa si el programa local abierto es de antes de la foto
     expect(await (await fetch(`${API}estado`)).json()).toEqual({ ok: true, version: VERSION_PROGRAMA });
   });
 });
@@ -102,6 +103,25 @@ describe('mensaje', () => {
   });
   it('mensaje vacío → 400', async () => {
     expect((await post('mensaje', { asignatura: 'fisica', id: ID, nueva: false, texto: '  ', imagenes: [] })).status).toBe(400);
+  });
+  it('con foto de la pizarra (aunque no haya texto): Claude recibe su ruta y su zona', async () => {
+    const id = '55555555-5555-4555-8555-555555555555';
+    const r = await post('mensaje', {
+      asignatura: 'fisica', id, nueva: true, texto: '', imagenes: [], pizarraAbierta: 1,
+      foto: { nombre: 'captura-1-2.png', zona: { x1: 0, y1: 0, x2: 800, y2: 600 } },
+    });
+    expect(r.status).toBe(200);
+    await eventos(r);
+    const entrada: string = registrado().at(-1).entrada;
+    expect(entrada).toMatch(/Foto de la pizarra: .*captura-1-2\.png/);
+    expect(entrada).toContain('Zona de la foto: x 0–800, y 0–600');
+    expect(entrada).toContain('Mira lo que he hecho en la pizarra.');
+  });
+  it('una foto con nombre o zona que no valen se ignora', async () => {
+    const r = await post('mensaje', {
+      asignatura: 'fisica', id: ID, nueva: false, texto: '', imagenes: [], foto: { nombre: '../x.png', zona: { x1: 0, y1: 0, x2: 1, y2: 1 } },
+    });
+    expect(r.status).toBe(400);
   });
   it('una respuesta a la vez por conversación, y parar', async () => {
     const id = '22222222-2222-4222-8222-222222222222';

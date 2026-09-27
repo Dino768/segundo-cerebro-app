@@ -3,6 +3,7 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import path from 'node:path';
 import { conContexto } from '../src/estudio/contexto.ts';
+import { esZona, type FotoEnviada } from '../src/estudio/foto.ts';
 import { ErrorPizarra, validarOperacion, type Operacion } from '../src/estudio/pizarra.ts';
 import { VERSION_PROGRAMA, type EventoChat, type EventoPizarra } from '../src/estudio/tipos.ts';
 import { lanzarClaude, type Comando, type Proceso } from './claude.ts';
@@ -40,6 +41,12 @@ export class ErrorPeticion extends Error {
 export function enviarJson(res: ServerResponse, estado: number, cuerpo: unknown): void {
   res.writeHead(estado, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(cuerpo));
+}
+
+function leerFoto(v: unknown): FotoEnviada | null {
+  if (!v || typeof v !== 'object') return null;
+  const o = v as Record<string, unknown>;
+  return typeof o.nombre === 'string' && esNombreImagen(o.nombre) && esZona(o.zona) ? { nombre: o.nombre, zona: o.zona } : null;
 }
 
 async function leerCuerpo(req: IncomingMessage, limite: number): Promise<Buffer> {
@@ -151,7 +158,8 @@ export function crearServidor(o: OpcionesServidor) {
       const texto = typeof b.texto === 'string' ? b.texto.trim() : '';
       const imagenes = Array.isArray(b.imagenes) ? b.imagenes.filter((n): n is string => typeof n === 'string' && esNombreImagen(n)) : [];
       const abierta = typeof b.pizarraAbierta === 'number' && Number.isInteger(b.pizarraAbierta) ? b.pizarraAbierta : null;
-      if (!texto && !imagenes.length) throw new ErrorPeticion(400, 'Mensaje vacío');
+      const foto = leerFoto(b.foto);
+      if (!texto && !imagenes.length && !foto) throw new ErrorPeticion(400, 'Mensaje vacío');
       if (activos.has(id)) throw new ErrorPeticion(409, 'Ya estoy contestando en esta conversación');
       const carpeta = carpetaDe(asig, id);
       await mkdir(carpeta, { recursive: true });
@@ -160,9 +168,15 @@ export function crearServidor(o: OpcionesServidor) {
         if (!res.writableEnded) res.write(JSON.stringify(e) + '\n');
       };
       const conCabecera = (t: string) =>
-        conContexto({ asignatura: asig, carpeta, pizarraAbierta: abierta, imagenes: imagenes.map((n) => path.join(carpeta, 'imagenes', n)) }, t);
+        conContexto(
+          {
+            asignatura: asig, carpeta, pizarraAbierta: abierta, imagenes: imagenes.map((n) => path.join(carpeta, 'imagenes', n)),
+            foto: foto && { ruta: path.join(carpeta, 'imagenes', foto.nombre), zona: foto.zona },
+          },
+          t,
+        );
       const inicio = Date.now() - 50;
-      const ok = await conversar(asig, id, b.nueva === true, conCabecera(texto || 'Mira la captura.'), emitir, res);
+      const ok = await conversar(asig, id, b.nueva === true, conCabecera(texto || (imagenes.length ? 'Mira la captura.' : 'Mira lo que he hecho en la pizarra.')), emitir, res);
       if (ok) {
         const aviso = avisoCarpetaConversaciones(cwdDe(asig), o.home);
         if (aviso) console.warn(aviso);

@@ -34,3 +34,7 @@ export function esZona(v: unknown): v is Zona {
 
 // Lo que hace Diego en la pizarra (para saber si hay que mandar foto). Guardar y juntar los hace la app.
 export const esOperacionDeDiego = (op: Operacion) => op.tipo !== 'guardada' && op.tipo !== 'fusionar';
+
+// Con 👁 «Enseñar la pizarra» el mensaje es solo la foto: si falla, no hay nada que mandar (a
+// diferencia de la foto automática, que si falla manda el mensaje igual, sin foto).
+export const sinFotoParaMostrar = (pedirFoto: boolean, foto: FotoEnviada | null) => pedirFoto && !foto;

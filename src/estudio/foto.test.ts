@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { escalaFoto, esOperacionDeDiego, esZona, etiquetasFoto, zonaVisible } from './foto.ts';
+import { escalaFoto, esOperacionDeDiego, esZona, etiquetasFoto, sinFotoParaMostrar, zonaVisible } from './foto.ts';
 
 describe('foto de la pizarra', () => {
   it('la zona que se ve, en coordenadas de la pizarra', () => {
@@ -31,5 +31,11 @@ describe('foto de la pizarra', () => {
     expect(esOperacionDeDiego({ tipo: 'borrar', id: 'x' })).toBe(true);
     expect(esOperacionDeDiego({ tipo: 'estilo', id: 'x', fondo: 'ninguno' })).toBe(true);
     expect(esOperacionDeDiego({ tipo: 'guardada', ruta: 'estudios/a/pizarras/b.json' })).toBe(false);
+  });
+  it('si Diego pulsa 👁 y la foto falla, no hay nada que enseñar: no se manda el mensaje', () => {
+    expect(sinFotoParaMostrar(true, null)).toBe(true);
+    expect(sinFotoParaMostrar(true, { nombre: 'x.png', zona: { x1: 0, y1: 0, x2: 1, y2: 1 } })).toBe(false);
+    // Si no fue con 👁 (mensaje normal con foto automática), aunque falle se manda sin foto.
+    expect(sinFotoParaMostrar(false, null)).toBe(false);
   });
 });

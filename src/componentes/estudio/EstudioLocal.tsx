@@ -3,7 +3,7 @@ import type { Asignatura } from '../../datos/asignaturas';
 import { aplicarEvento } from '../../estudio/chat';
 import { useDatos } from '../../estado/datos';
 import { confirmar, pedirTexto } from '../../estado/dialogos';
-import { esOperacionDeDiego, type FotoEnviada } from '../../estudio/foto';
+import { esOperacionDeDiego, sinFotoParaMostrar, type FotoEnviada } from '../../estudio/foto';
 import { useHoy } from '../../estado/hoy';
 import { usePantallaCompleta } from '../../estado/pantallaCompleta';
 import { guardarYMarcar } from '../../estudio/guardado';
@@ -133,9 +133,15 @@ export function EstudioLocal({ asignatura, local }: Props) {
         const f = await hacerFoto.current();
         foto = { nombre: await subirImagen(asignatura.id, conv.id, f.blob), zona: f.zona };
         cambiadas.current.delete(n);
-      } catch {
+      } catch (e) {
+        console.warn('foto', e);
         setAvisoPizarra('No he podido mandar la foto de la pizarra');
       }
+    }
+    // Con 👁 el mensaje es solo la foto: si ha fallado, no hay nada que mandar.
+    if (sinFotoParaMostrar(pedirFoto, foto)) {
+      setEnviando(false);
+      return;
     }
     if (!texto && !imagenes.length && !foto) {
       setEnviando(false);
@@ -145,7 +151,7 @@ export function EstudioLocal({ asignatura, local }: Props) {
     const vistas = foto ? [...imagenes, foto.nombre] : imagenes;
     setMensajes((ms) => [...ms, vistas.length ? { rol: 'diego', texto, imagenes: vistas } : { rol: 'diego', texto }]);
     await enviarMensaje(
-      { asignatura: asignatura.id, id: conv.id, nueva: conv.nueva, texto, imagenes, pizarraAbierta: abierta, ...(foto ? { foto } : {}) },
+      { asignatura: asignatura.id, id: conv.id, nueva: conv.nueva, texto, imagenes, pizarraAbierta: n, ...(foto ? { foto } : {}) },
       (e) => {
         if (e.tipo === 'error') setError({ mensaje: e.mensaje, uso: e.uso });
         else setMensajes((ms) => aplicarEvento(ms, e));

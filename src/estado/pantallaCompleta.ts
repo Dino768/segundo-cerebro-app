@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { dialogos } from './dialogos';
 
-// Esc sale de la pantalla completa, salvo si se está escribiendo (ahí Esc cancela lo escrito).
-export const escSale = (tecla: string, etiqueta?: string) => tecla === 'Escape' && etiqueta !== 'TEXTAREA' && etiqueta !== 'INPUT';
+// Esc sale de la pantalla completa, salvo si se está escribiendo (ahí Esc cancela lo escrito) o si
+// hay una ventana (confirmar, pedir texto…) abierta encima: esa Esc es para cancelarla, no para salir.
+export const escSale = (tecla: string, etiqueta?: string, hayDialogo = false) =>
+  tecla === 'Escape' && etiqueta !== 'TEXTAREA' && etiqueta !== 'INPUT' && !hayDialogo;
 
 // La pizarra ocupa toda la ventana. Donde el navegador deja (PC, iPad), también se ocultan sus barras.
 // En el iPhone no hay requestFullscreen: solo se tapa la app, que es lo que se puede.
@@ -37,7 +40,7 @@ export function usePantallaCompleta() {
       }
     };
     const alTecla = (e: KeyboardEvent) => {
-      if (escSale(e.key, (e.target as HTMLElement | null)?.tagName)) salir();
+      if (escSale(e.key, (e.target as HTMLElement | null)?.tagName, dialogos.actual() !== null)) salir();
     };
     document.addEventListener('fullscreenchange', alCambiar);
     window.addEventListener('keydown', alTecla);

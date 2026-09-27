@@ -392,6 +392,7 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children, ma
 
   function alDobleClic(e: MouseEvent<HTMLDivElement>) {
     if (!editable || h.herramienta !== 'mover') return;
+    if ((e.target as HTMLElement).closest('[data-tirador]')) return; // el tirador no es una pieza: sin esto, tocarlo dos veces abría una nota vacía debajo
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-pieza]');
     if (el) {
       const p = mostrada.piezas.find((x) => x.id === el.dataset.pieza);
@@ -413,7 +414,11 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children, ma
       return;
     }
     const antes = mostrada.piezas.find((x) => x.id === nota.id);
-    if (antes?.tipo === 'nota' && antes.contenido === texto) return;
+    if (antes?.tipo === 'nota' && antes.contenido === texto) {
+      // No ha cambiado nada, pero sigue seleccionada: que salga la barrita (fondo, letra, tamaño…).
+      setSeleccion({ trazos: [], piezas: [antes.id] });
+      return;
+    }
     const op: Operacion = { tipo: 'nota', id: nota.id, nuevoId: nota.nuevoId, x: nota.x, y: nota.y, contenido: texto, capa: puedeDibujar ? activa! : undefined };
     // Una nota nueva nace con el último estilo elegido; las dos cosas se deshacen juntas.
     ed.hacer(nota.id ? op : { tipo: 'lote', ops: [op, opEstiloNueva(nota.nuevoId, ultimo)] });

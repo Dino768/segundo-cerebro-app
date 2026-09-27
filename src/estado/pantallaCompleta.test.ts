@@ -13,4 +13,8 @@ describe('escSale', () => {
   it('otras teclas no', () => {
     expect(escSale('Enter', 'DIV')).toBe(false);
   });
+  it('ni con una ventana abierta encima (confirmar, pedir texto…): ahí Esc la cancela a ella', () => {
+    expect(escSale('Escape', 'DIV', true)).toBe(false);
+    expect(escSale('Escape', 'DIV', false)).toBe(true);
+  });
 });

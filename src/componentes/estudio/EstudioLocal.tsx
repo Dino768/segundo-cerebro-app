@@ -4,6 +4,7 @@ import { aplicarEvento } from '../../estudio/chat';
 import { useDatos } from '../../estado/datos';
 import { confirmar, pedirTexto } from '../../estado/dialogos';
 import { useHoy } from '../../estado/hoy';
+import { usePantallaCompleta } from '../../estado/pantallaCompleta';
 import { guardarYMarcar } from '../../estudio/guardado';
 import { archivoDeRuta, cambioEnHistorial, paraHistorial, type EntradaHistorial } from '../../estudio/historial';
 import { leerDeHistorial, subirAlHistorial } from '../../estudio/historialRemoto';
@@ -52,6 +53,8 @@ export function EstudioLocal({ asignatura, local }: Props) {
   const cuantas = useRef(0);
   const { config } = useDatos();
   const hoy = useHoy();
+  const pantalla = usePantallaCompleta();
+  const [chatFlotante, setChatFlotante] = useState(false);
   const [historialAbierto, setHistorialAbierto] = useState<EntradaHistorial | null>(null);
   const [guardado, setGuardado] = useState<Record<number, 'subiendo' | 'pendiente' | 'hecho'>>({});
   const subiendo = useRef(new Set<number>());
@@ -281,7 +284,7 @@ export function EstudioLocal({ asignatura, local }: Props) {
   return (
     <div
       ref={contenedor}
-      className={`estudio-local ${conPizarra ? 'con-pizarra' : 'sin-pizarra'}`}
+      className={`estudio-local ${conPizarra ? 'con-pizarra' : 'sin-pizarra'}${pantalla.activa ? ' pantalla-completa' : ''}${pantalla.activa && chatFlotante ? ' chat-flotante' : ''}`}
       style={conPizarra ? { gridTemplateColumns: `${anchoChat}% 6px minmax(0, 1fr)` } : undefined}
     >
       {vista === 'lista' ? (
@@ -346,7 +349,21 @@ export function EstudioLocal({ asignatura, local }: Props) {
                 alOperar={(op) => operar(actual.n, op)}
                 clave={`local-${asignatura.id}-${conv.id}-${actual.n}`}
                 origen={`local:${asignatura.id}:${conv.id}`}
+                maximizada={pantalla.activa}
+                alMaximizar={pantalla.alternar}
               >
+                {pantalla.activa && (
+                  <button
+                    className={chatFlotante ? 'encendida' : ''}
+                    aria-pressed={chatFlotante}
+                    onClick={() => {
+                      setVista('chat');
+                      setChatFlotante((c) => !c);
+                    }}
+                  >
+                    💬 Chat
+                  </button>
+                )}
                 <button
                   className={actual.pizarra.guardadaEn && guardado[actual.n] !== 'pendiente' ? '' : 'principal'}
                   disabled={!config || guardado[actual.n] === 'subiendo'}

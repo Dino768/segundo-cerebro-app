@@ -15,6 +15,8 @@ interface Props {
   pegar(): void;
   capasAbiertas: boolean;
   alternarCapas(): void;
+  maximizada: boolean;
+  alMaximizar?(): void;
 }
 
 const HERRAMIENTAS: { id: NombreHerramienta; icono: string; nombre: string }[] = [
@@ -63,6 +65,17 @@ export function BarraHerramientas(p: Props) {
         <button onClick={p.deshacer} disabled={!p.puedeDeshacer} title="Deshacer (Ctrl+Z)" aria-label="Deshacer">↶</button>
         <button onClick={p.rehacer} disabled={!p.puedeRehacer} title="Rehacer (Ctrl+Y)" aria-label="Rehacer">↷</button>
         <button className={p.capasAbiertas ? 'encendida' : ''} aria-pressed={p.capasAbiertas} onClick={p.alternarCapas}>📚 Capas</button>
+        {p.alMaximizar && (
+          <button
+            className={p.maximizada ? 'encendida' : ''}
+            aria-pressed={p.maximizada}
+            aria-label={p.maximizada ? 'Salir de pantalla completa' : 'Pantalla completa'}
+            title={p.maximizada ? 'Salir de pantalla completa (Esc)' : 'Pantalla completa'}
+            onClick={p.alMaximizar}
+          >
+            ⛶
+          </button>
+        )}
       </div>
       <div className="opciones-herramienta">
         {e.herramienta === 'forma' &&

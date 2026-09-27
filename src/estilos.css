@@ -389,3 +389,12 @@ main.ancho { max-width: none; }
   .barrita-pieza button { min-width: 40px; min-height: 40px; }
   .tirador { width: 26px; height: 26px; margin: -13px 0 0 -13px; }
 }
+
+/* Pantalla completa (v1.4 parte 2): la pizarra tapa toda la app. Los diálogos (z-index 10 y 20) siguen encima. */
+body.con-pantalla-completa { overflow: hidden; }
+.pantalla-completa { position: fixed; inset: 0; z-index: 8; height: auto !important; min-height: 0; border: none !important; border-radius: 0 !important; background: var(--superficie); padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+.estudio-local.pantalla-completa { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: minmax(0, 1fr) !important; }
+.estudio-local.pantalla-completa > :not(.zona-pizarra) { display: none; }
+.estudio-local.pantalla-completa .zona-pizarra { border-left: none; }
+.pantalla-completa .pestanas-pizarra, .visor-historial.pantalla-completa > .chat-cabecera { display: none; }
+.estudio-local.pantalla-completa.chat-flotante > .chat { display: flex; position: absolute; top: 0; right: 0; bottom: 0; z-index: 6; width: min(420px, 92vw); background: var(--superficie); border-left: 1px solid var(--borde); box-shadow: -8px 0 24px rgb(59 48 39 / 0.18); }

@@ -7,6 +7,7 @@ const nada = () => undefined;
 const base = {
   estado: INICIALES, cambiar: nada, enClaude: false, puedeDeshacer: false, puedeRehacer: true, deshacer: nada, rehacer: nada,
   haySeleccion: false, hayRecorte: false, copiar: nada, cortar: nada, pegar: nada, capasAbiertas: false, alternarCapas: nada,
+  maximizada: false,
 };
 
 describe('BarraHerramientas', () => {
@@ -27,5 +28,10 @@ describe('BarraHerramientas', () => {
     expect(html).toContain('aria-label="Lápiz" disabled=""');
     expect(html).toContain('aria-label="Texto" disabled=""');
     expect(html).not.toContain('aria-label="Lazo" disabled=""');
+  });
+  it('botón de pantalla completa solo si se puede maximizar', () => {
+    expect(renderToString(<BarraHerramientas {...base} />)).not.toContain('Pantalla completa');
+    expect(renderToString(<BarraHerramientas {...base} alMaximizar={nada} />)).toContain('aria-label="Pantalla completa"');
+    expect(renderToString(<BarraHerramientas {...base} maximizada alMaximizar={nada} />)).toContain('aria-label="Salir de pantalla completa"');
   });
 });

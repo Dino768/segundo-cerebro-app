@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Asignatura } from '../../datos/asignaturas';
 import { guardarHistorialCache, guardarOpsPendientes, guardarPizarraCache, leerHistorialCache, leerOpsPendientes, leerPizarraCache } from '../../estado/cacheEstudio';
 import { useDatos } from '../../estado/datos';
+import { usePantallaCompleta } from '../../estado/pantallaCompleta';
 import { formatoCorto } from '../../fechas';
 import { crearColaHistorial, type EstadoCola } from '../../estudio/colaHistorial';
 import type { EntradaHistorial } from '../../estudio/historial';
@@ -56,6 +57,7 @@ export function VisorHistorial({ asignatura, entrada, alVolver }: { asignatura: 
   });
   const [error, setError] = useState<string | null>(null);
   const [estadoCola, setEstadoCola] = useState<EstadoCola>('al-dia');
+  const pantalla = usePantallaCompleta();
   const cola = useRef<ReturnType<typeof crearColaHistorial> | null>(null);
   const imagen = useMemo(
     () => (config ? imagenDeHistorial(config, asignatura.id) : () => Promise.reject(new Error('Sin conexión'))),
@@ -117,7 +119,7 @@ export function VisorHistorial({ asignatura, entrada, alVolver }: { asignatura: 
   }, []);
 
   return (
-    <div className="visor-historial">
+    <div className={`visor-historial${pantalla.activa ? ' pantalla-completa' : ''}`}>
       <div className="chat-cabecera">
         <button className="enlace" onClick={alVolver}>◂ Volver</button>
         <span className="titulo-chat">{pizarra?.titulo ?? entrada.titulo}{entrada.fecha ? ` · ${formatoCorto(entrada.fecha)}` : ''}</span>
@@ -130,6 +132,8 @@ export function VisorHistorial({ asignatura, entrada, alVolver }: { asignatura: 
           alOperar={config ? operar : undefined}
           clave={`historial-${asignatura.id}-${entrada.archivo}`}
           origen={`historial:${asignatura.id}`}
+          maximizada={pantalla.activa}
+          alMaximizar={pantalla.alternar}
         >
           {config && <span className={`detalle estado-cola ${estadoCola}`}>{TEXTO_COLA[estadoCola]}</span>}
         </Pizarra>

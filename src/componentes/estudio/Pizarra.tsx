@@ -27,6 +27,8 @@ interface Props {
   clave: string; // esta pizarra en este dispositivo (capas ocultas, de dónde viene lo copiado)
   origen: string; // dónde viven sus imágenes: solo se pegan imágenes copiadas del mismo origen
   children?: ReactNode; // botones extra en la barra de abajo
+  maximizada?: boolean;
+  alMaximizar?(): void; // sin esto no sale el botón de pantalla completa
 }
 
 const RADIO_BORRADOR = 10; // en píxeles de pantalla
@@ -43,7 +45,7 @@ type Gesto =
 
 interface Edicion { id: string | null; nuevoId: string; x: number; y: number; texto: string; ancho: number; aspecto: AspectoNota }
 
-export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: Props) {
+export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children, maximizada = false, alMaximizar }: Props) {
   const editable = !!alOperar;
   const ed = usePizarraEditable(pizarra, clave, alOperar);
   const { mostrada, herramientas: h, activa } = ed;
@@ -544,6 +546,8 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
           pegar={pegarAqui}
           capasAbiertas={capasAbiertas}
           alternarCapas={() => setCapasAbiertas((a) => !a)}
+          maximizada={maximizada}
+          alMaximizar={alMaximizar}
         />
       )}
       <div className="zona-lienzo">
@@ -659,6 +663,9 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children }: 
         <button onClick={() => zoomCentro(1 / 1.2)} aria-label="Alejar">−</button>
         <button onClick={() => zoomCentro(1.2)} aria-label="Acercar">+</button>
         {!editable && <button className={capasAbiertas ? 'encendida' : ''} onClick={() => setCapasAbiertas((a) => !a)}>📚 Capas</button>}
+        {!editable && alMaximizar && (
+          <button aria-label={maximizada ? 'Salir de pantalla completa' : 'Pantalla completa'} onClick={alMaximizar}>⛶</button>
+        )}
         {editable && haySeleccion(seleccion) && <button className="peligro" onClick={borrarSel}>🗑 Borrar</button>}
         <span className="hueco" />
         {children}

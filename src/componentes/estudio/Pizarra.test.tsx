@@ -24,4 +24,8 @@ describe('Pizarra', () => {
     const html = renderToString(<Pizarra pizarra={p} imagen={async () => ''} clave="k" origen="o" alOperar={async () => undefined} />);
     expect(html).toContain('Herramientas de la pizarra');
   });
+  it('de solo lectura también se puede poner en pantalla completa', () => {
+    const html = renderToString(<Pizarra pizarra={p} imagen={async () => ''} clave="k" origen="o" alMaximizar={() => undefined} />);
+    expect(html).toContain('aria-label="Pantalla completa"');
+  });
 });

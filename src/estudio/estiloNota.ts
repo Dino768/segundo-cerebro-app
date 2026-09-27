@@ -78,3 +78,21 @@ export function redimensionar(ancho: number, alto: number, dx: number, dy: numbe
   const r = { ancho: entre(ancho + dx, 40, 2000) };
   return soloAncho ? r : { ...r, alto: entre(alto + dy, 30, 4000) };
 }
+
+// Alto aproximado de la barrita con botones de dedo: si no cabe encima de la pieza, sale debajo.
+export const HUECO_ARRIBA = 64;
+// Ancho de la barrita antes de medir la real (peor caso: nota con todos los botones, en móvil).
+export const ANCHO_BARRITA_ESTIMADO = 300;
+
+export interface PosicionBarrita { left: number; top: number; abajo: boolean; menuArriba: boolean }
+
+// Dónde poner la barrita para que no se salga del lienzo (que tiene overflow: hidden): ni por la
+// derecha (pieza grande o pegada al borde) ni por la izquierda (pieza que asoma con el lienzo movido).
+// `anchoBarrita` es el ancho ya medido de la barrita, o la estimación de arriba mientras no se ha medido.
+// Sin medidas del lienzo (aún no montado) no se toca nada, para no mover la barrita a 0,0 por error.
+export function posicionBarrita(x: number, y: number, alto: number, anchoLienzo: number, altoLienzo: number, anchoBarrita: number): PosicionBarrita {
+  const abajo = y < HUECO_ARRIBA;
+  const top = abajo ? y + alto : y;
+  const left = anchoLienzo > 0 ? Math.min(Math.max(x, 4), Math.max(4, anchoLienzo - anchoBarrita - 4)) : x;
+  return { left, top, abajo, menuArriba: altoLienzo > 0 && top > altoLienzo / 2 };
+}

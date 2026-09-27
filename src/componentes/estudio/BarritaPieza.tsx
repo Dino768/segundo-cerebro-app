@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
-import { FONDOS, pasoLetra, type AspectoNota, type CambioEstilo } from '../../estudio/estiloNota';
+import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
+import { ANCHO_BARRITA_ESTIMADO, FONDOS, pasoLetra, posicionBarrita, type AspectoNota, type CambioEstilo } from '../../estudio/estiloNota';
 import { COLORES } from '../../estudio/herramientas';
 import { SIN_FONDO } from '../../estudio/pizarra';
 
@@ -8,14 +8,14 @@ interface Props {
   y: number;
   ancho: number;
   alto: number;
+  anchoLienzo: number; // tamaño del lienzo (marco.current.clientWidth/Height): para que la barrita no se salga
+  altoLienzo: number;
   idPieza: string;
   nota: AspectoNota | null; // null: pieza de Claude, solo se puede borrar
   alBorrar(): void;
   alEstilo(c: CambioEstilo): void;
   alTerminar?(): void; // el selector de color propio se queda con el foco: hay que devolvérselo al lienzo
 }
-
-const HUECO_ARRIBA = 56; // si no cabe encima, sale debajo
 
 // Los botones de la barrita no deben robarle el foco al lienzo al pulsarlos con el ratón: si no,
 // Ctrl+Z y Supr dejan de funcionar hasta volver a tocar el lienzo. Los marca `data-sin-foco` y el
@@ -56,18 +56,28 @@ function ColorPropio({ etiqueta, alElegir, alTerminar }: { etiqueta: string; alE
 }
 
 // Barrita que sale sobre la pieza seleccionada: borrar y, en las notas, fondo, color y tamaño de letra. Y el tirador de la esquina.
-export function BarritaPieza({ x, y, ancho, alto, idPieza, nota, alBorrar, alEstilo, alTerminar }: Props) {
+export function BarritaPieza({ x, y, ancho, alto, anchoLienzo, altoLienzo, idPieza, nota, alBorrar, alEstilo, alTerminar }: Props) {
   const [menu, setMenu] = useState<'fondo' | 'letra' | null>(null);
-  const abajo = y < HUECO_ARRIBA;
+  const caja = useRef<HTMLDivElement>(null);
+  // Antes de medir la barrita real (o en las pruebas, que no montan el DOM) se usa el peor caso, para
+  // no dejarla salirse un instante hasta que se mida. useLayoutEffect: se mide antes de pintar en pantalla.
+  const [anchoMedido, setAnchoMedido] = useState(ANCHO_BARRITA_ESTIMADO);
+  useLayoutEffect(() => {
+    const w = caja.current?.offsetWidth;
+    if (w && w !== anchoMedido) setAnchoMedido(w);
+  });
+  const pos = posicionBarrita(x, y, alto, anchoLienzo, altoLienzo, anchoMedido);
   const elegir = (c: CambioEstilo) => {
     setMenu(null);
     alEstilo(c);
   };
+  const claseMenu = `menu-colores${pos.menuArriba ? ' arriba' : ''}`;
   return (
     <>
       <div
-        className={`barrita-pieza${abajo ? ' abajo' : ''}`}
-        style={{ left: x, top: abajo ? y + alto : y }}
+        ref={caja}
+        className={`barrita-pieza${pos.abajo ? ' abajo' : ''}`}
+        style={{ left: pos.left, top: pos.top }}
         data-fuera-de-foto
         onPointerDown={(e) => e.stopPropagation()}
         onMouseDown={sinFoco}
@@ -79,7 +89,7 @@ export function BarritaPieza({ x, y, ancho, alto, idPieza, nota, alBorrar, alEst
             <span className="con-menu">
               <button data-sin-foco className={menu === 'fondo' ? 'encendida' : ''} aria-expanded={menu === 'fondo'} onClick={() => setMenu(menu === 'fondo' ? null : 'fondo')}>Fondo ▾</button>
               {menu === 'fondo' && (
-                <div className="menu-colores" role="menu">
+                <div className={claseMenu} role="menu">
                   <button data-sin-foco className={`sin-color${nota.fondo === SIN_FONDO ? ' encendida' : ''}`} onClick={() => elegir({ fondo: SIN_FONDO })}>Sin fondo</button>
                   {FONDOS.map((c) => (
                     <button data-sin-foco key={c} className={`color${nota.fondo === c ? ' encendida' : ''}`} style={{ background: c }} aria-label={`Fondo ${c}`} onClick={() => elegir({ fondo: c })} />
@@ -93,7 +103,7 @@ export function BarritaPieza({ x, y, ancho, alto, idPieza, nota, alBorrar, alEst
                 Letra <span className="muestra-color" style={{ background: nota.colorTexto ?? 'var(--texto)' }} /> ▾
               </button>
               {menu === 'letra' && (
-                <div className="menu-colores" role="menu">
+                <div className={claseMenu} role="menu">
                   <button data-sin-foco className={`sin-color${!nota.colorTexto ? ' encendida' : ''}`} onClick={() => elegir({ colorTexto: null })}>Normal</button>
                   {COLORES.map((c) => (
                     <button data-sin-foco key={c} className={`color${nota.colorTexto === c ? ' encendida' : ''}`} style={{ background: c }} aria-label={`Letra ${c}`} onClick={() => elegir({ colorTexto: c })} />

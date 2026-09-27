@@ -646,6 +646,8 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children, ma
               y={vista.y + cajaBarrita.y * vista.escala}
               ancho={cajaBarrita.w * vista.escala}
               alto={cajaBarrita.h * vista.escala}
+              anchoLienzo={marco.current?.clientWidth ?? 0}
+              altoLienzo={marco.current?.clientHeight ?? 0}
               idPieza={unaSola.id}
               nota={unaSola.tipo === 'nota' ? unaSola : null}
               alBorrar={borrarSel}

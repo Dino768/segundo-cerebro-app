@@ -153,6 +153,8 @@ Dependencia nueva: `perfect-freehand` (licencia MIT, unos 5 KB).
 
 ## 6. Claude dibuja y ve (parte 2)
 
+> Sustituida por `2026-09-27-dibujo-a-mano-parte-2-design.md` (2026-09-27). Lo de abajo queda como historial.
+
 ### Claude dibuja
 - Claude escribe trazos con `autor: "claude"` en el mismo formato. Sus instrucciones (`local/instrucciones-estudio.md`) le explican el formato y la regla: **por defecto, texto, fórmulas y gráficas**; trazos a mano solo cuando un esquema o una marca expliquen mejor (diagramas de fuerzas, rodear una parte de una fórmula, flechas entre ideas). Si el dibujo es de varios pasos, que lo escriba en varios `Edit` seguidos.
 - **Animación** (`src/estudio/animacion.ts`): los trazos de Claude que llegan con la pizarra abierta y que la app no había visto se dibujan uno detrás de otro, como si se trazaran, en 3 segundos como mucho entre todos (0,6 s como mucho cada uno). Si entre todos pasan de 2000 puntos, salen de golpe. Al abrir una pizarra no se anima nada.

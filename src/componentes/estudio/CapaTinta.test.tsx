@@ -16,4 +16,11 @@ describe('CapaTinta', () => {
   it('una capa sin trazos no dibuja nada', () => {
     expect(renderToString(<CapaTinta subrayados={[]} trazos={[]} />)).toBe('');
   });
+  it('la letra a mano se dibuja con líneas (una por trazo de cada letra)', () => {
+    const letra = validarTrazo({ id: 'c7', herramienta: 'letra', texto: 'Hi', x: 0, y: 40, tamano: 30, color: '#3b82f6', autor: 'claude' }, 't');
+    const html = renderToString(<CapaTinta subrayados={[]} trazos={[letra]} />);
+    expect(html).toContain('stroke="#3b82f6"');
+    expect(html).toContain('fill="none"');
+    expect((html.match(/M/g) ?? []).length).toBeGreaterThanOrEqual(3);
+  });
 });

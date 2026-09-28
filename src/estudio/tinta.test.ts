@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cajaDeTrazo, cortarConGoma, dentroDePoligono, ErrorTrazo, moverTrazo, nuevoId, polilineas, puntosQueQuedan, terminarTrazo, tocaTrazo, trazoEnLazo, validarTrazo } from './tinta.ts';
+import { cajaDeTrazo, cortarConGoma, dentroDePoligono, ErrorTrazo, letrasDe, moverTrazo, nuevoId, paraGuardar, polilineas, puntosQueQuedan, terminarTrazo, tocaTrazo, trazoEnLazo, validarTrazo } from './tinta.ts';
 
 const lapiz = { id: 'd-1', herramienta: 'lapiz', color: '#B8603D', grosor: 4, puntos: [0, 0, 10.26, 0, 20, 0], presion: [0.5, 0.555, 0.6] };
 
@@ -133,5 +133,59 @@ describe('goma y lazo', () => {
   });
   it('mover un trazo', () => {
     expect(moverTrazo(linea(), 5, -2.26).puntos).toEqual([5, -2.3, 105, -2.3]);
+  });
+});
+
+describe('letra a mano (herramienta letra)', () => {
+  const bruta = { id: 'c7', herramienta: 'letra', texto: 'dy/dx = 2x', x: 300, y: 180, tamano: 28, color: '#B8603D', autor: 'claude' };
+  const letra = validarTrazo(bruta, 't');
+  it('se valida sin puntos y con grosor 3 si no lo trae', () => {
+    expect(letra).toEqual({ id: 'c7', herramienta: 'letra', color: '#b8603d', grosor: 3, puntos: [], texto: 'dy/dx = 2x', x: 300, y: 180, tamano: 28, autor: 'claude' });
+    expect(validarTrazo({ ...bruta, grosor: 5, puntos: [1, 2] }, 't')).toMatchObject({ grosor: 5, puntos: [] });
+  });
+  it('rechaza las letras mal hechas', () => {
+    const malas: [Record<string, unknown>, RegExp][] = [
+      [{ ...bruta, texto: '' }, /texto/],
+      [{ ...bruta, texto: '   ' }, /texto/],
+      [{ ...bruta, texto: 'dos\nlíneas' }, /texto/],
+      [{ ...bruta, texto: 'x'.repeat(201) }, /200/],
+      [{ ...bruta, texto: 7 }, /texto/],
+      [{ ...bruta, tamano: undefined }, /tamano/],
+      [{ ...bruta, tamano: 4 }, /tamano/],
+      [{ ...bruta, x: 'a' }, /\.x/],
+      [{ ...bruta, y: Infinity }, /\.y/],
+    ];
+    for (const [mala, patron] of malas) expect(() => validarTrazo(mala, 't')).toThrow(patron);
+  });
+  it('sus líneas salen del texto: caja, tocar y lazo funcionan como en las formas', () => {
+    expect(letrasDe(letra)).toHaveLength(8); // «dy/dx=2x» sin los espacios
+    expect(polilineas(letra)).toEqual(letrasDe(letra).flat());
+    const caja = cajaDeTrazo(letra);
+    expect(caja.x).toBeGreaterThan(290);
+    expect(caja.y + caja.h).toBeLessThan(180 + 28 * 0.5);
+    expect(caja.y).toBeGreaterThan(180 - 28 * 1.5);
+    const primerPunto = polilineas(letra)[0][0];
+    expect(tocaTrazo(letra, primerPunto, 1)).toBe(true);
+    const rodea = [{ x: caja.x - 5, y: caja.y - 5 }, { x: caja.x + caja.w + 5, y: caja.y - 5 }, { x: caja.x + caja.w + 5, y: caja.y + caja.h + 5 }, { x: caja.x - 5, y: caja.y + caja.h + 5 }];
+    expect(trazoEnLazo(letra, rodea)).toBe(true);
+  });
+  it('moverla cambia x e y (y sus letras se mueven igual)', () => {
+    const movida = moverTrazo(letra, 10, -5);
+    expect(movida).toMatchObject({ x: 310, y: 175, puntos: [] });
+    expect(polilineas(movida)[0][0].x).toBeCloseTo(polilineas(letra)[0][0].x + 10, 0);
+  });
+  it('la goma la convierte en trazos de lápiz normales (de Claude y de su capa) y los corta', () => {
+    const conCapa = { ...letra, capa: 'claude' };
+    const caja = cajaDeTrazo(conCapa);
+    const medio = { x: caja.x + caja.w / 2, y: caja.y + caja.h / 2 };
+    let n = 0;
+    const trozos = cortarConGoma(conCapa, [{ x: medio.x, y: caja.y - 10 }, { x: medio.x, y: caja.y + caja.h + 10 }], 6, () => `g${n++}`)!;
+    expect(trozos.length).toBeGreaterThan(3);
+    expect(trozos.every((t) => t.herramienta === 'lapiz' && t.autor === 'claude' && t.capa === 'claude' && t.texto === undefined)).toBe(true);
+    expect(cortarConGoma(conCapa, [{ x: -500, y: -500 }], 6, () => 'z')).toBeNull();
+  });
+  it('en el archivo no lleva puntos', () => {
+    expect(paraGuardar(letra)).not.toHaveProperty('puntos');
+    expect(paraGuardar(validarTrazo(lapiz, 't'))).toHaveProperty('puntos');
   });
 });

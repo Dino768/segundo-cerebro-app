@@ -1,8 +1,10 @@
 import type { Punto, Rect } from './geometria.ts';
+import { letrasDeTexto } from './letraMano.ts';
 
-// Trazos a mano de la pizarra (de Diego o de Claude). Formato en docs/superpowers/specs/2026-09-26-dibujo-a-mano-design.md.
-export type Herramienta = 'lapiz' | 'subrayador' | 'linea' | 'flecha' | 'rectangulo' | 'elipse';
-export const HERRAMIENTAS: readonly Herramienta[] = ['lapiz', 'subrayador', 'linea', 'flecha', 'rectangulo', 'elipse'];
+// Trazos a mano de la pizarra (de Diego o de Claude). Formato en docs/superpowers/specs/2026-09-26-dibujo-a-mano-design.md;
+// la letra a mano (`letra`, solo de Claude), en 2026-09-27-dibujo-a-mano-parte-2-design.md, sección 5.
+export type Herramienta = 'lapiz' | 'subrayador' | 'linea' | 'flecha' | 'rectangulo' | 'elipse' | 'letra';
+export const HERRAMIENTAS: readonly Herramienta[] = ['lapiz', 'subrayador', 'linea', 'flecha', 'rectangulo', 'elipse', 'letra'];
 export const esLibre = (h: Herramienta) => h === 'lapiz' || h === 'subrayador';
 
 export interface Trazo {
@@ -10,14 +12,20 @@ export interface Trazo {
   herramienta: Herramienta;
   color: string;
   grosor: number;
-  puntos: number[]; // x, y, x, y… en coordenadas de la pizarra
+  puntos: number[]; // x, y, x, y… en coordenadas de la pizarra (vacío en `letra`: sus líneas salen del texto)
   presion?: number[]; // una por punto, de 0 a 1 (solo lápiz)
+  texto?: string; // solo `letra`: una línea
+  x?: number; // solo `letra`: principio de la línea base
+  y?: number;
+  tamano?: number; // solo `letra`: alto de las mayúsculas
   autor?: 'claude';
   capa?: string;
 }
 
 export const LIMITE_PUNTOS = 5000;
 export const LIMITE_TRAZOS = 3000;
+export const LIMITE_TEXTO_LETRA = 200;
+export const GROSOR_LETRA = 3;
 const LIMITE_COORD = 100_000;
 
 export class ErrorTrazo extends Error {
@@ -50,20 +58,36 @@ export function validarTrazo(bruto: unknown, donde: string): Trazo {
   if (typeof o.id !== 'string' || !o.id || o.id.length > 64) throw new ErrorTrazo(`${donde}.id debe ser un texto de 1 a 64 letras`);
   if (!HERRAMIENTAS.includes(o.herramienta as Herramienta)) throw new ErrorTrazo(`${donde}: herramienta «${String(o.herramienta)}» desconocida`);
   const herramienta = o.herramienta as Herramienta;
+  const esLetra = herramienta === 'letra';
   if (typeof o.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(o.color)) throw new ErrorTrazo(`${donde}.color debe ser #rrggbb`);
-  if (typeof o.grosor !== 'number' || !Number.isFinite(o.grosor) || o.grosor < 1 || o.grosor > 40)
-    throw new ErrorTrazo(`${donde}.grosor debe estar entre 1 y 40`);
-  if (!Array.isArray(o.puntos) || o.puntos.some((v) => typeof v !== 'number' || !Number.isFinite(v) || Math.abs(v) > LIMITE_COORD))
-    throw new ErrorTrazo(`${donde}.puntos debe ser una lista de números`);
-  const n = o.puntos.length;
-  if (n === 0 || n % 2 !== 0) throw new ErrorTrazo(`${donde}.puntos debe tener pares x, y`);
-  if (n / 2 > LIMITE_PUNTOS) throw new ErrorTrazo(`${donde} tiene más de ${LIMITE_PUNTOS} puntos`);
-  if (!esLibre(herramienta) && n !== 4) throw new ErrorTrazo(`${donde}: una forma lleva exactamente dos puntos`);
+  const grosor = o.grosor ?? (esLetra ? GROSOR_LETRA : undefined);
+  if (typeof grosor !== 'number' || !Number.isFinite(grosor) || grosor < 1 || grosor > 40) throw new ErrorTrazo(`${donde}.grosor debe estar entre 1 y 40`);
+  let puntos: number[] = [];
   let presion: number[] | undefined;
-  if (o.presion !== undefined && o.presion !== null) {
-    if (!Array.isArray(o.presion) || o.presion.length !== n / 2 || o.presion.some((v) => typeof v !== 'number' || !(v >= 0 && v <= 1)))
-      throw new ErrorTrazo(`${donde}.presion debe tener un número de 0 a 1 por punto`);
-    if (herramienta === 'lapiz') presion = (o.presion as number[]).map((v) => redondear(v, 2));
+  let letra: Pick<Trazo, 'texto' | 'x' | 'y' | 'tamano'> = {};
+  if (esLetra) {
+    if (typeof o.texto !== 'string' || /[\r\n]/.test(o.texto) || !o.texto.trim()) throw new ErrorTrazo(`${donde}.texto debe ser una línea de texto`);
+    const texto = o.texto.normalize('NFC');
+    if ([...texto].length > LIMITE_TEXTO_LETRA) throw new ErrorTrazo(`${donde}.texto tiene más de ${LIMITE_TEXTO_LETRA} letras`);
+    const coord = (v: unknown, campo: string) => {
+      if (typeof v !== 'number' || !Number.isFinite(v) || Math.abs(v) > LIMITE_COORD) throw new ErrorTrazo(`${donde}.${campo} debe ser un número`);
+      return redondear(v, 1);
+    };
+    if (typeof o.tamano !== 'number' || !Number.isFinite(o.tamano) || o.tamano < 8 || o.tamano > 200) throw new ErrorTrazo(`${donde}.tamano debe estar entre 8 y 200`);
+    letra = { texto, x: coord(o.x, 'x'), y: coord(o.y, 'y'), tamano: redondear(o.tamano, 1) };
+  } else {
+    if (!Array.isArray(o.puntos) || o.puntos.some((v) => typeof v !== 'number' || !Number.isFinite(v) || Math.abs(v) > LIMITE_COORD))
+      throw new ErrorTrazo(`${donde}.puntos debe ser una lista de números`);
+    const n = o.puntos.length;
+    if (n === 0 || n % 2 !== 0) throw new ErrorTrazo(`${donde}.puntos debe tener pares x, y`);
+    if (n / 2 > LIMITE_PUNTOS) throw new ErrorTrazo(`${donde} tiene más de ${LIMITE_PUNTOS} puntos`);
+    if (!esLibre(herramienta) && n !== 4) throw new ErrorTrazo(`${donde}: una forma lleva exactamente dos puntos`);
+    if (o.presion !== undefined && o.presion !== null) {
+      if (!Array.isArray(o.presion) || o.presion.length !== n / 2 || o.presion.some((v) => typeof v !== 'number' || !(v >= 0 && v <= 1)))
+        throw new ErrorTrazo(`${donde}.presion debe tener un número de 0 a 1 por punto`);
+      if (herramienta === 'lapiz') presion = (o.presion as number[]).map((v) => redondear(v, 2));
+    }
+    puntos = (o.puntos as number[]).map((v) => redondear(v, 1));
   }
   if (o.autor !== undefined && o.autor !== null && o.autor !== 'claude') throw new ErrorTrazo(`${donde}.autor solo puede ser «claude»`);
   if (o.capa !== undefined && o.capa !== null && typeof o.capa !== 'string') throw new ErrorTrazo(`${donde}.capa debe ser un texto`);
@@ -71,12 +95,32 @@ export function validarTrazo(bruto: unknown, donde: string): Trazo {
     id: o.id,
     herramienta,
     color: o.color.toLowerCase(),
-    grosor: redondear(o.grosor, 1),
-    puntos: (o.puntos as number[]).map((v) => redondear(v, 1)),
+    grosor: redondear(grosor, 1),
+    puntos,
     presion,
+    ...letra,
     autor: o.autor === 'claude' ? ('claude' as const) : undefined,
     capa: typeof o.capa === 'string' ? o.capa : undefined,
   });
+}
+
+// Cómo se escribe un trazo en el archivo: la letra a mano no lleva `puntos`.
+export function paraGuardar(t: Trazo): Record<string, unknown> {
+  if (t.herramienta !== 'letra') return { ...t };
+  const { puntos: _puntos, ...resto } = t;
+  return resto;
+}
+
+// Las letras de un trazo `letra`, con sus líneas. Se guardan por objeto: los trazos no se cambian, se sustituyen.
+const cacheLetras = new WeakMap<Trazo, Punto[][][]>();
+export function letrasDe(t: Trazo): Punto[][][] {
+  if (t.herramienta !== 'letra') return [];
+  let r = cacheLetras.get(t);
+  if (!r) {
+    r = letrasDeTexto(t.texto ?? '', t.x ?? 0, t.y ?? 0, t.tamano ?? 28, t.id);
+    cacheLetras.set(t, r);
+  }
+  return r;
 }
 
 export function distanciaASegmento(p: Punto, a: Punto, b: Punto): number {
@@ -139,6 +183,7 @@ export function terminarTrazo(t: TrazoNuevo, tolerancia = 0.5): Trazo {
 
 // Las líneas con las que se dibuja un trazo (una forma puede tener varias, como la flecha).
 export function polilineas(t: Trazo): Punto[][] {
+  if (t.herramienta === 'letra') return letrasDe(t).flat();
   const ps = pares(t.puntos);
   if (esLibre(t.herramienta)) return [ps];
   const [a, b] = ps;
@@ -275,5 +320,6 @@ export function trazoEnLazo(t: Trazo, poligono: Punto[]): boolean {
 }
 
 export function moverTrazo(t: Trazo, dx: number, dy: number): Trazo {
+  if (t.herramienta === 'letra') return { ...t, x: redondear((t.x ?? 0) + dx, 1), y: redondear((t.y ?? 0) + dy, 1) };
   return { ...t, puntos: t.puntos.map((v, i) => redondear(v + (i % 2 === 0 ? dx : dy), 1)) };
 }

@@ -292,3 +292,29 @@ describe('operación estilo', () => {
     });
   });
 });
+
+describe('trazos de letra a mano en la pizarra', () => {
+  const letra = { id: 'c7', herramienta: 'letra', texto: 'dy/dx', x: 300, y: 180, tamano: 28, color: '#b8603d', autor: 'claude' };
+  it('se lee, avisa de lo que no sabe escribir y sigue cargando', () => {
+    const { pizarra, avisos } = validarPizarra(con({ version: 2, trazos: [letra, { ...letra, id: 'c8', texto: 'área ∮' }] }));
+    expect(pizarra.trazos.map((t) => t.id)).toEqual(['c7', 'c8']);
+    expect(avisos).toHaveLength(1);
+    expect(avisos[0]).toMatch(/trazos\[1\].*∮/);
+  });
+  it('una letra mal hecha se ignora con aviso y el resto se queda', () => {
+    const { pizarra, avisos } = validarPizarra(con({ version: 2, trazos: [{ ...letra, texto: 'a\nb' }, { ...letra, id: 'c9' }] }));
+    expect(pizarra.trazos.map((t) => t.id)).toEqual(['c9']);
+    expect(avisos[0]).toMatch(/texto/);
+  });
+  it('se escribe sin puntos y se vuelve a leer igual', () => {
+    const { pizarra } = validarPizarra(con({ version: 2, trazos: [letra] }));
+    const texto = serializarPizarra(pizarra);
+    expect(texto).toContain('"herramienta":"letra"');
+    expect(texto).not.toContain('"puntos":[]');
+    expect(validarPizarra(JSON.parse(texto)).pizarra).toEqual(pizarra);
+  });
+  it('una operación de trazos con una letra (moverla, pegarla) se acepta', () => {
+    const op = validarOperacion({ tipo: 'trazos', quitar: ['c7'], poner: [{ ...letra, x: 310, puntos: [] }] });
+    expect(op).toMatchObject({ tipo: 'trazos', poner: [{ herramienta: 'letra', x: 310 }] });
+  });
+});

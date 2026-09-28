@@ -1,7 +1,8 @@
 import { CAPA_CLAUDE, CAPAS_INICIALES, capaPorDefecto, esCapaInicial, esDeClaudePieza, normalizarCapas, type Capa } from './capas.ts';
 import { compilarExpresion, ErrorExpresion } from './expresion.ts';
 import { fusionar } from './fusion.ts';
-import { ErrorTrazo, LIMITE_TRAZOS, validarTrazo, type Trazo } from './tinta.ts';
+import { ErrorTrazo, LIMITE_TRAZOS, paraGuardar, validarTrazo, type Trazo } from './tinta.ts';
+import { caracteresQueFaltan, SUSTITUTO } from './letraMano.ts';
 
 // Formato de pizarra-<n>.json. Lo escribe Claude y lo lee la app (ver docs/diseno.md).
 export type TipoTexto = 'texto' | 'formula' | 'dibujo' | 'imagen' | 'nota';
@@ -200,6 +201,10 @@ function validarTrazos(v: unknown, avisos: string[]): Trazo[] {
       }
       ids.add(t.id);
       trazos.push(t);
+      if (t.herramienta === 'letra') {
+        const faltan = caracteresQueFaltan(t.texto ?? '');
+        if (faltan.length) avisos.push(`trazos[${i}]: no sé escribir a mano «${faltan.join(' ')}»; sale como «${SUSTITUTO}»`);
+      }
     } catch (e) {
       if (!(e instanceof ErrorTrazo)) throw e;
       avisos.push(`${e.message}; ignoro ese trazo`);
@@ -275,7 +280,7 @@ export function serializarPizarra(p: Pizarra): string {
   if (necesitaVersion2(p)) {
     // Cada trazo en una sola línea: con un número por línea, una página de dibujo pasaría de 1 MB.
     const marca = '__trazos__';
-    const trazos = p.trazos.length ? `[\n${p.trazos.map((t) => `    ${JSON.stringify(t)}`).join(',\n')}\n  ]` : '[]';
+    const trazos = p.trazos.length ? `[\n${p.trazos.map((t) => `    ${JSON.stringify(paraGuardar(t))}`).join(',\n')}\n  ]` : '[]';
     return JSON.stringify({ ...p, version: 2, trazos: marca }, null, 2).replace(`"${marca}"`, () => trazos) + '\n';
   }
   const { capas: _capas, trazos: _trazos, ...resto } = p;

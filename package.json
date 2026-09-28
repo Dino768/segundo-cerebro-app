@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "local": "node scripts/iconos.ts && vite build && node local/principal.ts",
     "test": "vitest run",
-    "iconos": "node scripts/iconos.ts"
+    "iconos": "node scripts/iconos.ts",
+    "letra": "node scripts/letraMano.ts"
   },
   "dependencies": {
     "dompurify": "^3.4.16",

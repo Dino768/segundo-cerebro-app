@@ -28,4 +28,12 @@ describe('Pizarra', () => {
     const html = renderToString(<Pizarra pizarra={p} imagen={async () => ''} clave="k" origen="o" alMaximizar={() => undefined} />);
     expect(html).toContain('aria-label="Pantalla completa"');
   });
+  it('al abrirla, lo de Claude se ve entero (la animación solo empieza después)', () => {
+    const conClaude = validarPizarra({
+      version: 2, titulo: 'x', piezas: [], flechas: [],
+      trazos: [{ id: 'c1', herramienta: 'letra', texto: 'Hola', x: 0, y: 40, tamano: 30, color: '#3b82f6', autor: 'claude' }],
+    }).pizarra;
+    const html = renderToString(<Pizarra pizarra={conClaude} imagen={async () => ''} clave="k" origen="o" animarAlAbrir />);
+    expect(html).toContain('stroke="#3b82f6"');
+  });
 });

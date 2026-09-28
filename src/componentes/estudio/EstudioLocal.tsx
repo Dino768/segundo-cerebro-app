@@ -52,6 +52,8 @@ export function EstudioLocal({ asignatura, local }: Props) {
   // Pizarras en las que Diego ha hecho algo desde su último mensaje: ese mensaje lleva foto.
   const cambiadas = useRef(new Set<number>());
   const [abierta, setAbierta] = useState<number | null>(null);
+  // La pizarra que Claude acaba de crear (conversación-número): al abrirse sola, lo que ha dibujado se anima.
+  const [recienCreada, setRecienCreada] = useState<string | null>(null);
   const [avisoPizarra, setAvisoPizarra] = useState<string | null>(null);
   const [anchoChat, setAnchoChat] = useState(() => Number(leerPreferencia(CLAVE_ANCHO)) || 36);
   const contenedor = useRef<HTMLDivElement>(null);
@@ -67,12 +69,15 @@ export function EstudioLocal({ asignatura, local }: Props) {
   // Ruta del historial de cada pizarra ya subida, para que un reintento actualice el mismo archivo.
   const rutasSubidas = useRef(new Map<number, string>());
 
-  const recargarPizarras = useCallback(async (id: string) => {
+  const recargarPizarras = useCallback(async (id: string, alAbrir = false) => {
     const lista = await leerPizarras(asignatura.id, id).catch(() => null);
     if (!lista) return;
     setPizarras(lista);
-    // Si Claude crea una pizarra nueva, se abre sola.
-    if (lista.length > cuantas.current) setAbierta(lista.at(-1)!.n);
+    // Si Claude crea una pizarra nueva, se abre sola (y lo que ha dibujado en ella se anima).
+    if (lista.length > cuantas.current) {
+      setAbierta(lista.at(-1)!.n);
+      if (!alAbrir) setRecienCreada(`${id}-${lista.at(-1)!.n}`);
+    }
     cuantas.current = lista.length;
   }, [asignatura.id]);
 
@@ -88,7 +93,7 @@ export function EstudioLocal({ asignatura, local }: Props) {
       setAbierta(null);
       cambiadas.current.clear();
       guardarPreferencia(claveUltima(asignatura.id), id);
-      await recargarPizarras(id);
+      await recargarPizarras(id, true);
     },
     [asignatura.id, recargarPizarras],
   );
@@ -384,6 +389,7 @@ export function EstudioLocal({ asignatura, local }: Props) {
                 maximizada={pantalla.activa}
                 alMaximizar={pantalla.alternar}
                 foto={hacerFoto}
+                animarAlAbrir={recienCreada === `${conv.id}-${actual.n}`}
               >
                 {pantalla.activa && (
                   <button

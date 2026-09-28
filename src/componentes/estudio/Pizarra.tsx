@@ -21,6 +21,7 @@ import { fotografiar, type HacerFoto } from './fotoPizarra';
 import { PanelCapas } from './PanelCapas';
 import { PiezaPizarra } from './PiezaPizarra';
 import { usePizarraEditable } from './usePizarraEditable';
+import { useAnimacion } from './useAnimacion';
 
 interface Props {
   pizarra: TipoPizarra;
@@ -32,6 +33,7 @@ interface Props {
   maximizada?: boolean;
   alMaximizar?(): void; // sin esto no sale el botón de pantalla completa
   foto?: { current: HacerFoto | null }; // la zona de estudio la pide al mandar un mensaje
+  animarAlAbrir?: boolean; // Claude acaba de crear esta pizarra: lo suyo se anima también al abrirla
 }
 
 const RADIO_BORRADOR = 10; // en píxeles de pantalla
@@ -48,7 +50,7 @@ type Gesto =
 
 interface Edicion { id: string | null; nuevoId: string; x: number; y: number; texto: string; ancho: number; aspecto: AspectoNota }
 
-export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children, maximizada = false, alMaximizar, foto }: Props) {
+export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children, maximizada = false, alMaximizar, foto, animarAlAbrir = false }: Props) {
   const editable = !!alOperar;
   const ed = usePizarraEditable(pizarra, clave, alOperar);
   const { mostrada, herramientas: h, activa } = ed;
@@ -87,6 +89,8 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children, ma
   // Lo que se ve mientras se dibuja, se borra o se mueve algo (aún sin guardar).
   const vistaPizarra = provisional ? aplicarOperacion(mostrada, provisional) : mostrada;
   const puedeDibujar = editable && activa !== null && activa !== CAPA_CLAUDE;
+  // Lo que Claude dibuja con la pizarra abierta aparece animado (los trazos, no las piezas).
+  const animando = useAnimacion(pizarra.trazos, vistaPizarra.trazos, animarAlAbrir);
 
   const medir = useCallback((id: string, w: number, alto: number) => {
     setTamanos((t) => (t[id]?.w === w && t[id]?.h === alto ? t : { ...t, [id]: { w, h: alto } }));
@@ -618,7 +622,7 @@ export function Pizarra({ pizarra, imagen, alOperar, clave, origen, children, ma
                   const pos = posiciones[p.id] ?? p;
                   return <PiezaPizarra key={p.id} pieza={p} x={pos.x} y={pos.y} seleccionada={seleccion.piezas.includes(p.id)} imagen={imagen} alMedir={medir} />;
                 })}
-                <CapaTinta subrayados={g.subrayados} trazos={g.trazos} />
+                <CapaTinta subrayados={g.subrayados} trazos={g.trazos} progreso={animando} />
               </Fragment>
             ))}
             {(lazo || cajaSel) && (

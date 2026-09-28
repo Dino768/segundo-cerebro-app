@@ -23,4 +23,10 @@ describe('CapaTinta', () => {
     expect(html).toContain('fill="none"');
     expect((html.match(/M/g) ?? []).length).toBeGreaterThanOrEqual(3);
   });
+  it('un trazo que aún espera su turno no se ve; a medias, se ve un trozo', () => {
+    const linea = validarTrazo({ id: 'a', herramienta: 'linea', color: '#3b82f6', grosor: 4, puntos: [0, 0, 100, 0] }, 't');
+    expect(renderToString(<CapaTinta subrayados={[]} trazos={[linea]} progreso={new Map([['a', 0]])} />)).not.toContain('<path');
+    expect(renderToString(<CapaTinta subrayados={[]} trazos={[linea]} progreso={new Map([['a', 0.5]])} />)).toContain('d="M0 0 L50 0"');
+    expect(renderToString(<CapaTinta subrayados={[]} trazos={[linea]} progreso={new Map()} />)).toContain('d="M0 0 L100 0"');
+  });
 });

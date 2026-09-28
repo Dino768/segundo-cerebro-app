@@ -9,44 +9,29 @@ const entidades = (s: string) =>
   s.replace(/&#x([0-9a-f]+);/gi, (_, h: string) => String.fromCodePoint(parseInt(h, 16)))
     .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 
+// Las del diseño que trae la fuente.
+const DE_LA_FUENTE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzáéíóúüñÁÉÍÓÚÜÑ¿¡?!0123456789 .,;:\'"()[]+-=×·÷/^_<>²³±%';
+
+// Algunas letras que no usamos (ç, ß, £…) traen curvas: se saltan; las que usamos solo pueden tener M y L.
+const DE_LA_FUENTE_SET = new Set([...DE_LA_FUENTE]);
 const fuente = new Map<string, Glifo>();
 for (const m of svg.matchAll(/<glyph\b([^>]*)\/>/g)) {
   const atributo = (n: string) => new RegExp(`(?:^|\\s)${n}="([^"]*)"`).exec(m[1])?.[1];
   const u = atributo('unicode');
   if (u === undefined) continue;
   const letra = entidades(u);
+  // Si no la usamos, saltamos sin analizar.
+  if (!DE_LA_FUENTE_SET.has(letra)) continue;
   const trazos: number[][] = [];
-  let últimoX = 0, últimoY = 0;
   for (const [, orden, resto] of (atributo('d') ?? '').matchAll(/([A-Za-z])([^A-Za-z]*)/g)) {
     const nums = resto.trim().split(/[\s,]+/).filter(Boolean).map(Number);
-    if (orden === 'M') {
-      trazos.push(nums);
-      últimoX = nums[nums.length - 2];
-      últimoY = nums[nums.length - 1];
-    } else if (orden === 'L' && trazos.length) {
-      trazos[trazos.length - 1].push(...nums);
-      últimoX = nums[nums.length - 2];
-      últimoY = nums[nums.length - 1];
-    } else if (orden === 'C' && trazos.length) {
-      // Bezier cúbica: C c1x c1y c2x c2y x y. Aproximamos con 4 segmentos lineales.
-      const x = nums[4], y = nums[5];
-      const tr = trazos[trazos.length - 1];
-      tr.push(últimoX + (x - últimoX) * 0.25, últimoY + (y - últimoY) * 0.25);
-      tr.push(últimoX + (x - últimoX) * 0.5, últimoY + (y - últimoY) * 0.5);
-      tr.push(últimoX + (x - últimoX) * 0.75, últimoY + (y - últimoY) * 0.75);
-      tr.push(x, y);
-      últimoX = x;
-      últimoY = y;
-    } else if (orden !== 'Z' && orden !== 'H' && orden !== 'V' && orden !== 'Q' && orden !== 'A' && orden !== 'S' && orden !== 'T') {
-      throw new Error(`Letra «${letra}»: no sé leer la orden «${orden}» (solo M, L, C y Z)`);
-    }
+    if (orden === 'M') trazos.push(nums);
+    else if (orden === 'L' && trazos.length) trazos[trazos.length - 1].push(...nums);
+    else throw new Error(`Letra «${letra}»: no sé leer la orden «${orden}» (solo M y L)`);
   }
   // Un trazo de un solo punto no se ve (y la animación no sabría recorrerlo): fuera.
   fuente.set(letra, { a: Number(atributo('horiz-adv-x') ?? 378), t: trazos.filter((tr) => tr.length >= 4) });
 }
-
-// Las del diseño que trae la fuente.
-const DE_LA_FUENTE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzáéíóúüñÁÉÍÓÚÜÑ¿¡?!0123456789 .,;:\'"()[]+-=×·÷/^_<>²³±%';
 
 // Hechos para esta app, en las mismas unidades que la fuente (línea base ≈ 22, mayúsculas ≈ 652, minúsculas ≈ 485).
 const curva = (n: number, f: (s: number) => [number, number]) => Array.from({ length: n + 1 }, (_, i) => f(i / n)).flat();

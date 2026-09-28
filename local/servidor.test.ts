@@ -75,7 +75,7 @@ describe('app', () => {
     expect(r.status).toBe(302);
   });
   it('estado', async () => {
-    expect(VERSION_PROGRAMA).toBe(3); // la app avisa si el programa local abierto es de antes de la foto
+    expect(VERSION_PROGRAMA).toBe(4); // la app avisa si el programa local abierto es de antes de poder cambiar el nombre y borrar chats
     expect(await (await fetch(`${API}estado`)).json()).toEqual({ ok: true, version: VERSION_PROGRAMA });
   });
 });
@@ -87,6 +87,24 @@ describe('conversaciones', () => {
     const ms = await (await fetch(`${API}conversacion?asignatura=fisica&id=${ID}`)).json();
     expect(ms).toEqual([{ rol: 'diego', texto: 'Primera pregunta' }]);
     expect(await (await fetch(`${API}conversaciones?asignatura=calculo`)).json()).toEqual([]);
+  });
+  it('cambiar el nombre, volver al automático y rechazar nombres que no valen', async () => {
+    expect((await post('conversacion/nombre', { asignatura: 'fisica', id: ID, nombre: '  Leyes de Newton ' })).status).toBe(200);
+    expect(await (await fetch(`${API}conversaciones?asignatura=fisica`)).json()).toMatchObject([{ id: ID, titulo: 'Leyes de Newton' }]);
+    expect((await post('conversacion/nombre', { asignatura: 'fisica', id: ID, nombre: '' })).status).toBe(200);
+    expect(await (await fetch(`${API}conversaciones?asignatura=fisica`)).json()).toMatchObject([{ id: ID, titulo: 'Primera pregunta' }]);
+    expect((await post('conversacion/nombre', { asignatura: 'fisica', id: ID, nombre: 'a'.repeat(81) })).status).toBe(400);
+    expect((await post('conversacion/nombre', { asignatura: 'fisica', id: ID, nombre: 'dos\nlíneas' })).status).toBe(400);
+    expect((await post('conversacion/nombre', { asignatura: 'fisica', id: '../x', nombre: 'x' })).status).toBe(400);
+  });
+  it('borrar una conversación', async () => {
+    const otra = '88888888-8888-4888-8888-888888888888';
+    const convs = carpetaConversaciones(path.join(estudios, 'fisica'), home);
+    writeFileSync(path.join(convs, `${otra}.jsonl`), JSON.stringify({ type: 'user', message: { role: 'user', content: 'Para borrar' } }) + '\n');
+    expect((await post('conversacion/borrar', { asignatura: 'fisica', id: otra })).status).toBe(200);
+    const lista = await (await fetch(`${API}conversaciones?asignatura=fisica`)).json();
+    expect(lista.map((c: { id: string }) => c.id)).toEqual([ID]);
+    expect((await post('conversacion/borrar', { asignatura: 'fisica', id: 'nada' })).status).toBe(400);
   });
 });
 
@@ -128,6 +146,7 @@ describe('mensaje', () => {
     const primera = post('mensaje', { asignatura: 'fisica', id, nueva: true, texto: 'LENTO', imagenes: [] });
     await new Promise((r) => setTimeout(r, 800));
     expect((await post('mensaje', { asignatura: 'fisica', id, nueva: false, texto: 'otra', imagenes: [] })).status).toBe(409);
+    expect((await post('conversacion/borrar', { asignatura: 'fisica', id })).status).toBe(409); // no se borra mientras contesta
     expect(ocupado()).toBe(true); // mientras contesta, el programa no se reinicia para actualizarse
     await post('parar', { id });
     expect((await eventos(await primera)).at(-1)).toEqual({ tipo: 'fin', parado: true });

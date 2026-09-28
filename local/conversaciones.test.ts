@@ -1,9 +1,9 @@
-import { mkdtempSync, mkdirSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, utimesSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { conContexto } from '../src/estudio/contexto.ts';
-import { avisoCarpetaConversaciones, carpetaConversaciones, leerConversacion, listarConversaciones, tituloConversacion } from './conversaciones.ts';
+import { avisoCarpetaConversaciones, borrarConversacion, carpetaConversaciones, leerConversacion, leerNombres, listarConversaciones, ponerNombre, tituloConversacion } from './conversaciones.ts';
 
 const lineas = (...os: unknown[]) => os.map((o) => JSON.stringify(o)).join('\n') + '\n';
 const usuario = (content: unknown, extra = {}) => ({ type: 'user', message: { role: 'user', content }, ...extra });
@@ -68,6 +68,57 @@ describe('listarConversaciones', () => {
   });
   it('carpeta que no existe → lista vacía', async () => {
     expect(await listarConversaciones(path.join(os.tmpdir(), 'no-existe-xyz'))).toEqual([]);
+  });
+  it('usa el nombre que le puso Diego si lo tiene', async () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'convs-'));
+    const a = 'aaaaaaaa-0000-4000-8000-000000000001';
+    writeFileSync(path.join(dir, `${a}.jsonl`), lineas(usuario('Primera')));
+    expect((await listarConversaciones(dir, { [a]: 'Derivadas' }))[0].titulo).toBe('Derivadas');
+  });
+});
+
+describe('nombres y borrar', () => {
+  const a = 'aaaaaaaa-0000-4000-8000-000000000001';
+  const b = 'bbbbbbbb-0000-4000-8000-000000000002';
+  it('poner, cambiar y quitar un nombre (se guarda en .en-curso/nombres.json)', async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), 'asig-'));
+    expect(await leerNombres(cwd)).toEqual({});
+    await ponerNombre(cwd, a, 'Derivadas');
+    await ponerNombre(cwd, b, 'Límites');
+    await ponerNombre(cwd, a, 'Derivadas 2');
+    expect(await leerNombres(cwd)).toEqual({ [a]: 'Derivadas 2', [b]: 'Límites' });
+    expect(existsSync(path.join(cwd, '.en-curso', 'nombres.json'))).toBe(true);
+    await ponerNombre(cwd, a, '');
+    expect(await leerNombres(cwd)).toEqual({ [b]: 'Límites' });
+  });
+  it('un nombres.json roto se lee como vacío', async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), 'asig-'));
+    mkdirSync(path.join(cwd, '.en-curso'), { recursive: true });
+    writeFileSync(path.join(cwd, '.en-curso', 'nombres.json'), '{ roto');
+    expect(await leerNombres(cwd)).toEqual({});
+  });
+  it('borrar quita la conversación, su carpeta de Claude Code, sus pizarras a medias y su nombre; lo demás se queda', async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), 'asig-'));
+    const convs = mkdtempSync(path.join(os.tmpdir(), 'convs-'));
+    for (const id of [a, b]) {
+      writeFileSync(path.join(convs, `${id}.jsonl`), lineas(usuario('Hola')));
+      mkdirSync(path.join(convs, id), { recursive: true });
+      mkdirSync(path.join(cwd, '.en-curso', id), { recursive: true });
+      writeFileSync(path.join(cwd, '.en-curso', id, 'pizarra-1.json'), '{}');
+    }
+    mkdirSync(path.join(cwd, 'pizarras'), { recursive: true });
+    writeFileSync(path.join(cwd, 'pizarras', 'guardada.json'), '{}');
+    await ponerNombre(cwd, a, 'Derivadas');
+    await ponerNombre(cwd, b, 'Límites');
+    await borrarConversacion(convs, cwd, a);
+    expect(existsSync(path.join(convs, `${a}.jsonl`))).toBe(false);
+    expect(existsSync(path.join(convs, a))).toBe(false);
+    expect(existsSync(path.join(cwd, '.en-curso', a))).toBe(false);
+    expect(await leerNombres(cwd)).toEqual({ [b]: 'Límites' });
+    expect(existsSync(path.join(convs, `${b}.jsonl`))).toBe(true);
+    expect(existsSync(path.join(cwd, '.en-curso', b, 'pizarra-1.json'))).toBe(true);
+    expect(existsSync(path.join(cwd, 'pizarras', 'guardada.json'))).toBe(true);
+    await borrarConversacion(convs, cwd, a); // borrar dos veces no falla
   });
 });
 

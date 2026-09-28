@@ -23,6 +23,15 @@ describe('crearDialogos (ventanas de la app en vez de las del navegador)', () =>
     d.responder(null);
     expect(await c).toBeNull();
   });
+  it('pedirTexto con permitirVacio: vacío devuelve un texto vacío (y cancelar, null)', async () => {
+    const d = crearDialogos();
+    const a = d.pedirTexto('Nombre', { permitirVacio: true });
+    d.responder('   ');
+    expect(await a).toBe('');
+    const b = d.pedirTexto('Nombre', { permitirVacio: true });
+    d.responder(null);
+    expect(await b).toBeNull();
+  });
   it('si se piden dos a la vez, salen de una en una', async () => {
     const d = crearDialogos();
     const a = d.confirmar('Primera');

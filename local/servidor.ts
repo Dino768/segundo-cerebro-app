@@ -7,7 +7,7 @@ import { esZona, type FotoEnviada } from '../src/estudio/foto.ts';
 import { ErrorPizarra, validarOperacion, type Operacion } from '../src/estudio/pizarra.ts';
 import { VERSION_PROGRAMA, type EventoChat, type EventoPizarra } from '../src/estudio/tipos.ts';
 import { lanzarClaude, type Comando, type Proceso } from './claude.ts';
-import { avisoCarpetaConversaciones, carpetaConversaciones, leerConversacionDe, listarConversaciones } from './conversaciones.ts';
+import { avisoCarpetaConversaciones, borrarConversacion, carpetaConversaciones, leerConversacionDe, leerNombres, listarConversaciones, ponerNombre } from './conversaciones.ts';
 import { borrarPizarra, crearPizarra, listarPizarras, operarPizarra, pizarrasNoValidas, vigilarPizarras } from './pizarras.ts';
 import { esIdAsignatura, esIdConversacion, esNombreImagen, hostPermitido, origenPermitido, rutaDentro } from './seguridad.ts';
 
@@ -81,6 +81,14 @@ export function conversacionDe(v: unknown): string {
   return v;
 }
 
+// Nombre de un chat: una línea de hasta 80 letras. Vacío = volver al nombre automático.
+export const LIMITE_NOMBRE_CHAT = 80;
+function nombreChatDe(v: unknown): string {
+  if (typeof v !== 'string' || /[\r\n]/.test(v) || [...v.trim()].length > LIMITE_NOMBRE_CHAT)
+    throw new ErrorPeticion(400, `El nombre debe ser una línea de hasta ${LIMITE_NOMBRE_CHAT} letras`);
+  return v.trim();
+}
+
 function numeroPizarra(v: unknown): number {
   if (typeof v !== 'number' || !Number.isInteger(v) || v < 1) throw new ErrorPeticion(400, 'Número de pizarra no válido');
   return v;
@@ -142,13 +150,29 @@ export function crearServidor(o: OpcionesServidor) {
 
     'GET conversaciones': async (_req, res, url) => {
       const asig = asignaturaDe(url.searchParams.get('asignatura'));
-      enviarJson(res, 200, await listarConversaciones(carpetaConversaciones(cwdDe(asig), o.home)));
+      enviarJson(res, 200, await listarConversaciones(carpetaConversaciones(cwdDe(asig), o.home), await leerNombres(cwdDe(asig))));
     },
 
     'GET conversacion': async (_req, res, url) => {
       const asig = asignaturaDe(url.searchParams.get('asignatura'));
       const id = conversacionDe(url.searchParams.get('id'));
       enviarJson(res, 200, await leerConversacionDe(carpetaConversaciones(cwdDe(asig), o.home), id));
+    },
+
+    'POST conversacion/nombre': async (req, res) => {
+      const b = await leerJson(req);
+      await ponerNombre(cwdDe(asignaturaDe(b.asignatura)), conversacionDe(b.id), nombreChatDe(b.nombre));
+      enviarJson(res, 200, { ok: true });
+    },
+
+    'POST conversacion/borrar': async (req, res) => {
+      const b = await leerJson(req);
+      const asig = asignaturaDe(b.asignatura);
+      const id = conversacionDe(b.id);
+      // Mientras Claude contesta está escribiendo en ese chat.
+      if (activos.has(id)) throw new ErrorPeticion(409, 'Espera a que Claude termine de contestar');
+      await borrarConversacion(carpetaConversaciones(cwdDe(asig), o.home), cwdDe(asig), id);
+      enviarJson(res, 200, { ok: true });
     },
 
     'POST mensaje': async (req, res) => {

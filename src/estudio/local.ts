@@ -58,6 +58,13 @@ function revisada(p: unknown): Pizarra | null {
 export const listarConversaciones = (asignatura: string) =>
   pedir<ResumenConversacion[]>(`conversaciones?${consulta({ asignatura })}`);
 
+// Nombre vacío: vuelve a llamarse como su primera pregunta.
+export const renombrarConversacion = (asignatura: string, id: string, nombre: string) =>
+  pedir<{ ok: true }>('conversacion/nombre', enviarJson({ asignatura, id, nombre }));
+
+export const borrarConversacion = (asignatura: string, id: string) =>
+  pedir<{ ok: true }>('conversacion/borrar', enviarJson({ asignatura, id }));
+
 export const leerConversacion = (asignatura: string, id: string) =>
   pedir<Mensaje[]>(`conversacion?${consulta({ asignatura, id })}`);
 

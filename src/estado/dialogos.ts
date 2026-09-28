@@ -34,9 +34,11 @@ export function crearDialogos() {
     async confirmar(mensaje: string, o: { aceptar?: string; peligro?: boolean } = {}): Promise<boolean> {
       return (await pedir({ tipo: 'confirmar', mensaje, aceptar: o.aceptar ?? 'Aceptar', peligro: o.peligro ?? false })) === true;
     },
-    async pedirTexto(mensaje: string, o: { inicial?: string; aceptar?: string } = {}): Promise<string | null> {
+    // null si se cancela. Vacío también da null, salvo con `permitirVacio` (entonces da '').
+    async pedirTexto(mensaje: string, o: { inicial?: string; aceptar?: string; permitirVacio?: boolean } = {}): Promise<string | null> {
       const r = await pedir({ tipo: 'texto', mensaje, inicial: o.inicial ?? '', aceptar: o.aceptar ?? 'Guardar' });
-      return typeof r === 'string' && r.trim() ? r.trim() : null;
+      if (typeof r !== 'string') return null;
+      return r.trim() || (o.permitirVacio ? '' : null);
     },
   };
 }

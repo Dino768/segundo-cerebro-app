@@ -38,6 +38,7 @@ const CLAVE_ANCHO = 'sc-estudio-ancho-chat';
 
 export function EstudioLocal({ asignatura, local }: Props) {
   const [vista, setVista] = useState<'chat' | 'lista'>('chat');
+  const [nombreChat, setNombreChat] = useState<string | null>(null); // el nombre del chat abierto, si se sabe
   const [conv, setConv] = useState<Conversacion | null>(null);
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [enviando, setEnviando] = useState(false);
@@ -81,9 +82,11 @@ export function EstudioLocal({ asignatura, local }: Props) {
     cuantas.current = lista.length;
   }, [asignatura.id]);
 
+  // `titulo`: el nombre del chat en la lista (el que le puso Diego, o su primera pregunta).
   const abrir = useCallback(
-    async (id: string) => {
+    async (id: string, titulo?: string) => {
       setVista('chat');
+      setNombreChat(titulo ?? null);
       setError(null);
       const ms = await leerConversacion(asignatura.id, id).catch(() => [] as Mensaje[]);
       setConv({ id, nueva: ms.length === 0 });
@@ -103,6 +106,7 @@ export function EstudioLocal({ asignatura, local }: Props) {
     setVista('chat');
     setError(null);
     setMensajes([]);
+    setNombreChat(null);
     setPizarras([]);
     setAbierta(null);
     setRecienCreada(null);
@@ -114,7 +118,10 @@ export function EstudioLocal({ asignatura, local }: Props) {
   useEffect(() => {
     const ultima = leerPreferencia(claveUltima(asignatura.id));
     listarConversaciones(asignatura.id)
-      .then((lista) => (ultima && lista.some((c) => c.id === ultima) ? abrir(ultima) : nueva()))
+      .then((lista) => {
+        const guardada = ultima ? lista.find((c) => c.id === ultima) : undefined;
+        return guardada ? abrir(guardada.id, guardada.titulo) : nueva();
+      })
       .catch(nueva);
   }, [asignatura.id, abrir, nueva]);
 
@@ -328,16 +335,25 @@ export function EstudioLocal({ asignatura, local }: Props) {
       {vista === 'lista' ? (
         <ListaConversaciones
           asignatura={asignatura}
-          alAbrir={(id) => void abrir(id)}
+          alAbrir={(id, titulo) => void abrir(id, titulo)}
           alNueva={nueva}
           alVolver={() => setVista('chat')}
           alAbrirHistorial={setHistorialAbierto}
+          alRenombrada={(id, titulo) => {
+            if (id === conv.id) setNombreChat(titulo);
+          }}
+          alBorrada={(id) => {
+            // Si era el chat abierto, se empieza uno nuevo (sin salir de la lista).
+            if (id !== conv.id) return;
+            nueva();
+            setVista('lista');
+          }}
         />
       ) : (
         <Chat
           asignatura={asignatura.id}
           conversacion={conv.id}
-          titulo={mensajes.find((m) => m.rol === 'diego')?.texto.slice(0, 60) ?? ''}
+          titulo={nombreChat ?? mensajes.find((m) => m.rol === 'diego')?.texto.slice(0, 60) ?? ''}
           mensajes={mensajes}
           enviando={enviando}
           error={error}

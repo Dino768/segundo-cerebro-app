@@ -1,8 +1,5 @@
-Copyright (c) <dates>, <Copyright Holder> (<URL|email>),
-with Reserved Font Name <Reserved Font Name>.
-Copyright (c) <dates>, <additional Copyright Holder> (<URL|email>),
-with Reserved Font Name <additional Reserved Font Name>.
-Copyright (c) <dates>, <additional Copyright Holder> (<URL|email>).
+Copyright 2010, 2012 Adobe Systems Incorporated (http://www.adobe.com/), with Reserved Font Name 'Source'. All Rights Reserved. Source is a trademark of Adobe Systems Incorporated in the United States and/or other countries.
+EMS Readability: single-stroke derivative by Sheldon B. Michaels; SVG font conversion by Windell H. Oskay (Evil Mad Scientist, distributed in the hersheytext package).
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

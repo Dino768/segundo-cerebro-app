@@ -50,7 +50,7 @@ Node está en `C:\Program Files\nodejs`. En la terminal Bash de Claude Code pued
 El token se guarda en el `localStorage` del navegador, y ese almacenamiento es compartido por todo el dominio `https://dino768.github.io`. Cualquier otra web que Diego publique con GitHub Pages en su cuenta (un juego, un portfolio…) podría leerlo. Recuérdaselo si va a publicar otra web y recomiéndale tokens con caducidad corta (90 días o menos). La alternativa gratuita es mover la app a una organización de GitHub propia, con su propio dominio: está pendiente de proponérselo.
 
 ## Estado actual
-Última actualización: 2026-09-28 (v1.4 parte 2, entrega 1 publicada; empieza la entrega 2).
+Última actualización: 2026-09-28 (v1.4 parte 2, entrega 2 hecha en la rama `v1.4-parte-2-entrega-2`, sin juntar en `main`; revisión final hecha).
 - **Versión 1 terminada y publicada** en https://dino768.github.io/segundo-cerebro-app/. Diego la tiene instalada en el PC, el portátil y el iPhone, con un token por dispositivo. Tasks 0 a 15 del plan hechas.
 - **Arreglos de la revisión final hechos** (2026-09-24): casilla que "fija" en vez de alternar, con cola (`src/estado/cola.ts`); editar una tarea solo aplica los campos cambiados (`aplicarEdicion`) y tareas/áreas se refrescan al volver a la app; "hoy" cambia a medianoche (`src/estado/hoy.ts`); aviso del token en Ajustes.
 - Detalles, decisiones y los arreglos menores aplazados: `.superpowers/sdd/plan-v1/progress.md` (líneas `Final:`).

@@ -113,7 +113,7 @@ Un trazo nuevo con `herramienta: "letra"`:
 - Letras: la A a la Z en mayúsculas y minúsculas, á é í ó ú ü ñ (y sus mayúsculas), ¿ ¡, números, espacio y . , ; : ' " ( ) [ ] + − - = × · ÷ / ^ _ < > ² ³ ± %. Además, dibujados para esta app: ∫ √ π ∞ ≤ ≥ ≠ → Δ θ α β λ ∑. Un carácter que no está se dibuja como «?» y el validador avisa.
 - La letra sale de una fuente de un solo trazo con licencia libre (se elige en el primer paso del plan; candidata: **EMS Allure**, licencia OFL, del paquete `hersheytext`). Un script (como `scripts/iconos.ts`) la convierte una vez a un archivo de la app (`src/estudio/letraMano.datos.ts`), sin descargar nada al compilar. Si la fuente no tiene tildes o ñ, se componen con la letra base más el acento.
 - Para las fórmulas complicadas (fracciones grandes, matrices, integrales con límites) Claude sigue usando piezas `formula`.
-- Se comporta como una forma de la parte 1: el lazo la selecciona (por su caja) y la mueve (cambian `x` e `y`), el borrador de trazos la quita entera y la **goma la convierte en trazos `lapiz` normales** y los corta. Copiar y pegar la copia tal cual.
+- Se comporta como una forma de la parte 1: el lazo la selecciona como los demás trazos, por sus puntos (más de la mitad de los puntos de sus letras dentro del lazo), y la mueve (cambian `x` e `y`), el borrador de trazos la quita entera y la **goma la convierte en trazos `lapiz` normales** y los corta. Copiar y pegar la copia tal cual.
 - En el formato, `puntos` pasa a ser obligatorio en todas las herramientas menos `letra`. La foto de Claude la enseña ya convertida.
 
 ### Animación

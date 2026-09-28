@@ -1,4 +1,5 @@
 import { getStroke } from 'perfect-freehand';
+import { lapizParcial, lineasParciales } from './animacion';
 import type { Punto } from './geometria';
 import { pares, polilineas, type Trazo } from './tinta';
 
@@ -12,4 +13,11 @@ export function figuraDe(t: Trazo): { d: string; relleno: boolean } {
   const borde = getStroke(puntos, { size: t.grosor, thinning: t.presion ? 0.6 : 0, smoothing: 0.5, streamline: 0.4, simulatePressure: false, last: true });
   if (!borde.length) return { d: '', relleno: true };
   return { d: `M${borde.map(([x, y]) => `${r(x)} ${r(y)}`).join(' L')} Z`, relleno: true };
+}
+
+// Un trazo dibujado hasta la fracción f (0 a 1), para la animación.
+export function figuraParcial(t: Trazo, f: number): { d: string; relleno: boolean } {
+  if (f >= 1) return figuraDe(t);
+  if (t.herramienta === 'lapiz') return figuraDe(lapizParcial(t, f));
+  return { d: lineasParciales(t, f).map(camino).join(' '), relleno: false };
 }

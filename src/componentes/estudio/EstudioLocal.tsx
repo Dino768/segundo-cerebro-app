@@ -91,6 +91,7 @@ export function EstudioLocal({ asignatura, local }: Props) {
       cuantas.current = 0;
       setPizarras([]);
       setAbierta(null);
+      setRecienCreada(null);
       cambiadas.current.clear();
       guardarPreferencia(claveUltima(asignatura.id), id);
       await recargarPizarras(id, true);
@@ -104,6 +105,7 @@ export function EstudioLocal({ asignatura, local }: Props) {
     setMensajes([]);
     setPizarras([]);
     setAbierta(null);
+    setRecienCreada(null);
     cuantas.current = 0;
     cambiadas.current.clear();
     setConv({ id: crypto.randomUUID(), nueva: true });
@@ -354,7 +356,12 @@ export function EstudioLocal({ asignatura, local }: Props) {
             <div className="pestanas-pizarra">
               {pizarras.map((e) => (
                 <span key={e.n} className={`pestana-pizarra${e.n === actual?.n ? ' encendida' : ''}`}>
-                  <button onClick={() => setAbierta(e.n)}>
+                  <button
+                    onClick={() => {
+                      setAbierta(e.n);
+                      setRecienCreada(null);
+                    }}
+                  >
                     {e.pizarra?.titulo && e.pizarra.titulo !== `Pizarra ${e.n}` ? `${e.n}. ${e.pizarra.titulo}` : `Pizarra ${e.n}`}
                   </button>
                   <button

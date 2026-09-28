@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  AMARILLO, ESTILO_INICIAL, FONDOS, estiloDeNota, esSinFondo, leerEstiloNota, mezclar, opEstiloNueva, pasoLetra, posicionBarrita, recordarEstilo, redimensionar,
+  AMARILLO, ESTILO_INICIAL, FONDOS, estiloDeNota, esSinFondo, leerEstiloNota, menuAlaDerecha, mezclar, opEstiloNueva, pasoLetra, posicionBarrita, recordarEstilo, redimensionar,
 } from './estiloNota';
 import { COLORES } from './herramientas';
 
@@ -84,5 +84,18 @@ describe('dónde poner la barrita (que no se salga del lienzo, con overflow: hid
   });
   it('en la mitad de abajo del lienzo, el menú se abre hacia arriba', () => {
     expect(posicionBarrita(100, 500, 80, 800, 600, 300).menuArriba).toBe(true);
+  });
+});
+
+describe('hacia qué lado se abre un menú de colores de la barrita', () => {
+  it('con sitio a la derecha, se abre desde el botón hacia la derecha', () => {
+    expect(menuAlaDerecha(100, 800)).toBe(false);
+  });
+  it('si se saldría por la derecha (botón «Letra» con la barrita pegada al borde), se alinea a la derecha del botón', () => {
+    // 250 + 212 (ancho del menú) + 4 > 390
+    expect(menuAlaDerecha(250, 390)).toBe(true);
+  });
+  it('sin medidas del lienzo, como siempre', () => {
+    expect(menuAlaDerecha(250, 0)).toBe(false);
   });
 });

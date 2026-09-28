@@ -96,3 +96,12 @@ export function posicionBarrita(x: number, y: number, alto: number, anchoLienzo:
   const left = anchoLienzo > 0 ? Math.min(Math.max(x, 4), Math.max(4, anchoLienzo - anchoBarrita - 4)) : x;
   return { left, top, abajo, menuArriba: altoLienzo > 0 && top > altoLienzo / 2 };
 }
+
+// Ancho del menú de colores (.menu-colores en estilos.css).
+export const ANCHO_MENU_COLORES = 212;
+
+// Un menú de colores se abre desde su botón hacia la derecha; si así se saldría del lienzo
+// (`xBoton` es el borde izquierdo del botón en píxeles del lienzo), se alinea con el borde derecho del botón.
+export function menuAlaDerecha(xBoton: number, anchoLienzo: number): boolean {
+  return anchoLienzo > 0 && xBoton + ANCHO_MENU_COLORES + 4 > anchoLienzo;
+}

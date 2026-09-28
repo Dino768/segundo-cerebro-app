@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
-import { ANCHO_BARRITA_ESTIMADO, FONDOS, pasoLetra, posicionBarrita, type AspectoNota, type CambioEstilo } from '../../estudio/estiloNota';
+import { ANCHO_BARRITA_ESTIMADO, FONDOS, menuAlaDerecha, pasoLetra, posicionBarrita, type AspectoNota, type CambioEstilo } from '../../estudio/estiloNota';
 import { COLORES } from '../../estudio/herramientas';
 import { SIN_FONDO } from '../../estudio/pizarra';
 
@@ -58,6 +58,12 @@ function ColorPropio({ etiqueta, alElegir, alTerminar }: { etiqueta: string; alE
 // Barrita que sale sobre la pieza seleccionada: borrar y, en las notas, fondo, color y tamaño de letra. Y el tirador de la esquina.
 export function BarritaPieza({ x, y, ancho, alto, anchoLienzo, altoLienzo, idPieza, nota, alBorrar, alEstilo, alTerminar }: Props) {
   const [menu, setMenu] = useState<'fondo' | 'letra' | null>(null);
+  // Borde izquierdo del botón del menú abierto dentro de la barrita (offsetLeft de su .con-menu), para que el menú no se salga por la derecha.
+  const [xMenu, setXMenu] = useState(0);
+  const abrir = (cual: 'fondo' | 'letra', e: MouseEvent<HTMLButtonElement>) => {
+    setXMenu(e.currentTarget.parentElement?.offsetLeft ?? 0);
+    setMenu(menu === cual ? null : cual);
+  };
   const caja = useRef<HTMLDivElement>(null);
   // Antes de medir la barrita real (o en las pruebas, que no montan el DOM) se usa el peor caso, para
   // no dejarla salirse un instante hasta que se mida. useLayoutEffect: se mide antes de pintar en pantalla.
@@ -71,7 +77,7 @@ export function BarritaPieza({ x, y, ancho, alto, anchoLienzo, altoLienzo, idPie
     setMenu(null);
     alEstilo(c);
   };
-  const claseMenu = `menu-colores${pos.menuArriba ? ' arriba' : ''}`;
+  const claseMenu = `menu-colores${pos.menuArriba ? ' arriba' : ''}${menuAlaDerecha(pos.left + xMenu, anchoLienzo) ? ' derecha' : ''}`;
   return (
     <>
       <div
@@ -87,7 +93,7 @@ export function BarritaPieza({ x, y, ancho, alto, anchoLienzo, altoLienzo, idPie
         {nota && (
           <>
             <span className="con-menu">
-              <button data-sin-foco className={menu === 'fondo' ? 'encendida' : ''} aria-expanded={menu === 'fondo'} onClick={() => setMenu(menu === 'fondo' ? null : 'fondo')}>Fondo ▾</button>
+              <button data-sin-foco className={menu === 'fondo' ? 'encendida' : ''} aria-expanded={menu === 'fondo'} onClick={(e) => abrir('fondo', e)}>Fondo ▾</button>
               {menu === 'fondo' && (
                 <div className={claseMenu} role="menu">
                   <button data-sin-foco className={`sin-color${nota.fondo === SIN_FONDO ? ' encendida' : ''}`} onClick={() => elegir({ fondo: SIN_FONDO })}>Sin fondo</button>
@@ -99,7 +105,7 @@ export function BarritaPieza({ x, y, ancho, alto, anchoLienzo, altoLienzo, idPie
               )}
             </span>
             <span className="con-menu">
-              <button data-sin-foco className={menu === 'letra' ? 'encendida' : ''} aria-expanded={menu === 'letra'} onClick={() => setMenu(menu === 'letra' ? null : 'letra')}>
+              <button data-sin-foco className={menu === 'letra' ? 'encendida' : ''} aria-expanded={menu === 'letra'} onClick={(e) => abrir('letra', e)}>
                 Letra <span className="muestra-color" style={{ background: nota.colorTexto ?? 'var(--texto)' }} /> ▾
               </button>
               {menu === 'letra' && (

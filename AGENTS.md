@@ -51,7 +51,7 @@ Node está en `C:\Program Files\nodejs`. En la terminal Bash de Claude Code pued
 El token se guarda en el `localStorage` del navegador, y ese almacenamiento es compartido por todo el dominio `https://dino768.github.io`. Cualquier otra web que Diego publique con GitHub Pages en su cuenta (un juego, un portfolio…) podría leerlo. Recuérdaselo si va a publicar otra web y recomiéndale tokens con caducidad corta (90 días o menos). La alternativa gratuita es mover la app a una organización de GitHub propia, con su propio dominio: está pendiente de proponérselo.
 
 ## Estado actual
-Última actualización: 2026-09-28 (v1.4 parte 2, entrega 2 publicada, con nombres, borrar y buscar chats).
+Última actualización: 2026-09-30 (uni conectada, parte A, y v1.5 «tareas ordenadas» publicadas).
 - **Versión 1 terminada y publicada** en https://dino768.github.io/segundo-cerebro-app/. Diego la tiene instalada en el PC, el portátil y el iPhone, con un token por dispositivo. Tasks 0 a 15 del plan hechas.
 - **Arreglos de la revisión final hechos** (2026-09-24): casilla que "fija" en vez de alternar, con cola (`src/estado/cola.ts`); editar una tarea solo aplica los campos cambiados (`aplicarEdicion`) y tareas/áreas se refrescan al volver a la app; "hoy" cambia a medianoche (`src/estado/hoy.ts`); aviso del token en Ajustes.
 - Detalles, decisiones y los arreglos menores aplazados: `.superpowers/sdd/plan-v1/progress.md` (líneas `Final:`).
@@ -74,5 +74,9 @@ El token se guarda en el `localStorage` del navegador, y ese almacenamiento es c
   - **Siguiente:** Diego prueba la entrega 1 en el iPhone y el iPad (abrir la app una vez en cada uno).
 - **Versión 1.4, parte 2, entrega 2 publicada** (2026-09-28): Claude dibuja con trazos de verdad (formas, lápiz) y escribe a mano (trazo `letra`, letra EMS Readability), y lo nuevo aparece animado. Plan: `docs/superpowers/plans/2026-09-28-dibujo-a-mano-parte-2-entrega-2.md`. Registro: `.superpowers/sdd/2026-09-28-dibujo-a-mano-parte-2-entrega-2/progress.md`.
   - Diego la probó en el PC y funciona. Añadido antes de publicar: cambiar el nombre, borrar y buscar chats en la lista de conversaciones (✏️, 🗑 y «🔎 Buscar chat…»; `VERSION_PROGRAMA` 4).
+
+- **Uni conectada, parte A (calendario automático), publicada** (2026-09-30): el workflow `my-context/.github/workflows/uni.yml` ejecuta `sincronizar/uni.ts` cada 3 horas y mete en `tareas.yaml` los exámenes oficiales de la URJC (web pública) y las entregas del aula virtual (enlace iCal en el secret `URJC_CALENDARIO`) de las asignaturas con `codigo`. Diseño: `docs/superpowers/specs/2026-09-30-uni-calendario-design.md`. Plan: `docs/superpowers/plans/2026-09-30-uni-calendario.md`. Registro: `.superpowers/sdd/2026-09-30-uni-calendario/progress.md`.
+- **Versión 1.5 (tareas ordenadas) publicada** (2026-09-30): tipos de tarea, plazos y prioridad automática de exámenes y entregas, repetir cada mes/año con `hasta`, pantalla Tareas con «Ahora» y «Por áreas», «Próximos exámenes» en el Inicio. Las 22 tareas importadas ya tienen tipo; Boxeo se borró (Diego lo crea como evento). Diseño: `docs/superpowers/specs/2026-09-30-tareas-ordenadas-design.md`. Plan: `docs/superpowers/plans/2026-09-30-tareas-ordenadas.md`. Registro (con rulings y menores aplazados): `.superpowers/sdd/2026-09-30-tareas-ordenadas/progress.md`.
+  - **Siguiente:** Diego abre la app en todos sus dispositivos y la prueba. Hasta que lo confirme, no escribir `repetir: mes|año` ni `hasta` en sus datos. Pendiente de cerrar: borrar `C:\Users\Diego\.segundo-cerebro\urjc-calendario.txt` (ya no hace falta: el enlace está en el secret). Después: parte C (contenidos y avisos del aula virtual, parciales) + horario de clases.
 
 Mantén esta sección al día cuando avances.

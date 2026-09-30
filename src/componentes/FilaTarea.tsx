@@ -30,7 +30,7 @@ export function FilaTarea({ tarea, dia, mostrarFecha = false, alEditar }: Props)
   const detalle = [
     mostrarFecha ? tarea.fecha : undefined,
     tarea.hora,
-    esRepetida(tarea) ? `cada ${tarea.repetir!.join(', ')}` : undefined,
+    esRepetida(tarea) ? `cada ${Array.isArray(tarea.repetir) ? tarea.repetir.join(', ') : tarea.repetir}` : undefined,
   ]
     .filter(Boolean)
     .join(' · ');

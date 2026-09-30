@@ -120,3 +120,25 @@ describe('siguienteIdTarea', () => {
     expect(siguienteIdTarea('2026-09-30', [{ id: 't-20260930-1' }, { id: 't-20260930-7' }, { id: 't-20260929-9' }])).toBe('t-20260930-8');
   });
 });
+
+describe('tipo, repetir mes/año y hasta', () => {
+  const una = (extra: string) => parseTareas(`- id: t-1\n  titulo: X\n  area: uni\n${extra}`)[0];
+  it('se leen', () => {
+    expect(una('  tipo: evento\n  fecha: 2026-10-01\n  repetir: [lun, mie]\n  hasta: 2026-10-31\n')).toMatchObject({ tipo: 'evento', repetir: ['lun', 'mie'], hasta: '2026-10-31' });
+    expect(una('  fecha: 2026-10-05\n  repetir: mes\n').repetir).toBe('mes');
+    expect(una('  fecha: 2027-03-14\n  repetir: año\n').repetir).toBe('año');
+  });
+  it('una tarea antigua sin tipo sigue igual', () => {
+    const t = una('  repetir: [vie]\n');
+    expect(t.tipo).toBeUndefined();
+    expect(t.repetir).toEqual(['vie']);
+  });
+  it('errores', () => {
+    expect(() => una('  tipo: cita\n')).toThrow('tipo debe ser');
+    expect(() => una('  repetir: semana\n')).toThrow('repetir debe ser');
+    expect(() => una('  repetir: mes\n')).toThrow('necesita fecha');
+    expect(() => una('  hasta: 2026-10-31\n')).toThrow('hasta solo vale');
+    expect(() => una('  fecha: 2026-10-10\n  repetir: [lun]\n  hasta: 2026-10-01\n')).toThrow('anterior a fecha');
+    expect(() => una('  repetir: [lun]\n  hasta: mañana\n')).toThrow('hasta debe tener');
+  });
+});

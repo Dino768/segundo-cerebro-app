@@ -28,7 +28,7 @@ export function FormTarea({ edicion, cerrar }: Props) {
   const [prioridad, setPrioridad] = useState<Prioridad>(original?.prioridad ?? 'media');
   const [fecha, setFecha] = useState(original?.fecha ?? nueva.fecha ?? '');
   const [hora, setHora] = useState(original?.hora ?? '');
-  const [repetir, setRepetir] = useState<Dia[]>(original?.repetir ?? []);
+  const [repetir, setRepetir] = useState<Dia[]>(Array.isArray(original?.repetir) ? original.repetir : []);
   // Una idea vinculada a un proyecto que ya no existe no debe guardar ese id viejo en la tarea.
   const proyectoNuevo = nueva.proyecto && datos.proyectos.some((p) => p.id === nueva.proyecto) ? nueva.proyecto : '';
   const [proyecto, setProyecto] = useState(original?.proyecto ?? proyectoNuevo);

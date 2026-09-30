@@ -1,4 +1,5 @@
-import { proximas, repetidas, sinFecha } from '../agenda/tareas';
+import { gruposAhora } from '../agenda/grupos';
+import { repetidas, sinFecha } from '../agenda/tareas';
 import { FilaTarea } from '../componentes/FilaTarea';
 import type { Edicion } from '../componentes/FormTarea';
 import type { Tarea } from '../datos/tareas';
@@ -32,7 +33,7 @@ export function Tareas({ editar }: { editar(e: Edicion): void }) {
           + Nueva tarea
         </button>
       </div>
-      {seccion('Próximas', proximas(datos.tareas, hoy), 'No hay tareas con fecha pendientes.', true)}
+      {seccion('Próximas', gruposAhora(datos.tareas, hoy).find((g) => g.clave === 'proximas')?.tareas ?? [], 'No hay tareas con fecha pendientes.', true)}
       {seccion('Se repiten', repetidas(datos.tareas, hoy), 'No hay tareas que se repitan.')}
       {seccion('Sin fecha', sinFecha(datos.tareas), 'No hay tareas sin fecha.')}
     </section>

@@ -71,12 +71,6 @@ export function atrasadas(ts: Tarea[], hoy: ISODate): Tarea[] {
     .sort((a, b) => a.fecha!.localeCompare(b.fecha!) || compararPrioridad(a, b));
 }
 
-export function proximas(ts: Tarea[], hoy: ISODate): Tarea[] {
-  return ts
-    .filter((t) => !esRepetida(t) && !!t.fecha && t.fecha >= hoy && !t.hecha)
-    .sort((a, b) => a.fecha!.localeCompare(b.fecha!) || compararHora(a, b) || compararPrioridad(a, b));
-}
-
 export function repetidas(ts: Tarea[], hoy: ISODate): Tarea[] {
   return ts.filter((t) => esRepetida(t) && !(t.hasta && t.hasta < hoy)).sort((a, b) => compararHora(a, b) || compararPrioridad(a, b));
 }

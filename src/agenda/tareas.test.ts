@@ -4,7 +4,7 @@ import { parseAreas } from '../datos/areas';
 import {
   alternarArea, aplicarEdicion, atrasadas, borrarDeLista, contarPendientes, encendidasEfectivas, filtrarPorAreas, fijarEnLista, fijarHecha,
   hayOtrasAreas, hechaEl, nuevoIdTarea, OTRAS,
-  describirRepeticion, ocurreEl, proximas, repetidas, sinFecha, tareasDelDia, topSinFecha,
+  describirRepeticion, ocurreEl, repetidas, sinFecha, tareasDelDia, topSinFecha,
 } from './tareas';
 
 const t = (x: Partial<Tarea> & { id: string }): Tarea => ({ titulo: x.id, area: 'uni', ...x });
@@ -85,9 +85,6 @@ describe('listas', () => {
 
   it('atrasadas: con fecha pasada y sin hacer, nunca repetidas', () => {
     expect(ids(atrasadas(ts, hoy))).toEqual(['vieja', 'ayer']);
-  });
-  it('proximas: de hoy en adelante y sin hacer', () => {
-    expect(ids(proximas(ts, hoy))).toEqual(['hoy', 'futura']);
   });
   it('repetidas', () => {
     expect(ids(repetidas(ts, hoy))).toEqual(['rep']);

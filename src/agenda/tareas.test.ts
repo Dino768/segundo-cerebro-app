@@ -119,6 +119,11 @@ describe('cambios sobre la lista', () => {
     expect(r).toHaveLength(3);
     expect(r[2]).toEqual({ id: 't-20260923-1', titulo: 'Nueva', area: 'uni' });
   });
+  it('aplicarEdicion conserva origen al editar (la app no lo enseña)', () => {
+    const original = t({ id: 'a', titulo: 'Entrega: P1', origen: 'moodle:1@aula' });
+    const r = aplicarEdicion([original], original, { ...original, titulo: 'Entregar P1' }, ahora);
+    expect(r[0]).toEqual({ id: 'a', titulo: 'Entregar P1', area: 'uni', origen: 'moodle:1@aula' });
+  });
   it('aplicarEdicion cambia solo los campos editados y respeta los cambios remotos', () => {
     const original = t({ id: 'a', titulo: 'Viejo', notas: 'n' });
     const remota = [t({ id: 'a', titulo: 'Viejo', notas: 'n', hecha: true, prioridad: 'alta' }), t({ id: 'b' })];

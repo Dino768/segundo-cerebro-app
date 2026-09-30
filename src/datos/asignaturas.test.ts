@@ -25,3 +25,24 @@ describe('asignaturas.yaml', () => {
     expect(parseAsignaturas(serializarAsignaturas(lista))).toEqual(lista);
   });
 });
+
+describe('codigo de la URJC', () => {
+  it('se lee y se conserva al guardar', () => {
+    const texto = 'asignaturas:\n  - id: calculo\n    nombre: Cálculo\n    color: "#36ace7"\n    codigo: "2327007"\n';
+    const l = parseAsignaturas(texto);
+    expect(l).toEqual([{ id: 'calculo', nombre: 'Cálculo', color: '#36ace7', codigo: '2327007' }]);
+    expect(serializarAsignaturas(l)).toContain('codigo: "2327007"');
+    expect(parseAsignaturas(serializarAsignaturas(l))).toEqual(l);
+  });
+  it('sin comillas (número) también vale', () => {
+    expect(parseAsignaturas('asignaturas:\n  - id: calculo\n    nombre: Cálculo\n    color: "#36ace7"\n    codigo: 2327007\n')[0].codigo).toBe('2327007');
+  });
+  it('sin codigo no aparece el campo', () => {
+    const l = parseAsignaturas('asignaturas:\n  - id: fisica\n    nombre: Física\n    color: "#3d7bb8"\n');
+    expect('codigo' in l[0]).toBe(false);
+    expect(serializarAsignaturas(l)).not.toContain('codigo');
+  });
+  it('un codigo que no son 7 cifras es un error', () => {
+    expect(() => parseAsignaturas('asignaturas:\n  - id: calculo\n    nombre: Cálculo\n    color: "#36ace7"\n    codigo: "23A"\n')).toThrow('codigo');
+  });
+});

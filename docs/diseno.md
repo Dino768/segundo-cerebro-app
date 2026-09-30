@@ -63,6 +63,7 @@ Una lista de tareas. Campos:
 | `hecha` | no | `true`/`false`, solo para tareas que no se repiten. Por defecto `false` |
 | `hechas` | no | lista de fechas `AAAA-MM-DD` en las que se completó una tarea repetida |
 | `icono` | no | nombre de un icono de Tabler, en inglés (por ejemplo `cube`); lista en https://tabler.io/icons |
+| `origen` | no | de dónde viene una tarea importada: `urjc-examen:…` o `moodle:<UID>`. Lo escribe la sincronización de la uni; la app lo conserva y no lo enseña |
 
 Reglas:
 - Una tarea con `repetir` aparece todos los días indicados. Si además tiene `fecha`, empieza ese día.
@@ -164,8 +165,20 @@ asignaturas:
   - id: fisica          # minúsculas, números y guiones; «general» está reservado
     nombre: Física
     color: "#3d7bb8"    # entre comillas
+    codigo: "2327007"   # opcional: código de 7 cifras de la asignatura en la URJC, entre comillas
 ```
-«General» siempre existe y no va en el archivo. Quitar una asignatura no borra su carpeta ni su historial.
+«General» siempre existe y no va en el archivo. Quitar una asignatura no borra su carpeta ni su historial. Solo las asignaturas con `codigo` se sincronizan con la URJC.
+
+### Uni: `estudios/uni-sincronizacion.yaml`
+Lo escribe solo la sincronización de la uni (`sincronizar/uni.ts`, cada 3 horas desde el workflow `my-context/.github/workflows/uni.yml`). Guarda, por `origen`, lo último que dijo la fuente:
+```yaml
+vistos:
+  urjc-examen:2026-27:2327007:E:AM:
+    fecha: 2027-01-21
+    hora: "09:00"
+    notas: 09:00 - 12:00 · Aulario II - Aula 204
+```
+Reglas: solo se crea en `tareas.yaml` lo que no está en `vistos` (lo que Diego borra no vuelve); `fecha`, `hora` y las `notas` de un examen solo cambian si cambian en la fuente; nunca se tocan título, prioridad, icono, proyecto ni `hecha`; nada se borra. Lo pasado se quita de `vistos`. Detalle: `docs/superpowers/specs/2026-09-30-uni-calendario-design.md`.
 
 ### Estudio: pizarras
 - En curso (solo en el ordenador, git las ignora): `estudios/<asignatura>/.en-curso/<id-conversación>/pizarra-<n>.json` y sus capturas en `…/imagenes/`.

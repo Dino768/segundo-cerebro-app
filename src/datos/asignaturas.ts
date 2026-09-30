@@ -1,11 +1,12 @@
 import { stringify } from 'yaml';
-import { RUTA_ASIGNATURAS } from './rutas';
-import { ErrorDatos, leerYaml } from './yaml';
+import { RUTA_ASIGNATURAS } from './rutas.ts';
+import { ErrorDatos, leerYaml } from './yaml.ts';
 
 export interface Asignatura {
   id: string;
   nombre: string;
   color: string;
+  codigo?: string; // código de la asignatura en la URJC (7 cifras), para la sincronización de la uni
 }
 
 // «General» siempre existe y no va en el archivo.
@@ -32,10 +33,15 @@ export function parseAsignaturas(texto: string): Asignatura[] {
     vistos.add(a.id);
     if (typeof a.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(a.color))
       throw new ErrorDatos(RUTA_ASIGNATURAS, `asignatura ${i + 1} (${a.id}): color debe escribirse entre comillas, como "#3d7bb8"`);
-    return { id: a.id, nombre: a.nombre, color: a.color };
+    const codigo = typeof a.codigo === 'number' ? String(a.codigo) : a.codigo;
+    if (codigo !== undefined && codigo !== null && (typeof codigo !== 'string' || !/^\d{7}$/.test(codigo)))
+      throw new ErrorDatos(RUTA_ASIGNATURAS, `asignatura ${i + 1} (${a.id}): codigo debe ser el número de 7 cifras de la URJC entre comillas, como "2327007"`);
+    return { id: a.id, nombre: a.nombre, color: a.color, ...(typeof codigo === 'string' ? { codigo } : {}) };
   });
 }
 
 export function serializarAsignaturas(lista: Asignatura[]): string {
-  return stringify({ asignaturas: lista.map(({ id, nombre, color }) => ({ id, nombre, color })) });
+  return stringify({
+    asignaturas: lista.map(({ id, nombre, color, codigo }) => ({ id, nombre, color, ...(codigo ? { codigo } : {}) })),
+  });
 }

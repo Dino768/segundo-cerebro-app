@@ -80,6 +80,19 @@ describe('arbolPorAreas', () => {
   });
 });
 
+describe('un examen marcado no desaparece hasta que pasa su fecha', () => {
+  const marcado = t({ id: 'marcado', tipo: 'examen', area: 'calculo', fecha: '2026-10-10', hecha: true });
+  const pasado = t({ id: 'pasado', tipo: 'examen', area: 'calculo', fecha: '2026-09-20', hecha: true });
+  it('sigue en «Se acerca», «Por áreas» y «Próximos exámenes»', () => {
+    expect(ids(gruposAhora([marcado, pasado], HOY).find((g) => g.clave === 'seAcerca')?.tareas ?? [])).toEqual(['marcado']);
+    expect(arbolPorAreas([marcado, pasado], AREAS, HOY)[0].subareas[0].tipos[0].tareas.map((x) => x.id)).toEqual(['marcado']);
+    expect(ids(proximosExamenes([marcado, pasado], HOY))).toEqual(['marcado']);
+  });
+  it('una tarea normal marcada sí desaparece', () => {
+    expect(arbolPorAreas([t({ id: 'n', area: 'calculo', hecha: true })], AREAS, HOY)).toEqual([]);
+  });
+});
+
 describe('proximosExamenes y urgentes', () => {
   const ts = [
     t({ id: 'e3', tipo: 'examen', fecha: '2027-01-21' }),
@@ -90,10 +103,10 @@ describe('proximosExamenes y urgentes', () => {
     t({ id: 'hecho', tipo: 'examen', fecha: '2026-10-02', hecha: true }),
     t({ id: 'entrega', tipo: 'entrega', fecha: '2026-10-03' }),
   ];
-  it('los 3 exámenes pendientes más cercanos desde hoy', () => {
-    expect(ids(proximosExamenes(ts, HOY))).toEqual(['e1', 'e2', 'e3']);
+  it('los 3 exámenes más cercanos desde hoy (también los marcados)', () => {
+    expect(ids(proximosExamenes(ts, HOY))).toEqual(['hecho', 'e1', 'e2']);
   });
   it('urgentes: exámenes y entregas en prioridad alta, después de hoy', () => {
-    expect(ids(urgentes(ts, HOY))).toEqual(['entrega', 'e1']);
+    expect(ids(urgentes(ts, HOY))).toEqual(['hecho', 'entrega', 'e1']);
   });
 });

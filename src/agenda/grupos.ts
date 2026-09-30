@@ -18,6 +18,9 @@ export interface GrupoAhora {
 
 const RANGO = { alta: 0, media: 1, baja: 2 } as const;
 const pendiente = (t: Tarea) => !esRepetida(t) && !t.hecha;
+// Un examen con fecha se sigue viendo (tachado si está marcado) hasta que pasa su día; el resto, mientras no esté hecho.
+const sigueEnLista = (t: Tarea, hoy: ISODate) =>
+  tipoDe(t) === 'examen' && !esRepetida(t) && !!t.fecha ? t.fecha >= hoy : pendiente(t);
 const despuesDeHoy = (t: Tarea, hoy: ISODate) => !!t.fecha && t.fecha > hoy;
 
 // Por fecha (sin fecha al final), hora y luego prioridad efectiva.
@@ -36,7 +39,7 @@ export function gruposAhora(ts: Tarea[], hoy: ISODate): GrupoAhora[] {
     { clave: 'hoy', titulo: 'Hoy', tareas: tareasDelDia(ts, hoy), plegado: false, mostrarFecha: false },
     {
       clave: 'seAcerca', titulo: 'Se acerca', plegado: false, mostrarFecha: true,
-      tareas: ts.filter((t) => pendiente(t) && despuesDeHoy(t, hoy) && enPlazo(t, hoy)).sort(orden),
+      tareas: ts.filter((t) => sigueEnLista(t, hoy) && despuesDeHoy(t, hoy) && enPlazo(t, hoy)).sort(orden),
     },
     {
       clave: 'proximas', titulo: 'Próximas', plegado: false, mostrarFecha: true,
@@ -73,8 +76,7 @@ export interface NodoArea extends NodoSubarea {
 function pendienteEnArbol(t: Tarea, hoy: ISODate): boolean {
   if (esRepetida(t)) return !(t.hasta && t.hasta < hoy);
   if (tipoDe(t) === 'evento') return !t.fecha || t.fecha >= hoy;
-  if (tipoDe(t) === 'examen') return !t.hecha && (!t.fecha || t.fecha >= hoy);
-  return !t.hecha;
+  return sigueEnLista(t, hoy);
 }
 
 function porTipo(ts: Tarea[], hoy: ISODate): RamaTipo[] {
@@ -102,7 +104,7 @@ export function arbolPorAreas(ts: Tarea[], areas: Area[], hoy: ISODate): NodoAre
 
 export function proximosExamenes(ts: Tarea[], hoy: ISODate, n = 3): Tarea[] {
   return ts
-    .filter((t) => tipoDe(t) === 'examen' && pendiente(t) && !!t.fecha && t.fecha >= hoy)
+    .filter((t) => tipoDe(t) === 'examen' && sigueEnLista(t, hoy) && !!t.fecha)
     .sort(ordenar(hoy))
     .slice(0, n);
 }
@@ -110,6 +112,6 @@ export function proximosExamenes(ts: Tarea[], hoy: ISODate, n = 3): Tarea[] {
 // Para la tarjeta Hoy del Inicio: exámenes y entregas de los próximos días en prioridad alta.
 export function urgentes(ts: Tarea[], hoy: ISODate): Tarea[] {
   return ts
-    .filter((t) => (tipoDe(t) === 'examen' || tipoDe(t) === 'entrega') && pendiente(t) && despuesDeHoy(t, hoy) && prioridadEfectiva(t, hoy) === 'alta')
+    .filter((t) => (tipoDe(t) === 'examen' || tipoDe(t) === 'entrega') && sigueEnLista(t, hoy) && despuesDeHoy(t, hoy) && prioridadEfectiva(t, hoy) === 'alta')
     .sort(ordenar(hoy));
 }

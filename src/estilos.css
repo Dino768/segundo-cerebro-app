@@ -410,3 +410,14 @@ body.con-pantalla-completa { overflow: hidden; }
 .durante { display: flex; gap: 6px; }
 .durante input { width: 4.5em; }
 .error-form { color: var(--peligro); font-size: 14px; margin: 8px 0 0; }
+.rejilla-tareas { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 20px; align-items: start; }
+@media (min-width: 900px) {
+  .rejilla-tareas { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+.desplegable > summary { display: flex; align-items: center; gap: 8px; padding: 6px 0; list-style: none; }
+.desplegable > summary::-webkit-details-marker { display: none; }
+.desplegable > summary::before { content: '▸'; color: var(--suave); width: 1em; }
+.desplegable[open] > summary::before { content: '▾'; }
+.desplegable .desplegable { margin-left: 18px; }
+.desplegable .total { margin-left: auto; color: var(--suave); font-size: 13px; font-weight: 400; }
+.grupo-plegable > summary.grupo { margin-top: 14px; }

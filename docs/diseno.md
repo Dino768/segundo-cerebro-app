@@ -53,11 +53,13 @@ Una lista de tareas. Campos:
 |---|---|---|
 | `id` | sí | texto único, generado por la app o por Claude (p. ej. `t-20260923-1`) |
 | `titulo` | sí | texto |
+| `tipo` | no | `tarea` (por defecto, no se escribe), `entrega`, `examen`, `recado` o `evento` |
 | `area` | sí | `id` de un área o de una subárea de `areas.yaml` |
-| `prioridad` | no | `alta`, `media`, `baja`. Por defecto `media` |
+| `prioridad` | no | `alta`, `media`, `baja`. Por defecto `media`; en exámenes y entregas, si no se escribe, se calcula sola según lo cerca que estén |
 | `fecha` | no | `AAAA-MM-DD`. Sin fecha, la tarea va a la lista "Sin fecha" |
 | `hora` | no | `"HH:MM"`. Se ignora si la tarea no tiene `fecha` ni `repetir` |
-| `repetir` | no | lista de días: `lun`, `mar`, `mie`, `jue`, `vie`, `sab`, `dom` |
+| `repetir` | no | lista de días (`lun`, `mar`, `mie`, `jue`, `vie`, `sab`, `dom`), o `mes` (cada mes, el día de `fecha`), o `año` (cada año, el día y mes de `fecha`). `mes` y `año` necesitan `fecha` |
+| `hasta` | no | `AAAA-MM-DD`: último día de una tarea que se repite. Sin él, se repite sin final. No puede ser anterior a `fecha` |
 | `proyecto` | no | `id` de un proyecto (nombre del archivo sin `.md`) |
 | `notas` | no | texto |
 | `hecha` | no | `true`/`false`, solo para tareas que no se repiten. Por defecto `false` |
@@ -68,7 +70,11 @@ Una lista de tareas. Campos:
 Reglas:
 - Una tarea con `repetir` aparece todos los días indicados. Si además tiene `fecha`, empieza ese día.
 - Una tarea con `repetir` nunca aparece como atrasada ni en "Sin fecha".
-- Una tarea con hora es también un evento del calendario. No hay un tipo "evento" aparte.
+- Una tarea con hora sale en el calendario a su hora. Los `evento` (boxeo, un cumpleaños) no tienen casilla de hecho y nunca están atrasados.
+- `repetir: mes` en un día que el mes no tiene (31 en abril) cae en el último día del mes; `repetir: año` el 29 de febrero, el 28 en años no bisiestos. Nada ocurre después de `hasta`.
+- Exámenes: llegan a las listas principales (tarjeta Ahora y Hoy del Inicio) 21 días antes con prioridad media y 7 días antes pasan a alta; un examen pasado nunca sale como atrasado. Entregas: 14 días antes (media) y 3 días antes (alta); una entrega pasada sin hacer sí sale como atrasada. En el calendario y en «Por áreas» aparecen siempre.
+- Los recados van a su propio grupo (no a "Sin fecha").
+- Detalle: `docs/superpowers/specs/2026-09-30-tareas-ordenadas-design.md`.
 
 Ejemplo:
 ```yaml
@@ -186,6 +192,8 @@ Reglas: solo se crea en `tareas.yaml` lo que no está en `vistos` (lo que Diego 
 - Formato: `{ "version": 1, "titulo", "piezas": [...], "flechas": [...], "guardarComo": null, "guardadaEn": null }`. Cada pieza lleva `id`, `tipo`, `x`, `y`, `ancho` (entre 40 y 2000), `contenido` y, opcional, `color`. Tipos: `texto` (Markdown con `$…$`), `formula` (LaTeX), `grafica` (`{x:[min,max], y:[min,max], curvas:[{expr, etiqueta?, color?}], puntos:[{x,y,etiqueta?}]}`), `dibujo` (SVG), `imagen` (`imagenes/<nombre>`) y `nota` (de Diego). Las flechas son `{id, de, a, etiqueta?}`. Detalle en `docs/superpowers/specs/2026-09-24-zona-de-estudio-design.md`, sección 6. Desde la v1.4 parte 2, las piezas `nota` pueden llevar `fondo` (`"ninguno"` o `#rrggbb`; si falta, amarillo), `colorTexto` (`#rrggbb`), `tamanoLetra` (`pequena`, `normal`, `grande`, `enorme`) y `alto` (30 a 4000); con alguno de ellos la pizarra es `version: 2`. Operación `estilo` (`{ tipo, id, fondo?, colorTexto?, tamanoLetra?, ancho?, alto? }`, `null` quita el campo). Detalle en `docs/superpowers/specs/2026-09-27-dibujo-a-mano-parte-2-design.md`.
 - Desde la v1.4, una pizarra puede tener `capas` (de abajo arriba; la de Claude, id `claude`, siempre existe), `trazos` (dibujo a mano: `id`, `herramienta` = `lapiz` | `subrayador` | `linea` | `flecha` | `rectangulo` | `elipse` | `letra`, `color` `#rrggbb`, `grosor` 1-40, `puntos` `[x, y, x, y…]`, `presion` opcional, `autor: "claude"` opcional, `capa`) y un campo `capa` en las piezas. Con algo de esto se escribe como `version: 2`; si no, sigue siendo `version: 1`. Detalle en `docs/superpowers/specs/2026-09-26-dibujo-a-mano-design.md`, sección 3. La herramienta `letra` (letra a mano de Claude, v1.4 parte 2) no lleva `puntos` sino `texto` (una línea, 1-200 caracteres), `x`, `y` (principio de la línea base), `tamano` (alto de las mayúsculas, 8-200) y `grosor` opcional (por defecto 3); la app la dibuja con la letra EMS Readability (`src/estudio/letraMano.ts`). Detalle en `docs/superpowers/specs/2026-09-27-dibujo-a-mano-parte-2-design.md`, sección 5.
 - Junto a cada pizarra en curso ya guardada en el historial está `pizarra-<n>.subida.json`: lo último que subió el PC, para juntarlo con lo que se dibuje en otro dispositivo.
+
+La sincronización crea los exámenes con `tipo: examen` y título `<asignatura> (<convocatoria>)`, las entregas con `tipo: entrega` y el título de Moodle sin «se cierra», y los demás eventos del aula virtual como `tarea`; nunca escribe `prioridad` ni `icono`.
 
 ## 4. Arquitectura
 

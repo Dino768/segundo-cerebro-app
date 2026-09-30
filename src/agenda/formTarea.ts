@@ -70,7 +70,13 @@ export function tareaDelFormulario(f: EstadoForm, original: Tarea | null, hoy: I
       ? f.hastaFecha || undefined
       : hastaDurante(fecha ?? hoy, f.durante, f.unidad);
   if (hasta && fecha && hasta < fecha) return { error: 'El último día no puede ser anterior a la fecha de inicio.' };
-  const prioridad = !c.prioridad || !f.prioridad || (f.tipo === 'tarea' && f.prioridad === 'media') ? undefined : f.prioridad;
+  // Un campo que el tipo no enseña: al editar sin cambiar de tipo se deja como estaba (Claude pudo escribirlo a mano);
+  // al crear o al cambiar de tipo se quita. Las notas nunca se pierden al cambiar de tipo.
+  const mismoTipo = original !== null && tipoDe(original) === f.tipo;
+  const oculto = <K extends keyof Tarea>(k: K): Tarea[K] | undefined => (mismoTipo ? original[k] : undefined);
+  const prioridad = !c.prioridad
+    ? oculto('prioridad')
+    : !f.prioridad || (f.tipo === 'tarea' && f.prioridad === 'media') ? undefined : f.prioridad;
   return {
     tarea: {
       ...original,
@@ -80,11 +86,11 @@ export function tareaDelFormulario(f: EstadoForm, original: Tarea | null, hoy: I
       tipo: f.tipo === 'tarea' ? undefined : f.tipo,
       prioridad,
       fecha,
-      hora: c.hora ? f.hora || undefined : undefined,
-      repetir,
-      hasta,
-      proyecto: c.proyecto ? f.proyecto || undefined : undefined,
-      notas: c.notas ? f.notas.trim() || undefined : undefined,
+      hora: c.hora ? f.hora || undefined : oculto('hora'),
+      repetir: c.repetir ? repetir : oculto('repetir'),
+      hasta: c.repetir ? hasta : oculto('hasta'),
+      proyecto: c.proyecto ? f.proyecto || undefined : oculto('proyecto'),
+      notas: c.notas || original ? f.notas.trim() || undefined : undefined,
     },
   };
 }

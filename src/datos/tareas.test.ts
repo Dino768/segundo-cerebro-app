@@ -133,12 +133,14 @@ describe('tipo, repetir mes/año y hasta', () => {
     expect(t.tipo).toBeUndefined();
     expect(t.repetir).toEqual(['vie']);
   });
+  it('una versión antigua de la app puede dejar «hasta» sin repetir o anterior a la fecha: se lee igual (no rompe el archivo)', () => {
+    expect(una('  hasta: 2026-10-31\n').hasta).toBe('2026-10-31');
+    expect(una('  fecha: 2026-10-10\n  repetir: [lun]\n  hasta: 2026-10-01\n').hasta).toBe('2026-10-01');
+  });
   it('errores', () => {
     expect(() => una('  tipo: cita\n')).toThrow('tipo debe ser');
     expect(() => una('  repetir: semana\n')).toThrow('repetir debe ser');
     expect(() => una('  repetir: mes\n')).toThrow('necesita fecha');
-    expect(() => una('  hasta: 2026-10-31\n')).toThrow('hasta solo vale');
-    expect(() => una('  fecha: 2026-10-10\n  repetir: [lun]\n  hasta: 2026-10-01\n')).toThrow('anterior a fecha');
     expect(() => una('  repetir: [lun]\n  hasta: mañana\n')).toThrow('hasta debe tener');
   });
 });

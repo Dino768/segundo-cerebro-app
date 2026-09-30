@@ -27,6 +27,10 @@ describe('plazos', () => {
     expect(prioridadEfectiva(e(4), HOY)).toBe('media');
     expect(prioridadEfectiva(e(3), HOY)).toBe('alta');
   });
+  it('un examen pasado no sale en alta (no se puede hacer tarde); una entrega vencida sí', () => {
+    expect(prioridadEfectiva(en(-3, { tipo: 'examen' }), HOY)).toBe('baja');
+    expect(prioridadEfectiva(en(-3, { tipo: 'entrega' }), HOY)).toBe('alta');
+  });
   it('la prioridad escrita a mano manda', () => {
     expect(prioridadEfectiva(en(100, { tipo: 'examen', prioridad: 'alta' }), HOY)).toBe('alta');
     expect(prioridadEfectiva(en(1, { tipo: 'examen', prioridad: 'baja' }), HOY)).toBe('baja');

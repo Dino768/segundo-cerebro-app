@@ -161,7 +161,18 @@ describe('contarPendientes', () => {
       t({ id: 'c', hecha: true }),
       t({ id: 'r', repetir: ['lun'] }),
     ];
-    expect(contarPendientes(ts)).toBe(2);
+    expect(contarPendientes(ts, '2026-10-01')).toBe(2);
+  });
+  it('no cuenta eventos ni exámenes o entregas lejanos; sí los cercanos y las entregas vencidas', () => {
+    const ts = [
+      t({ id: 'ev', tipo: 'evento', fecha: '2026-10-05' }),
+      t({ id: 'ex-junio', tipo: 'examen', fecha: '2027-06-09' }),
+      t({ id: 'ex-cerca', tipo: 'examen', fecha: '2026-10-10' }),
+      t({ id: 'ex-pasado', tipo: 'examen', fecha: '2026-09-20' }),
+      t({ id: 'en-vencida', tipo: 'entrega', fecha: '2026-09-28' }),
+      t({ id: 'en-lejos', tipo: 'entrega', fecha: '2026-12-10' }),
+    ];
+    expect(contarPendientes(ts, '2026-10-01')).toBe(2);
   });
 });
 

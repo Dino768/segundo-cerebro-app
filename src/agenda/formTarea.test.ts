@@ -67,6 +67,21 @@ describe('tareaDelFormulario', () => {
     expect(t).toMatchObject({ tipo: 'evento', repetir: ['lun'] });
     expect([t.prioridad, t.proyecto]).toEqual([undefined, undefined]);
   });
+  it('editar un evento sin cambiar el tipo no borra lo que el formulario no enseña (notas, proyecto)', () => {
+    const original: Tarea = { id: 'a', titulo: 'Cumpleaños de mamá', area: 'personal', tipo: 'evento', fecha: '2027-03-14', notas: 'regalo: libro', proyecto: 'p' };
+    const t = tarea(tareaDelFormulario({ ...estadoInicial(original, {}, 'x', undefined), hora: '18:00' }, original, HOY));
+    expect(t).toMatchObject({ notas: 'regalo: libro', proyecto: 'p', hora: '18:00' });
+  });
+  it('editar un recado sin cambiar el tipo conserva su hora y sus notas', () => {
+    const original: Tarea = { id: 'a', titulo: 'Huevos', area: 'personal', tipo: 'recado', hora: '10:00', notas: 'una docena' };
+    const t = tarea(tareaDelFormulario({ ...estadoInicial(original, {}, 'x', undefined), titulo: 'Huevos y leche' }, original, HOY));
+    expect(t).toMatchObject({ hora: '10:00', notas: 'una docena' });
+  });
+  it('al cambiar de tipo las notas no se pierden', () => {
+    const original: Tarea = { id: 'a', titulo: 'Boxeo', area: 'salud', notas: 'gimnasio nuevo', repetir: ['lun'] };
+    const t = tarea(tareaDelFormulario({ ...estadoInicial(original, {}, 'x', undefined), tipo: 'evento' }, original, HOY));
+    expect(t.notas).toBe('gimnasio nuevo');
+  });
   it('sin título, error', () => {
     expect(tareaDelFormulario(base({ titulo: '  ' }), null, HOY)).toEqual({ error: 'Escribe un título.' });
   });

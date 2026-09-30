@@ -69,10 +69,11 @@ export interface NodoArea extends NodoSubarea {
   subareas: NodoSubarea[];
 }
 
-// Lo pendiente: sin hacer; los eventos, mientras no hayan pasado; lo que se repite, mientras no haya terminado.
+// Lo pendiente: sin hacer; los eventos y exámenes, mientras no hayan pasado; lo que se repite, mientras no haya terminado.
 function pendienteEnArbol(t: Tarea, hoy: ISODate): boolean {
   if (esRepetida(t)) return !(t.hasta && t.hasta < hoy);
   if (tipoDe(t) === 'evento') return !t.fecha || t.fecha >= hoy;
+  if (tipoDe(t) === 'examen') return !t.hecha && (!t.fecha || t.fecha >= hoy);
   return !t.hecha;
 }
 

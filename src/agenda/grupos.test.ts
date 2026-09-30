@@ -62,6 +62,7 @@ describe('arbolPorAreas', () => {
       t({ id: 'evento-pasado', tipo: 'evento', fecha: '2026-09-01' }),
       t({ id: 'repe-terminada', repetir: ['lun'], hasta: '2026-09-30' }),
       t({ id: 'huevos', tipo: 'recado' }),
+      t({ id: 'ex-pasado', tipo: 'examen', area: 'calculo', fecha: '2026-09-20' }),
     ];
     const arbol = arbolPorAreas(ts, AREAS, HOY);
     expect(arbol.map((a) => [a.id, a.total])).toEqual([['uni', 4], ['personal', 1]]);

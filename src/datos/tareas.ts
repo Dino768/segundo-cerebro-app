@@ -47,11 +47,9 @@ function problema(t: Record<string, unknown>): string | null {
   if (t.repetir !== undefined && !cadaMesOAno && (!Array.isArray(t.repetir) || !t.repetir.every((d) => (DIAS as readonly unknown[]).includes(d))))
     return 'repetir debe ser una lista de días (lun, mar, mie, jue, vie, sab, dom), «mes» o «año»';
   if (cadaMesOAno && t.fecha === undefined) return `repetir: ${t.repetir as string} necesita fecha (el día que se repite)`;
-  if (t.hasta !== undefined) {
-    if (!isISODate(t.hasta)) return 'hasta debe tener el formato AAAA-MM-DD';
-    if (t.repetir === undefined) return 'hasta solo vale en una tarea que se repite';
-    if (typeof t.fecha === 'string' && t.hasta < t.fecha) return 'hasta no puede ser anterior a fecha';
-  }
+  // `hasta` sin repetir o anterior a `fecha` no rompe el archivo: una versión antigua de la app puede dejarlo así
+  // (quita los días o mueve la fecha sin conocer `hasta`). Sin repetir se ignora; antes de `fecha`, la tarea no se repite.
+  if (t.hasta !== undefined && !isISODate(t.hasta)) return 'hasta debe tener el formato AAAA-MM-DD';
   if (t.hechas !== undefined && (!Array.isArray(t.hechas) || !t.hechas.every(isISODate)))
     return 'hechas debe ser una lista de fechas AAAA-MM-DD';
   if (t.hecha !== undefined && typeof t.hecha !== 'boolean') return 'hecha debe ser true o false';

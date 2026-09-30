@@ -3,6 +3,7 @@ import type { Area } from '../datos/areas';
 import { diaDeSemana, formatoCorto, toISO, type Dia, type ISODate } from '../fechas';
 import { areaMadre } from './areas';
 import { mezclarCambios } from './cambios';
+import { enPlazo } from './plazos';
 import { tipoDe } from './tipos';
 
 export type TareaSinId = Omit<Tarea, 'id'> & { id?: string };
@@ -115,8 +116,16 @@ export function fijarEnLista(ts: Tarea[], id: string, dia: ISODate, valor: boole
   return ts.map((t) => (t.id === id ? fijarHecha(t, dia, valor) : t));
 }
 
-export function contarPendientes(ts: Tarea[]): number {
-  return ts.filter((t) => !esRepetida(t) && !t.hecha).length;
+// Número de la barra lateral: lo que de verdad toca hacer. Sin eventos (no se marcan) ni exámenes o entregas lejanos;
+// las entregas vencidas sí cuentan (salen como atrasadas).
+export function contarPendientes(ts: Tarea[], hoy: ISODate): number {
+  return ts.filter((t) => {
+    if (esRepetida(t) || t.hecha) return false;
+    const tipo = tipoDe(t);
+    if (tipo === 'evento') return false;
+    if ((tipo === 'examen' || tipo === 'entrega') && t.fecha) return enPlazo(t, hoy) || (tipo === 'entrega' && t.fecha < hoy);
+    return true;
+  }).length;
 }
 
 // Filtro de "calendarios" por área. `encendidas` vacía = todas. OTRAS agrupa las áreas que no están en areas.yaml.

@@ -32,6 +32,7 @@ export function prioridadEfectiva(t: Tarea, hoy: ISODate): Prioridad {
   const p = plazoDe(t);
   if (!p) return 'media';
   const f = faltan(t.fecha!, hoy);
+  if (f < 0 && tipoDe(t) === 'examen') return 'baja'; // un examen pasado ya no se puede hacer
   if (f <= p.alta) return 'alta';
   return f <= p.aparece ? 'media' : 'baja';
 }

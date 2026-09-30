@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseTareas, serializarTareas } from './tareas';
+import { parseTareas, serializarTareas, siguienteIdTarea } from './tareas';
 import { ErrorDatos } from './yaml';
 
 const EJEMPLO = `- id: t-20260923-1
@@ -99,5 +99,24 @@ describe('serializarTareas', () => {
 
   it('una lista vacía se guarda como []', () => {
     expect(serializarTareas([])).toBe('[]\n');
+  });
+});
+
+describe('origen', () => {
+  it('se lee y se vuelve a escribir', () => {
+    const texto = '- id: t-1\n  titulo: Entrega\n  area: uni\n  origen: moodle:123@aula\n';
+    const ts = parseTareas(texto);
+    expect(ts[0].origen).toBe('moodle:123@aula');
+    expect(serializarTareas(ts)).toContain('origen: moodle:123@aula');
+  });
+  it('tiene que ser texto', () => {
+    expect(() => parseTareas('- id: t-1\n  titulo: X\n  area: uni\n  origen: 5\n')).toThrow('origen debe ser texto');
+  });
+});
+
+describe('siguienteIdTarea', () => {
+  it('sigue la numeración del día sin repetir', () => {
+    expect(siguienteIdTarea('2026-09-30', [])).toBe('t-20260930-1');
+    expect(siguienteIdTarea('2026-09-30', [{ id: 't-20260930-1' }, { id: 't-20260930-7' }, { id: 't-20260929-9' }])).toBe('t-20260930-8');
   });
 });

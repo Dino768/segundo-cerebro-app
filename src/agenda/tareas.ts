@@ -1,4 +1,4 @@
-import type { Prioridad, Tarea } from '../datos/tareas';
+import { siguienteIdTarea, type Prioridad, type Tarea } from '../datos/tareas';
 import type { Area } from '../datos/areas';
 import { diaDeSemana, toISO, type ISODate } from '../fechas';
 import { areaMadre } from './areas';
@@ -78,14 +78,7 @@ export function fijarHecha(t: Tarea, dia: ISODate, valor: boolean): Tarea {
 }
 
 export function nuevoIdTarea(ahora: Date, existentes: Tarea[]): string {
-  const prefijo = `t-${toISO(ahora).replace(/-/g, '')}-`;
-  let max = 0;
-  for (const t of existentes) {
-    if (!t.id.startsWith(prefijo)) continue;
-    const n = Number(t.id.slice(prefijo.length));
-    if (Number.isInteger(n) && n > max) max = n;
-  }
-  return `${prefijo}${max + 1}`;
+  return siguienteIdTarea(toISO(ahora), existentes);
 }
 
 export function aplicarEdicion(ts: Tarea[], original: Tarea | null, editada: TareaSinId, ahora: Date): Tarea[] {

@@ -1,7 +1,7 @@
 import { stringify } from 'yaml';
-import { DIAS, isHora, isISODate, type Dia, type ISODate } from '../fechas';
-import { RUTA_TAREAS } from './rutas';
-import { ErrorDatos, leerYaml, quitarNulos } from './yaml';
+import { DIAS, isHora, isISODate, type Dia, type ISODate } from '../fechas.ts';
+import { RUTA_TAREAS } from './rutas.ts';
+import { ErrorDatos, leerYaml, quitarNulos } from './yaml.ts';
 
 export type Prioridad = 'alta' | 'media' | 'baja';
 export const PRIORIDADES: Prioridad[] = ['alta', 'media', 'baja'];
@@ -19,6 +19,8 @@ export interface Tarea {
   notas?: string;
   hecha?: boolean;
   hechas?: ISODate[];
+  // De dónde viene una tarea importada (p. ej. `moodle:<UID>`). La app no lo enseña, solo lo conserva.
+  origen?: string;
 }
 
 function textoNoVacio(x: unknown): boolean {
@@ -41,6 +43,7 @@ function problema(t: Record<string, unknown>): string | null {
   if (t.proyecto !== undefined && typeof t.proyecto !== 'string') return 'proyecto debe ser texto';
   if (t.notas !== undefined && typeof t.notas !== 'string') return 'notas debe ser texto';
   if (t.icono !== undefined && typeof t.icono !== 'string') return 'icono debe ser el nombre de un icono (texto)';
+  if (t.origen !== undefined && typeof t.origen !== 'string') return 'origen debe ser texto';
   return null;
 }
 
@@ -64,4 +67,16 @@ export function parseTareas(texto: string): Tarea[] {
 
 export function serializarTareas(ts: Tarea[]): string {
   return stringify(ts, { lineWidth: 0 });
+}
+
+// Id nuevo `t-AAAAMMDD-n` para el día indicado, sin repetir ninguno existente.
+export function siguienteIdTarea(dia: ISODate, existentes: { id: string }[]): string {
+  const prefijo = `t-${dia.replace(/-/g, '')}-`;
+  let max = 0;
+  for (const t of existentes) {
+    if (!t.id.startsWith(prefijo)) continue;
+    const n = Number(t.id.slice(prefijo.length));
+    if (Number.isInteger(n) && n > max) max = n;
+  }
+  return `${prefijo}${max + 1}`;
 }

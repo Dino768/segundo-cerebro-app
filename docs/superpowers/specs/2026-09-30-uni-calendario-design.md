@@ -66,8 +66,8 @@ Solo los eventos cuyo curso (el número de 7 cifras de `CATEGORIES`) es una asig
 - `origen`: `moodle:<UID>`.
 
 ### Reglas para no pisar nada
-1. **Solo se crea lo que nunca se ha visto.** Cada `origen` importado se apunta en `estudios/uni-sincronizacion.yaml` (lista `vistos`). Si Diego borra una tarea importada, no vuelve. Si la marca como hecha, sigue hecha.
-2. **Si la URJC cambia la fecha, la hora o el sitio** de algo que sigue en `tareas.yaml`, se actualizan solo `fecha`, `hora` y, en los exámenes, `notas`. El título, la prioridad, el icono, el proyecto y `hecha` son de Diego y no se tocan.
+1. **Solo se crea lo que nunca se ha visto.** Cada `origen` importado se apunta en `estudios/uni-sincronizacion.yaml` (lista `vistos`) junto con lo último que dijo la fuente (`fecha`, `hora` y, en los exámenes, `notas`). Si Diego borra una tarea importada, no vuelve. Si la marca como hecha, sigue hecha.
+2. **Solo se cambia lo que cambia la URJC.** Si la fuente trae una `fecha`, `hora` o (en los exámenes) `notas` distinta de la que tenía apuntada, ese campo se actualiza en la tarea. Si no ha cambiado en la fuente, no se toca, aunque Diego lo haya editado (por ejemplo, sus notas en un examen). El título, la prioridad, el icono, el proyecto y `hecha` nunca se tocan.
 3. **Si algo desaparece de la fuente, no se borra** de la app.
 4. Las tareas nuevas usan ids `t-AAAAMMDD-n` (con la fecha del día de la sincronización), sin repetir ninguno existente, igual que la app.
 
@@ -75,11 +75,16 @@ Solo los eventos cuyo curso (el número de 7 cifras de `CATEGORIES`) es una asig
 
 - `agenda/tareas.yaml`: campo opcional nuevo `origen` (texto). La app lo conserva al editar una tarea y lo valida como texto. No se enseña en pantalla.
 - `estudios/asignaturas.yaml`: campo opcional nuevo `codigo` (texto de 7 cifras, entre comillas). La app lo conserva al guardar asignaturas (hoy lo borraría: `serializarAsignaturas` solo escribe `id`, `nombre` y `color`).
-- `estudios/uni-sincronizacion.yaml` (nuevo, lo escribe solo la sincronización):
+- `estudios/uni-sincronizacion.yaml` (nuevo, lo escribe solo la sincronización). Lo ya pasado (fecha anterior a hoy) se quita para que no crezca:
   ```yaml
   vistos:
-    - urjc-examen:2026-27:2327007:E:AM
-    - moodle:46534019@www.aulavirtual.urjc.es/moodle
+    urjc-examen:2026-27:2327007:E:AM:
+      fecha: 2027-01-21
+      hora: "09:00"
+      notas: 09:00 - 12:00 · Aulario II - Aula 204
+    moodle:46534019@www.aulavirtual.urjc.es/moodle:
+      fecha: 2026-10-05
+      hora: "23:59"
   ```
 - `docs/diseno.md`, sección 3, y `my-context/AGENTS.md` se actualizan con estos campos.
 
@@ -139,7 +144,7 @@ Con datos inventados, nunca con los reales (`src/uni/*.test.ts`):
 - `hora`: invierno (UTC+1) y verano (UTC+2); `22:00Z` en octubre → día anterior a las `23:59`; `21:59Z` → `23:59` del mismo día.
 - `examenes`: título con nombre bonito y convocatoria, aulas con `<br/>`, filtro de pasados y de asignaturas sin código.
 - `moodle`: `se abre` descartado, `se cierra`/`vence` → «Entrega:», curso desconocido descartado, descripción limpia.
-- `fusionar`: crea lo nuevo; no duplica; no recrea lo borrado; actualiza fecha y hora sin tocar título, prioridad, icono ni `hecha`; no borra lo que desaparece; ids sin repetir.
+- `fusionar`: crea lo nuevo; no duplica; no recrea lo borrado; actualiza fecha, hora y notas solo si cambian en la fuente, sin tocar título, prioridad, icono ni `hecha`; respeta las notas de Diego mientras la fuente no cambie; no borra lo que desaparece; ids sin repetir; quita de `vistos` lo pasado.
 - App: `origen` se conserva al editar una tarea; `codigo` se conserva al guardar asignaturas.
 
 ## 9. Puesta en marcha (con Diego)

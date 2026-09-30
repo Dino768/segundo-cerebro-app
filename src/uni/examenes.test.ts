@@ -56,6 +56,28 @@ describe('propuestasDeExamenes', () => {
     ], ASIG, '2026-09-30');
     expect(r.map((p) => p.fecha)).toEqual(['2026-09-30']);
   });
+  it('dos filas del mismo examen con distinta aula → una propuesta con las dos aulas', () => {
+    const r = propuestasDeExamenes([examen({ AULAS: 'Aula 1' }), examen({ AULAS: 'Aula 2<br/>Aula 1' })], ASIG, '2026-09-30');
+    expect(r).toHaveLength(1);
+    expect(r[0].notas).toBe('09:00 - 12:00 · Aula 1 · Aula 2');
+  });
+  it('filas repetidas idénticas → una sola propuesta', () => {
+    expect(propuestasDeExamenes([examen({}), examen({})], ASIG, '2026-09-30')).toHaveLength(1);
+  });
+  it('mismo examen en dos fechas (p. ej. teoría y laboratorio) → dos propuestas; la primera fecha conserva el origen', () => {
+    const r = propuestasDeExamenes([
+      examen({ FECHA: '25-01-2027', TIPO_EXAMEN: 'Laboratorio' }),
+      examen({ FECHA: '21-01-2027', TIPO_EXAMEN: 'Teórico' }),
+    ], ASIG, '2026-09-30');
+    expect(r.map((p) => [p.origen, p.fecha])).toEqual([
+      ['urjc-examen:2026-27:2327007:E:AM', '2027-01-21'],
+      ['urjc-examen:2026-27:2327007:E:AM:2027-01-25', '2027-01-25'],
+    ]);
+  });
+  it('una entidad numérica imposible no tumba la sincronización', () => {
+    const [p] = propuestasDeExamenes([examen({ AULAS: 'Aula &#99999999; &#xE1;' })], ASIG, '2026-09-30');
+    expect(p.notas).toBe('09:00 - 12:00 · Aula &#99999999; á');
+  });
   it('sin hora legible ni aulas: sin hora y sin notas', () => {
     const [p] = propuestasDeExamenes([examen({ HORA: '', AULAS: null })], ASIG, '2026-09-30');
     expect(p.hora).toBeUndefined();

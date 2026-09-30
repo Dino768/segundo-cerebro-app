@@ -421,3 +421,5 @@ body.con-pantalla-completa { overflow: hidden; }
 .desplegable .desplegable { margin-left: 18px; }
 .desplegable .total { margin-left: auto; color: var(--suave); font-size: 13px; font-weight: 400; }
 .grupo-plegable > summary.grupo { margin-top: 14px; }
+.proximo-examen { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 4px; border: 0; border-bottom: 1px solid var(--borde-suave); border-radius: 0; background: transparent; flex-wrap: wrap; }
+.proximo-examen-titulo { display: flex; align-items: center; gap: 8px; font-weight: 600; }

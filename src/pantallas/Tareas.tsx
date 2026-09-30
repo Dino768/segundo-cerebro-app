@@ -33,7 +33,7 @@ export function Tareas({ editar }: { editar(e: Edicion): void }) {
         </button>
       </div>
       {seccion('Próximas', proximas(datos.tareas, hoy), 'No hay tareas con fecha pendientes.', true)}
-      {seccion('Se repiten', repetidas(datos.tareas), 'No hay tareas que se repitan.')}
+      {seccion('Se repiten', repetidas(datos.tareas, hoy), 'No hay tareas que se repitan.')}
       {seccion('Sin fecha', sinFecha(datos.tareas), 'No hay tareas sin fecha.')}
     </section>
   );

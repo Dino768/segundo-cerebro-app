@@ -58,9 +58,10 @@ describe('sincronizarUni', () => {
     const tareas = parseTareas(leer(dir, 'agenda/tareas.yaml'));
     expect(tareas.map((t) => [t.id, t.titulo])).toEqual([
       ['t-20260930-1', 'Ir a entrenar'],
-      ['t-20260930-2', 'Examen: Cálculo (enero)'],
-      ['t-20260930-3', 'Entrega: Práctica 1'],
+      ['t-20260930-2', 'Cálculo (enero)'],
+      ['t-20260930-3', 'Práctica 1'],
     ]);
+    expect(tareas.map((t) => t.tipo)).toEqual([undefined, 'examen', 'entrega']);
     expect(leer(dir, 'estudios/uni-sincronizacion.yaml')).toContain('moodle:1@aula');
   });
   it('sin novedades no escribe nada', async () => {

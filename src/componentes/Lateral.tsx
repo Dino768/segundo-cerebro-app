@@ -1,6 +1,7 @@
 import { Fragment, useState } from 'react';
 import { ordenarProyectos } from '../agenda/proyectos';
 import { contarPendientes } from '../agenda/tareas';
+import { useHoy } from '../estado/hoy';
 import { useDatos } from '../estado/datos';
 import { colorDeArea } from '../agenda/areas';
 import { Icono } from './Icono';
@@ -26,9 +27,10 @@ function leerDesplegado(): boolean {
 
 export function Lateral({ actual, pestana, ir, bloqueado, proyectoAbierto }: Props) {
   const { datos } = useDatos();
+  const hoy = useHoy();
   const activos = ordenarProyectos(datos.proyectos).filter((p) => p.estado === 'activo');
   const numeros: Partial<Record<Pantalla, number>> = {
-    tareas: contarPendientes(datos.tareas),
+    tareas: contarPendientes(datos.tareas, hoy),
   };
   const [desplegado, setDesplegado] = useState(leerDesplegado);
   const alternar = () => {

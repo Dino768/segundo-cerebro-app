@@ -67,6 +67,8 @@ h4.subgrupo { margin: 10px 0 4px 16px; font-size: 14px; color: var(--suave); fon
 .lista > li:last-child { border-bottom: none; }
 .fila-tarea.hecha .titulo-tarea { text-decoration: line-through; color: var(--suave); }
 .punto { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+.sin-casilla { width: 13px; flex-shrink: 0; }
+.icono-tipo { display: inline-flex; color: var(--suave); margin-right: 2px; }
 .titulo-tarea { border: none; background: none; padding: 0; text-align: left; flex: 1; min-width: 120px; }
 .titulo-tarea:hover:not(:disabled) { background: none; color: var(--acento); }
 .prioridad, .estado { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--borde-suave); color: var(--suave); }
@@ -403,3 +405,21 @@ body.con-pantalla-completa { overflow: hidden; }
 .estudio-local.pantalla-completa .zona-pizarra { border-left: none; }
 .pantalla-completa .pestanas-pizarra, .visor-historial.pantalla-completa > .chat-cabecera { display: none; }
 .estudio-local.pantalla-completa.chat-flotante > .chat, .estudio-local.pantalla-completa.chat-flotante > .lista-conversaciones { display: flex; position: absolute; top: 0; right: 0; bottom: 0; z-index: 6; width: min(420px, 92vw); background: var(--superficie); border-left: 1px solid var(--borde); box-shadow: -8px 0 24px rgb(59 48 39 / 0.18); }
+.tipos-tarea { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tipos-tarea .pastilla { border: 1px solid var(--borde); }
+.durante { display: flex; gap: 6px; }
+.durante input { width: 4.5em; }
+.error-form { color: var(--peligro); font-size: 14px; margin: 8px 0 0; }
+.rejilla-tareas { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 20px; align-items: start; }
+@media (min-width: 900px) {
+  .rejilla-tareas { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+.desplegable > summary { display: flex; align-items: center; gap: 8px; padding: 6px 0; list-style: none; }
+.desplegable > summary::-webkit-details-marker { display: none; }
+.desplegable > summary::before { content: '▸'; color: var(--suave); width: 1em; }
+.desplegable[open] > summary::before { content: '▾'; }
+.desplegable .desplegable { margin-left: 18px; }
+.desplegable .total { margin-left: auto; color: var(--suave); font-size: 13px; font-weight: 400; }
+.grupo-plegable > summary.grupo { margin-top: 14px; }
+.proximo-examen { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 4px; border: 0; border-bottom: 1px solid var(--borde-suave); border-radius: 0; background: transparent; flex-wrap: wrap; }
+.proximo-examen-titulo { display: flex; align-items: center; gap: 8px; font-weight: 600; }

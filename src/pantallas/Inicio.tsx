@@ -1,4 +1,5 @@
 import { LIMITE_ACTIVOS, ordenarProyectos, progresoProyecto } from '../agenda/proyectos';
+import { urgentes } from '../agenda/grupos';
 import { atrasadas, tareasDelDia, topSinFecha } from '../agenda/tareas';
 import { colorDeArea } from '../agenda/areas';
 import { BarraProgreso } from '../componentes/BarraProgreso';
@@ -7,6 +8,7 @@ import { EtiquetaTarea } from '../componentes/EtiquetaTarea';
 import { FilaTarea } from '../componentes/FilaTarea';
 import type { Edicion } from '../componentes/FormTarea';
 import { Icono } from '../componentes/Icono';
+import { ProximosExamenes } from '../componentes/ProximosExamenes';
 import type { Destino } from '../componentes/navegacion';
 import { dondeLoDejamos } from '../datos/proyectos';
 import type { Tarea } from '../datos/tareas';
@@ -28,6 +30,7 @@ export function Inicio({ editar, ir }: Props) {
   const retrasadas = atrasadas(datos.tareas, hoy);
   const deHoy = tareasDelDia(datos.tareas, hoy);
   const top = topSinFecha(datos.tareas);
+  const muyPronto = urgentes(datos.tareas, hoy);
   const activos = ordenarProyectos(datos.proyectos).filter((p) => p.estado === 'activo');
   const fecha = fromISO(hoy);
   const mes = cuadriculaMes(fecha.getFullYear(), fecha.getMonth() + 1);
@@ -74,36 +77,45 @@ export function Inicio({ editar, ir }: Props) {
           )}
           <h3 className="grupo">Para hoy</h3>
           {deHoy.length ? lista(deHoy) : <p className="vacio">Nada para hoy.</p>}
+          {muyPronto.length > 0 && (
+            <>
+              <h3 className="grupo">Muy pronto: exámenes y entregas</h3>
+              {lista(muyPronto, true)}
+            </>
+          )}
           <h3 className="grupo">Sin fecha: lo más importante</h3>
           {top.length ? lista(top) : <p className="vacio">No hay tareas sin fecha pendientes.</p>}
         </section>
 
-        <section className="tarjeta">
-          <h2 className="titulo-seccion">
-            Proyectos activos <button className="enlace" onClick={() => ir({ pantalla: 'proyectos' })}>Todos →</button>
-          </h2>
-          {activos.length === 0 && <p className="vacio">No tienes proyectos activos.</p>}
-          {activos.map((p) => {
-            const dejamos = dondeLoDejamos(p.cuerpo);
-            return (
-              <button key={p.id} className="tarjeta-proyecto" onClick={() => ir({ pantalla: 'proyectos', proyecto: p.id })}>
-                <span className="tarjeta-proyecto-titulo">
-                  <span className="punto" style={{ background: colorDeArea(datos.areas, p.area) }} />
-                  <Icono nombre={p.icono} />
-                  {p.titulo}
-                </span>
-                {dejamos && <span className="detalle">Dónde lo dejamos: {dejamos}</span>}
-                <BarraProgreso {...progresoProyecto(datos.tareas, p.id)} />
-              </button>
-            );
-          })}
-          {activos.length > 0 && (
-            <p className={`aviso-activos${activos.length > LIMITE_ACTIVOS ? ' demasiados' : ''}`}>
-              {activos.length} de {LIMITE_ACTIVOS} proyectos activos
-              {activos.length > LIMITE_ACTIVOS ? '. Son muchos a la vez: terminar uno te ayudará a acabar las cosas.' : '.'}
-            </p>
-          )}
-        </section>
+        <div>
+          <ProximosExamenes tareas={datos.tareas} hoy={hoy} ir={ir} />
+          <section className="tarjeta">
+            <h2 className="titulo-seccion">
+              Proyectos activos <button className="enlace" onClick={() => ir({ pantalla: 'proyectos' })}>Todos →</button>
+            </h2>
+            {activos.length === 0 && <p className="vacio">No tienes proyectos activos.</p>}
+            {activos.map((p) => {
+              const dejamos = dondeLoDejamos(p.cuerpo);
+              return (
+                <button key={p.id} className="tarjeta-proyecto" onClick={() => ir({ pantalla: 'proyectos', proyecto: p.id })}>
+                  <span className="tarjeta-proyecto-titulo">
+                    <span className="punto" style={{ background: colorDeArea(datos.areas, p.area) }} />
+                    <Icono nombre={p.icono} />
+                    {p.titulo}
+                  </span>
+                  {dejamos && <span className="detalle">Dónde lo dejamos: {dejamos}</span>}
+                  <BarraProgreso {...progresoProyecto(datos.tareas, p.id)} />
+                </button>
+              );
+            })}
+            {activos.length > 0 && (
+              <p className={`aviso-activos${activos.length > LIMITE_ACTIVOS ? ' demasiados' : ''}`}>
+                {activos.length} de {LIMITE_ACTIVOS} proyectos activos
+                {activos.length > LIMITE_ACTIVOS ? '. Son muchos a la vez: terminar uno te ayudará a acabar las cosas.' : '.'}
+              </p>
+            )}
+          </section>
+        </div>
 
         <section className="tarjeta ancha">
           <h2 className="titulo-seccion">

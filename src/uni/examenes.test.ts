@@ -26,10 +26,9 @@ describe('propuestasDeExamenes', () => {
   it('convierte un examen con el nombre bonito de la asignatura', () => {
     expect(propuestasDeExamenes([examen({})], ASIG, '2026-09-30')).toEqual([{
       origen: 'urjc-examen:2026-27:2327007:E:AM',
-      titulo: 'Examen: Cálculo (enero)',
+      titulo: 'Cálculo (enero)',
+      tipo: 'examen',
       area: 'calculo',
-      prioridad: 'alta',
-      icono: 'school',
       fecha: '2027-01-21',
       hora: '09:00',
       notas: '09:00 - 12:00 · Aulario II - Aula 204',
@@ -43,7 +42,7 @@ describe('propuestasDeExamenes', () => {
   it('convocatorias', () => {
     const titulos = ['E', 'M', 'J', 'S', 'X'].map((c) => propuestasDeExamenes([examen({ CONVOCATORIA: c })], ASIG, '2026-09-30')[0].titulo);
     expect(titulos).toEqual([
-      'Examen: Cálculo (enero)', 'Examen: Cálculo (mayo)', 'Examen: Cálculo (junio)', 'Examen: Cálculo (septiembre)', 'Examen: Cálculo (convocatoria X)',
+      'Cálculo (enero)', 'Cálculo (mayo)', 'Cálculo (junio)', 'Cálculo (septiembre)', 'Cálculo (convocatoria X)',
     ]);
   });
   it('se salta lo pasado, lo de otras asignaturas y las fechas raras; hoy sí entra', () => {

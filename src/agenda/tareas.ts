@@ -1,8 +1,10 @@
 import { siguienteIdTarea, type Prioridad, type Tarea } from '../datos/tareas';
 import type { Area } from '../datos/areas';
-import { diaDeSemana, toISO, type ISODate } from '../fechas';
+import { diaDeSemana, formatoCorto, toISO, type Dia, type ISODate } from '../fechas';
 import { areaMadre } from './areas';
 import { mezclarCambios } from './cambios';
+import { enPlazo } from './plazos';
+import { tipoDe } from './tipos';
 
 export type TareaSinId = Omit<Tarea, 'id'> & { id?: string };
 
@@ -17,16 +19,40 @@ export function compararPrioridad(a: { prioridad?: Prioridad }, b: { prioridad?:
 }
 
 export function esRepetida(t: Tarea): boolean {
-  return (t.repetir?.length ?? 0) > 0;
+  return t.repetir === 'mes' || t.repetir === 'año' || (Array.isArray(t.repetir) && t.repetir.length > 0);
+}
+
+const diasDelMes = (y: number, m: number) => new Date(y, m, 0).getDate(); // m: 1-12
+
+// Cada mes el mismo día que `inicio`; si ese mes no lo tiene (31 en abril…), el último día del mes.
+function mismoDiaDelMes(inicio: ISODate, dia: ISODate): boolean {
+  const [y, m, d] = dia.split('-').map(Number);
+  return d === Math.min(Number(inicio.slice(8, 10)), diasDelMes(y, m));
+}
+
+// Cada año el mismo día y mes; el 29 de febrero, el 28 en los años no bisiestos.
+function mismoDiaDelAno(inicio: ISODate, dia: ISODate): boolean {
+  const m = Number(dia.slice(5, 7));
+  return Number(inicio.slice(5, 7)) === m && mismoDiaDelMes(inicio, dia);
 }
 
 export function ocurreEl(t: Tarea, dia: ISODate): boolean {
-  if (esRepetida(t)) return t.repetir!.includes(diaDeSemana(dia)) && (!t.fecha || dia >= t.fecha);
-  return t.fecha === dia;
+  if (!esRepetida(t)) return t.fecha === dia;
+  if ((t.fecha && dia < t.fecha) || (t.hasta && dia > t.hasta)) return false;
+  if (t.repetir === 'mes') return mismoDiaDelMes(t.fecha!, dia);
+  if (t.repetir === 'año') return mismoDiaDelAno(t.fecha!, dia);
+  return (t.repetir as Dia[]).includes(diaDeSemana(dia));
 }
 
 export function hechaEl(t: Tarea, dia: ISODate): boolean {
+  if (tipoDe(t) === 'evento') return false; // los eventos no se marcan
   return esRepetida(t) ? (t.hechas ?? []).includes(dia) : t.hecha === true;
+}
+
+export function describirRepeticion(t: Tarea): string | undefined {
+  if (!esRepetida(t)) return undefined;
+  const cada = t.repetir === 'mes' ? 'cada mes' : t.repetir === 'año' ? 'cada año' : `cada ${(t.repetir as Dia[]).join(', ')}`;
+  return t.hasta ? `${cada} hasta ${formatoCorto(t.hasta)}` : cada;
 }
 
 function compararHora(a: Tarea, b: Tarea): number {
@@ -42,23 +68,17 @@ export function tareasDelDia(ts: Tarea[], dia: ISODate): Tarea[] {
 
 export function atrasadas(ts: Tarea[], hoy: ISODate): Tarea[] {
   return ts
-    .filter((t) => !esRepetida(t) && !!t.fecha && t.fecha < hoy && !t.hecha)
+    .filter((t) => !esRepetida(t) && !!t.fecha && t.fecha < hoy && !t.hecha && tipoDe(t) !== 'examen' && tipoDe(t) !== 'evento')
     .sort((a, b) => a.fecha!.localeCompare(b.fecha!) || compararPrioridad(a, b));
 }
 
-export function proximas(ts: Tarea[], hoy: ISODate): Tarea[] {
-  return ts
-    .filter((t) => !esRepetida(t) && !!t.fecha && t.fecha >= hoy && !t.hecha)
-    .sort((a, b) => a.fecha!.localeCompare(b.fecha!) || compararHora(a, b) || compararPrioridad(a, b));
-}
-
-export function repetidas(ts: Tarea[]): Tarea[] {
-  return ts.filter(esRepetida).sort((a, b) => compararHora(a, b) || compararPrioridad(a, b));
+export function repetidas(ts: Tarea[], hoy: ISODate): Tarea[] {
+  return ts.filter((t) => esRepetida(t) && !(t.hasta && t.hasta < hoy)).sort((a, b) => compararHora(a, b) || compararPrioridad(a, b));
 }
 
 export function sinFecha(ts: Tarea[]): Tarea[] {
   return ts
-    .filter((t) => !esRepetida(t) && !t.fecha)
+    .filter((t) => !esRepetida(t) && !t.fecha && tipoDe(t) !== 'recado')
     .sort((a, b) => Number(!!a.hecha) - Number(!!b.hecha) || compararPrioridad(a, b));
 }
 
@@ -96,8 +116,16 @@ export function fijarEnLista(ts: Tarea[], id: string, dia: ISODate, valor: boole
   return ts.map((t) => (t.id === id ? fijarHecha(t, dia, valor) : t));
 }
 
-export function contarPendientes(ts: Tarea[]): number {
-  return ts.filter((t) => !esRepetida(t) && !t.hecha).length;
+// Número de la barra lateral: lo que de verdad toca hacer. Sin eventos (no se marcan) ni exámenes o entregas lejanos;
+// las entregas vencidas sí cuentan (salen como atrasadas).
+export function contarPendientes(ts: Tarea[], hoy: ISODate): number {
+  return ts.filter((t) => {
+    if (esRepetida(t) || t.hecha) return false;
+    const tipo = tipoDe(t);
+    if (tipo === 'evento') return false;
+    if ((tipo === 'examen' || tipo === 'entrega') && t.fecha) return enPlazo(t, hoy) || (tipo === 'entrega' && t.fecha < hoy);
+    return true;
+  }).length;
 }
 
 // Filtro de "calendarios" por área. `encendidas` vacía = todas. OTRAS agrupa las áreas que no están en areas.yaml.

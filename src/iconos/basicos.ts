@@ -432,6 +432,38 @@ export const BASICOS: Record<string, Nodo[]> = {
    }
   ]
  ],
+ "calendar-event": [
+  [
+   "path",
+   {
+    "d": "M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12"
+   }
+  ],
+  [
+   "path",
+   {
+    "d": "M16 3l0 4"
+   }
+  ],
+  [
+   "path",
+   {
+    "d": "M8 3l0 4"
+   }
+  ],
+  [
+   "path",
+   {
+    "d": "M4 11l16 0"
+   }
+  ],
+  [
+   "path",
+   {
+    "d": "M8 15h2v2h-2l0 -2"
+   }
+  ]
+ ],
  "camera": [
   [
    "path",
@@ -463,6 +495,20 @@ export const BASICOS: Record<string, Nodo[]> = {
    "path",
    {
     "d": "M5 17h-2v-6l2 -5h9l4 5h1a2 2 0 0 1 2 2v4h-2m-4 0h-6m-6 -6h15m-6 0v-5"
+   }
+  ]
+ ],
+ "checkbox": [
+  [
+   "path",
+   {
+    "d": "M9 11l3 3l8 -8"
+   }
+  ],
+  [
+   "path",
+   {
+    "d": "M20 12v6a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h9"
    }
   ]
  ],
@@ -649,6 +695,32 @@ export const BASICOS: Record<string, Nodo[]> = {
    "path",
    {
     "d": "M10 18l5 -5a1.414 1.414 0 0 0 -2 -2l-5 5v2h2"
+   }
+  ]
+ ],
+ "file-upload": [
+  [
+   "path",
+   {
+    "d": "M14 3v4a1 1 0 0 0 1 1h4"
+   }
+  ],
+  [
+   "path",
+   {
+    "d": "M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2"
+   }
+  ],
+  [
+   "path",
+   {
+    "d": "M12 11v6"
+   }
+  ],
+  [
+   "path",
+   {
+    "d": "M9.5 13.5l2.5 -2.5l2.5 2.5"
    }
   ]
  ],

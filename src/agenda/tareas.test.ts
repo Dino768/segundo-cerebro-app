@@ -4,7 +4,7 @@ import { parseAreas } from '../datos/areas';
 import {
   alternarArea, aplicarEdicion, atrasadas, borrarDeLista, contarPendientes, encendidasEfectivas, filtrarPorAreas, fijarEnLista, fijarHecha,
   hayOtrasAreas, hechaEl, nuevoIdTarea, OTRAS,
-  ocurreEl, proximas, repetidas, sinFecha, tareasDelDia, topSinFecha,
+  describirRepeticion, ocurreEl, repetidas, sinFecha, tareasDelDia, topSinFecha,
 } from './tareas';
 
 const t = (x: Partial<Tarea> & { id: string }): Tarea => ({ titulo: x.id, area: 'uni', ...x });
@@ -86,11 +86,8 @@ describe('listas', () => {
   it('atrasadas: con fecha pasada y sin hacer, nunca repetidas', () => {
     expect(ids(atrasadas(ts, hoy))).toEqual(['vieja', 'ayer']);
   });
-  it('proximas: de hoy en adelante y sin hacer', () => {
-    expect(ids(proximas(ts, hoy))).toEqual(['hoy', 'futura']);
-  });
   it('repetidas', () => {
-    expect(ids(repetidas(ts))).toEqual(['rep']);
+    expect(ids(repetidas(ts, hoy))).toEqual(['rep']);
   });
   it('sinFecha: por prioridad y con las hechas al final', () => {
     expect(ids(sinFecha(ts))).toEqual(['sfAlta', 'sfAlta2', 'sfMedia', 'sfBaja', 'sfHecha']);
@@ -164,7 +161,18 @@ describe('contarPendientes', () => {
       t({ id: 'c', hecha: true }),
       t({ id: 'r', repetir: ['lun'] }),
     ];
-    expect(contarPendientes(ts)).toBe(2);
+    expect(contarPendientes(ts, '2026-10-01')).toBe(2);
+  });
+  it('no cuenta eventos ni exámenes o entregas lejanos; sí los cercanos y las entregas vencidas', () => {
+    const ts = [
+      t({ id: 'ev', tipo: 'evento', fecha: '2026-10-05' }),
+      t({ id: 'ex-junio', tipo: 'examen', fecha: '2027-06-09' }),
+      t({ id: 'ex-cerca', tipo: 'examen', fecha: '2026-10-10' }),
+      t({ id: 'ex-pasado', tipo: 'examen', fecha: '2026-09-20' }),
+      t({ id: 'en-vencida', tipo: 'entrega', fecha: '2026-09-28' }),
+      t({ id: 'en-lejos', tipo: 'entrega', fecha: '2026-12-10' }),
+    ];
+    expect(contarPendientes(ts, '2026-10-01')).toBe(2);
   });
 });
 
@@ -227,5 +235,65 @@ describe('filtro por áreas: «otras» sin tareas desconocidas', () => {
     const conocidas = parseAreas('- id: uni\n  nombre: Uni\n  color: "#3b82f6"\n- id: personal\n  nombre: Personal\n  color: "#f59e0b"\n');
     const ts = [t({ id: 'u', area: 'uni' }), t({ id: 'p', area: 'personal' })];
     expect(ids(filtrarPorAreas(ts, [OTRAS], conocidas))).toEqual(['u', 'p']);
+  });
+});
+
+describe('repeticiones con mes, año y hasta', () => {
+  it('días de la semana, no después de hasta', () => {
+    const boxeo = t({ id: 'b', repetir: ['lun', 'mie', 'vie'], fecha: '2026-10-01', hasta: '2026-10-31' });
+    expect(ocurreEl(boxeo, '2026-10-30')).toBe(true); // viernes
+    expect(ocurreEl(boxeo, '2026-11-02')).toBe(false); // lunes, ya pasado hasta
+    expect(ocurreEl(boxeo, '2026-09-28')).toBe(false); // lunes, antes de empezar
+  });
+  it('cada mes: el mismo día o el último del mes si no existe', () => {
+    const m = t({ id: 'm', repetir: 'mes', fecha: '2026-10-31' });
+    expect(ocurreEl(m, '2026-10-31')).toBe(true);
+    expect(ocurreEl(m, '2026-11-30')).toBe(true);
+    expect(ocurreEl(m, '2026-11-29')).toBe(false);
+    expect(ocurreEl(m, '2027-02-28')).toBe(true);
+    expect(ocurreEl(m, '2026-09-30')).toBe(false); // antes de empezar
+    const conFin = t({ id: 'm2', repetir: 'mes', fecha: '2026-10-05', hasta: '2026-12-31' });
+    expect(ocurreEl(conFin, '2026-12-05')).toBe(true);
+    expect(ocurreEl(conFin, '2027-01-05')).toBe(false);
+  });
+  it('cada año: el mismo día; el 29 de febrero, el 28 en años no bisiestos', () => {
+    const cumple = t({ id: 'c', repetir: 'año', fecha: '2027-03-14' });
+    expect(ocurreEl(cumple, '2028-03-14')).toBe(true);
+    expect(ocurreEl(cumple, '2028-03-15')).toBe(false);
+    expect(ocurreEl(cumple, '2026-03-14')).toBe(false);
+    const bisiesto = t({ id: 'f', repetir: 'año', fecha: '2028-02-29' });
+    expect(ocurreEl(bisiesto, '2029-02-28')).toBe(true);
+    expect(ocurreEl(bisiesto, '2032-02-29')).toBe(true);
+    expect(ocurreEl(bisiesto, '2032-02-28')).toBe(false);
+  });
+  it('esRepetida con mes y año; una lista vacía no se repite', () => {
+    expect(ocurreEl(t({ id: 'v', repetir: [], fecha: '2026-10-01' }), '2026-10-01')).toBe(true);
+    expect(repetidas([t({ id: 'm', repetir: 'mes', fecha: '2026-10-05' })], '2026-10-01')).toHaveLength(1);
+  });
+  it('«Se repiten» no enseña las que ya terminaron', () => {
+    const ts = [t({ id: 'fin', repetir: ['lun'], hasta: '2026-09-30' }), t({ id: 'sigue', repetir: ['lun'], hasta: '2026-10-31' })];
+    expect(ids(repetidas(ts, '2026-10-01'))).toEqual(['sigue']);
+  });
+  it('describirRepeticion', () => {
+    expect(describirRepeticion(t({ id: 'a', repetir: ['lun', 'vie'] }))).toBe('cada lun, vie');
+    expect(describirRepeticion(t({ id: 'a', repetir: 'mes', fecha: '2026-10-05' }))).toBe('cada mes');
+    expect(describirRepeticion(t({ id: 'a', repetir: 'año', fecha: '2026-10-05', hasta: '2030-10-05' }))).toMatch(/^cada año hasta 5 oct/);
+    expect(describirRepeticion(t({ id: 'a' }))).toBeUndefined();
+  });
+});
+
+describe('tipos en las listas', () => {
+  const hoy = '2026-10-10';
+  it('los eventos nunca están hechos ni atrasados', () => {
+    const ev = t({ id: 'e', tipo: 'evento', fecha: '2026-10-01', hecha: true });
+    expect(hechaEl(ev, '2026-10-01')).toBe(false);
+    expect(atrasadas([ev], hoy)).toEqual([]);
+  });
+  it('un examen pasado no está atrasado; una entrega pasada sí', () => {
+    const ts = [t({ id: 'ex', tipo: 'examen', fecha: '2026-10-01' }), t({ id: 'en', tipo: 'entrega', fecha: '2026-10-01' })];
+    expect(ids(atrasadas(ts, hoy))).toEqual(['en']);
+  });
+  it('los recados sin fecha no van a «Sin fecha»', () => {
+    expect(sinFecha([t({ id: 'r', tipo: 'recado' }), t({ id: 's' })]).map((x) => x.id)).toEqual(['s']);
   });
 });

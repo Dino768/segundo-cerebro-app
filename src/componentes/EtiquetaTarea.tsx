@@ -3,6 +3,7 @@ import type { Tarea } from '../datos/tareas';
 import { useDatos } from '../estado/datos';
 import type { ISODate } from '../fechas';
 import { colorDeArea } from '../agenda/areas';
+import { ICONO_TIPO, tipoDe } from '../agenda/tipos';
 import { Icono } from './Icono';
 
 // Etiqueta de una tarea en la semana y en el mes: fondo suave del color de su área y texto oscuro.
@@ -15,6 +16,7 @@ export function EtiquetaTarea({ tarea, dia }: { tarea: Tarea; dia: ISODate }) {
       style={{ background: `color-mix(in srgb, ${color} 25%, var(--superficie))`, borderLeftColor: color }}
       title={tarea.titulo}
     >
+      {tipoDe(tarea) !== 'tarea' && <Icono nombre={ICONO_TIPO[tipoDe(tarea)]} tamano={13} />}
       <Icono nombre={tarea.icono} tamano={13} />
       {tarea.hora ? `${tarea.hora} ` : ''}
       {tarea.titulo}

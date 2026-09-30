@@ -1,10 +1,17 @@
 import { useState, type FormEvent } from 'react';
-import { aplicarEdicion, borrarDeLista, type TareaSinId } from '../agenda/tareas';
-import { PRIORIDADES, type Prioridad, type Tarea } from '../datos/tareas';
+import { buscarArea } from '../agenda/areas';
+import { estadoInicial, tareaDelFormulario, type EstadoForm, type ModoFin, type ModoRepetir } from '../agenda/formTarea';
+import { hastaDurante, type Unidad } from '../agenda/repeticion';
+import { aplicarEdicion, borrarDeLista } from '../agenda/tareas';
+import { CAMPOS_TIPO, ICONO_TIPO, NOMBRE_TIPO } from '../agenda/tipos';
+import { PRIORIDADES, TIPOS, type Prioridad, type Tarea } from '../datos/tareas';
 import { useDatos } from '../estado/datos';
 import { confirmar } from '../estado/dialogos';
-import { DIAS, type Dia, type ISODate } from '../fechas';
+import { useHoy } from '../estado/hoy';
+import { guardarUltimaArea, leerUltimaArea } from '../estado/ultimaArea';
+import { DIAS, formatoCorto, type Dia, type ISODate } from '../fechas';
 import { iconoAlEscribir, iconoPara } from '../iconos/diccionario';
+import { Icono } from './Icono';
 import { SelectorArea } from './SelectorArea';
 import { SelectorIcono } from './SelectorIcono';
 
@@ -21,48 +28,43 @@ interface Props {
 
 export function FormTarea({ edicion, cerrar }: Props) {
   const { datos, cambiarTareas } = useDatos();
+  const hoy = useHoy();
   const original = 'tarea' in edicion ? edicion.tarea : null;
   const nueva = 'nueva' in edicion ? edicion.nueva : {};
-  const [titulo, setTitulo] = useState(original?.titulo ?? nueva.titulo ?? '');
-  const [area, setArea] = useState(original?.area ?? nueva.area ?? datos.areas[0]?.id ?? 'personal');
-  const [prioridad, setPrioridad] = useState<Prioridad>(original?.prioridad ?? 'media');
-  const [fecha, setFecha] = useState(original?.fecha ?? nueva.fecha ?? '');
-  const [hora, setHora] = useState(original?.hora ?? '');
-  const [repetir, setRepetir] = useState<Dia[]>(original?.repetir ?? []);
-  // Una idea vinculada a un proyecto que ya no existe no debe guardar ese id viejo en la tarea.
-  const proyectoNuevo = nueva.proyecto && datos.proyectos.some((p) => p.id === nueva.proyecto) ? nueva.proyecto : '';
-  const [proyecto, setProyecto] = useState(original?.proyecto ?? proyectoNuevo);
-  const [notas, setNotas] = useState(original?.notas ?? nueva.notas ?? '');
-  const [icono, setIcono] = useState(original?.icono ?? nueva.icono ?? iconoPara(original?.titulo ?? nueva.titulo ?? ''));
+  const [f, setF] = useState<EstadoForm>(() => {
+    // Una idea vinculada a un proyecto que ya no existe no debe guardar ese id viejo en la tarea.
+    const proyectoVivo = nueva.proyecto && datos.proyectos.some((p) => p.id === nueva.proyecto) ? nueva.proyecto : undefined;
+    const ultima = leerUltimaArea();
+    const area = nueva.area ?? (ultima && buscarArea(datos.areas, ultima) ? ultima : datos.areas[0]?.id ?? 'personal');
+    const icono = original?.icono ?? nueva.icono ?? iconoPara(original?.titulo ?? nueva.titulo ?? '');
+    return estadoInicial(original, { ...nueva, proyecto: proyectoVivo }, area, icono);
+  });
   // Solo el icono guardado cuenta como fijado: una tarea sin icono todavía sigue la sugerencia del título.
   const [fijado, setFijado] = useState(Boolean(original?.icono ?? nueva.icono));
+  const [error, setError] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const cambiar = (x: Partial<EstadoForm>) => setF((v) => ({ ...v, ...x }));
+  const c = CAMPOS_TIPO[f.tipo];
+  const automatica = f.tipo === 'examen' || f.tipo === 'entrega';
 
   function cambiarTitulo(v: string) {
-    setTitulo(v);
-    setIcono((i) => iconoAlEscribir(v, i, fijado));
+    setF((x) => ({ ...x, titulo: v, icono: iconoAlEscribir(v, x.icono, fijado) }));
   }
 
   async function guardar(e: FormEvent) {
     e.preventDefault();
-    if (!titulo.trim()) return;
-    const tarea: TareaSinId = {
-      ...original,
-      titulo: titulo.trim(),
-      area,
-      icono,
-      prioridad: prioridad === 'media' ? undefined : prioridad,
-      fecha: fecha || undefined,
-      hora: hora || undefined,
-      repetir: repetir.length ? DIAS.filter((d) => repetir.includes(d)) : undefined,
-      proyecto: proyecto || undefined,
-      notas: notas.trim() || undefined,
-    };
+    const r = tareaDelFormulario(f, original, hoy);
+    if ('error' in r) {
+      setError(r.error);
+      return;
+    }
+    setError('');
     setGuardando(true);
     const ok = await cambiarTareas(
-      (ts) => aplicarEdicion(ts, original, tarea, new Date()),
-      `${original ? 'Editar' : 'Crear'} tarea: ${tarea.titulo}`,
+      (ts) => aplicarEdicion(ts, original, r.tarea, new Date()),
+      `${original ? 'Editar' : 'Crear'} tarea: ${r.tarea.titulo}`,
     );
+    if (ok && !original) guardarUltimaArea(f.area);
     if (ok) await edicion.alGuardar?.();
     setGuardando(false);
     if (ok) cerrar();
@@ -76,72 +78,136 @@ export function FormTarea({ edicion, cerrar }: Props) {
     if (ok) cerrar();
   }
 
-  const alternarDia = (d: Dia) => setRepetir((r) => (r.includes(d) ? r.filter((x) => x !== d) : [...r, d]));
+  const alternarDia = (d: Dia) => cambiar({ dias: f.dias.includes(d) ? f.dias.filter((x) => x !== d) : [...f.dias, d] });
+  const necesitaFecha = c.repetir && (f.modoRepetir === 'mes' || f.modoRepetir === 'año');
 
   return (
     <div className="fondo-modal">
       <form className="modal" onSubmit={guardar}>
-        <h2>{original ? 'Editar tarea' : 'Nueva tarea'}</h2>
+        <h2>{original ? 'Editar' : 'Nueva'}: {NOMBRE_TIPO[f.tipo].toLowerCase()}</h2>
         {edicion.nota && <p className="nota-form">{edicion.nota}</p>}
+        <div className="tipos-tarea" role="group" aria-label="Tipo">
+          {TIPOS.map((t) => (
+            <button key={t} type="button" className={`pastilla${f.tipo === t ? ' encendida' : ''}`} aria-pressed={f.tipo === t} onClick={() => cambiar({ tipo: t })}>
+              <Icono nombre={ICONO_TIPO[t]} tamano={16} />
+              {NOMBRE_TIPO[t]}
+            </button>
+          ))}
+        </div>
         <div className="campo-titulo">
-          <SelectorIcono icono={icono} elegir={(i) => { setIcono(i); setFijado(true); }} />
+          <SelectorIcono icono={f.icono} elegir={(i) => { cambiar({ icono: i }); setFijado(true); }} />
           <label>
             Título
-            <input value={titulo} onChange={(e) => cambiarTitulo(e.target.value)} required autoFocus />
+            <input value={f.titulo} onChange={(e) => cambiarTitulo(e.target.value)} required autoFocus />
           </label>
         </div>
         <div className="fila-campos">
-          <SelectorArea areas={datos.areas} valor={area} cambiar={setArea} />
+          <SelectorArea areas={datos.areas} valor={f.area} cambiar={(a) => cambiar({ area: a })} />
+          {c.prioridad && (
+            <label>
+              Prioridad
+              <select value={automatica ? f.prioridad : f.prioridad || 'media'} onChange={(e) => cambiar({ prioridad: e.target.value as Prioridad | '' })}>
+                {automatica && <option value="">Automática</option>}
+                {PRIORIDADES.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+        <div className="fila-campos">
           <label>
-            Prioridad
-            <select value={prioridad} onChange={(e) => setPrioridad(e.target.value as Prioridad)}>
-              {PRIORIDADES.map((p) => (
-                <option key={p} value={p}>{p}</option>
+            {necesitaFecha ? 'Empieza el' : 'Fecha (opcional)'}
+            <input type="date" value={f.fecha} onChange={(e) => cambiar({ fecha: e.target.value })} />
+          </label>
+          {c.hora && (
+            <label>
+              Hora (opcional)
+              <input type="time" value={f.hora} onChange={(e) => cambiar({ hora: e.target.value })} />
+            </label>
+          )}
+        </div>
+        {c.repetir && (
+          <fieldset>
+            <legend>Se repite</legend>
+            <select aria-label="Cómo se repite" value={f.modoRepetir} onChange={(e) => cambiar({ modoRepetir: e.target.value as ModoRepetir })}>
+              <option value="no">No se repite</option>
+              <option value="semana">Días de la semana</option>
+              <option value="mes">Cada mes</option>
+              <option value="año">Cada año</option>
+            </select>
+            {f.modoRepetir === 'semana' && (
+              <div>
+                {DIAS.map((d) => (
+                  <label key={d} className="dia">
+                    <input type="checkbox" checked={f.dias.includes(d)} onChange={() => alternarDia(d)} />
+                    {d}
+                  </label>
+                ))}
+              </div>
+            )}
+            {f.modoRepetir !== 'no' && (
+              <div className="fila-campos">
+                <label>
+                  Hasta
+                  <select value={f.modoFin} onChange={(e) => cambiar({ modoFin: e.target.value as ModoFin })}>
+                    <option value="sin">Sin final</option>
+                    <option value="fecha">Una fecha</option>
+                    <option value="durante">Durante…</option>
+                  </select>
+                </label>
+                {f.modoFin === 'fecha' && (
+                  <label>
+                    Último día
+                    <input type="date" value={f.hastaFecha} min={f.fecha || undefined} onChange={(e) => cambiar({ hastaFecha: e.target.value })} required />
+                  </label>
+                )}
+                {f.modoFin === 'durante' && (
+                  <label>
+                    Durante
+                    <span className="durante">
+                      <input type="number" min={1} max={99} value={f.durante} onChange={(e) => cambiar({ durante: Number(e.target.value) })} />
+                      <select value={f.unidad} onChange={(e) => cambiar({ unidad: e.target.value as Unidad })}>
+                        <option value="semanas">semanas</option>
+                        <option value="meses">meses</option>
+                        <option value="años">años</option>
+                      </select>
+                    </span>
+                  </label>
+                )}
+              </div>
+            )}
+            {f.modoRepetir !== 'no' && f.modoFin === 'durante' && (
+              <p className="detalle">Hasta el {formatoCorto(hastaDurante(f.fecha || hoy, f.durante, f.unidad))}</p>
+            )}
+          </fieldset>
+        )}
+        {c.proyecto && (
+          <label>
+            Proyecto
+            <select
+              value={f.proyecto}
+              onChange={(e) => {
+                const v = e.target.value;
+                const a = datos.proyectos.find((p) => p.id === v)?.area;
+                cambiar(a ? { proyecto: v, area: a } : { proyecto: v });
+              }}
+            >
+              <option value="">(ninguno)</option>
+              {datos.proyectos.map((p) => (
+                <option key={p.id} value={p.id}>{p.titulo}</option>
               ))}
+              {f.proyecto && !datos.proyectos.some((p) => p.id === f.proyecto) && <option value={f.proyecto}>{f.proyecto}</option>}
             </select>
           </label>
-        </div>
-        <div className="fila-campos">
+        )}
+        {c.notas && (
           <label>
-            Fecha (opcional)
-            <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            Notas
+            <textarea value={f.notas} onChange={(e) => cambiar({ notas: e.target.value })} rows={3} />
           </label>
-          <label>
-            Hora (opcional)
-            <input type="time" value={hora} onChange={(e) => setHora(e.target.value)} />
-          </label>
-        </div>
-        <fieldset>
-          <legend>Repetir cada semana</legend>
-          {DIAS.map((d) => (
-            <label key={d} className="dia">
-              <input type="checkbox" checked={repetir.includes(d)} onChange={() => alternarDia(d)} />
-              {d}
-            </label>
-          ))}
-        </fieldset>
-        <label>
-          Proyecto
-          <select
-            value={proyecto}
-            onChange={(e) => {
-              const v = e.target.value;
-              setProyecto(v);
-              const a = datos.proyectos.find((p) => p.id === v)?.area;
-              if (a) setArea(a);
-            }}
-          >
-            <option value="">(ninguno)</option>
-            {datos.proyectos.map((p) => (
-              <option key={p.id} value={p.id}>{p.titulo}</option>
-            ))}
-            {proyecto && !datos.proyectos.some((p) => p.id === proyecto) && <option value={proyecto}>{proyecto}</option>}
-          </select>
-        </label>
-        <label>
-          Notas
-          <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={3} />
-        </label>
+        )}
+        {error && <p className="error-form">{error}</p>}
         <div className="botones">
           <button type="submit" className="activa" disabled={guardando}>Guardar</button>
           {original && (

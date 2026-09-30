@@ -1,7 +1,8 @@
 // Genera los iconos de Tabler que usa la app:
 // - public/iconos/tabler.json: la colección completa (no se sube; se genera antes de dev y build).
-// - src/iconos/basicos.ts: solo los del diccionario, que van dentro de la app (sí se sube).
+// - src/iconos/basicos.ts: solo los del diccionario y los de los tipos de tarea, que van dentro de la app (sí se sube).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { ICONO_TIPO } from '../src/agenda/tipos.ts';
 import { DICCIONARIO } from '../src/iconos/diccionario.ts';
 
 const base = new URL('../node_modules/@tabler/icons/', import.meta.url);
@@ -19,7 +20,7 @@ for (const [nombre, ns] of Object.entries(nodos)) {
 mkdirSync(new URL('../public/iconos/', import.meta.url), { recursive: true });
 writeFileSync(new URL('../public/iconos/tabler.json', import.meta.url), JSON.stringify(coleccion));
 
-const usados = [...new Set(DICCIONARIO.map((e) => e.icono))].sort();
+const usados = [...new Set([...DICCIONARIO.map((e) => e.icono), ...Object.values(ICONO_TIPO)])].sort();
 const faltan = usados.filter((n) => !nodos[n]);
 if (faltan.length) throw new Error(`Estos iconos del diccionario no existen en Tabler: ${faltan.join(', ')}`);
 const basicos = Object.fromEntries(usados.map((n) => [n, limpio(nodos[n])]));

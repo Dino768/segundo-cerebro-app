@@ -5,6 +5,10 @@ import { ErrorDatos, leerYaml, quitarNulos } from './yaml.ts';
 
 export type Prioridad = 'alta' | 'media' | 'baja';
 export const PRIORIDADES: Prioridad[] = ['alta', 'media', 'baja'];
+export const TIPOS = ['tarea', 'entrega', 'examen', 'recado', 'evento'] as const;
+export type TipoTarea = (typeof TIPOS)[number];
+// Días de la semana, o cada mes / cada año el mismo día que `fecha`.
+export type Repeticion = Dia[] | 'mes' | 'año';
 
 export interface Tarea {
   id: string;
@@ -14,7 +18,9 @@ export interface Tarea {
   prioridad?: Prioridad;
   fecha?: ISODate;
   hora?: string;
-  repetir?: Dia[];
+  tipo?: TipoTarea; // sin tipo = tarea
+  repetir?: Repeticion;
+  hasta?: ISODate; // último día de una repetición
   proyecto?: string;
   notas?: string;
   hecha?: boolean;
@@ -35,8 +41,15 @@ function problema(t: Record<string, unknown>): string | null {
     return 'prioridad debe ser alta, media o baja';
   if (t.fecha !== undefined && !isISODate(t.fecha)) return 'fecha debe tener el formato AAAA-MM-DD';
   if (t.hora !== undefined && !isHora(t.hora)) return 'hora debe tener el formato "HH:MM"';
-  if (t.repetir !== undefined && (!Array.isArray(t.repetir) || !t.repetir.every((d) => (DIAS as readonly unknown[]).includes(d))))
-    return 'repetir debe ser una lista de días (lun, mar, mie, jue, vie, sab, dom)';
+  if (t.tipo !== undefined && !(TIPOS as readonly unknown[]).includes(t.tipo))
+    return 'tipo debe ser tarea, entrega, examen, recado o evento';
+  const cadaMesOAno = t.repetir === 'mes' || t.repetir === 'año';
+  if (t.repetir !== undefined && !cadaMesOAno && (!Array.isArray(t.repetir) || !t.repetir.every((d) => (DIAS as readonly unknown[]).includes(d))))
+    return 'repetir debe ser una lista de días (lun, mar, mie, jue, vie, sab, dom), «mes» o «año»';
+  if (cadaMesOAno && t.fecha === undefined) return `repetir: ${t.repetir as string} necesita fecha (el día que se repite)`;
+  // `hasta` sin repetir o anterior a `fecha` no rompe el archivo: una versión antigua de la app puede dejarlo así
+  // (quita los días o mueve la fecha sin conocer `hasta`). Sin repetir se ignora; antes de `fecha`, la tarea no se repite.
+  if (t.hasta !== undefined && !isISODate(t.hasta)) return 'hasta debe tener el formato AAAA-MM-DD';
   if (t.hechas !== undefined && (!Array.isArray(t.hechas) || !t.hechas.every(isISODate)))
     return 'hechas debe ser una lista de fechas AAAA-MM-DD';
   if (t.hecha !== undefined && typeof t.hecha !== 'boolean') return 'hecha debe ser true o false';

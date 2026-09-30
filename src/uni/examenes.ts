@@ -33,7 +33,7 @@ export function propuestasDeExamenes(examenes: ExamenUrjc[], asignaturas: Map<st
     const convocatoria = texto(e.CONVOCATORIA);
     const fila: Fila = {
       origen: `urjc-examen:${texto(e.CURSO_ACADEMICO)}:${codigo}:${convocatoria}:${texto(e.GRUPO)}`,
-      titulo: `Examen: ${asignatura.nombre} (${CONVOCATORIAS[convocatoria] ?? `convocatoria ${convocatoria}`})`,
+      titulo: `${asignatura.nombre} (${CONVOCATORIAS[convocatoria] ?? `convocatoria ${convocatoria}`})`,
       area: asignatura.id,
       fecha,
       franja: texto(e.HORA).replace(/\s+/g, ' '),
@@ -67,8 +67,7 @@ function propuesta(f: Fila, origen: string): Propuesta {
     origen,
     titulo: f.titulo,
     area: f.area,
-    prioridad: 'alta',
-    icono: 'school',
+    tipo: 'examen',
     fecha: f.fecha,
     ...(inicio && isHora(inicio) ? { hora: inicio } : {}),
     ...(notas ? { notas } : {}),

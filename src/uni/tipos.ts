@@ -1,17 +1,16 @@
 import type { Asignatura } from '../datos/asignaturas.ts';
-import type { Prioridad } from '../datos/tareas.ts';
+import type { TipoTarea } from '../datos/tareas.ts';
 import type { ISODate } from '../fechas.ts';
 
 // Lo que una fuente (exámenes de la URJC o aula virtual) propone meter en tareas.yaml.
 export interface Propuesta {
   origen: string;
   titulo: string;
+  tipo: TipoTarea;
   area: string;
-  prioridad: Prioridad;
   fecha: ISODate;
   hora?: string;
   notas?: string;
-  icono?: string;
   // true: las notas vienen de la fuente (aulas de un examen) y se actualizan si la fuente las cambia.
   notasDeLaFuente: boolean;
 }

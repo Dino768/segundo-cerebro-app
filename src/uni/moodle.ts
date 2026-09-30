@@ -18,10 +18,9 @@ export function propuestasDeMoodle(eventos: EventoIcs[], asignaturas: Map<string
     const notas = textoPlano(e.descripcion);
     r.push({
       origen: `moodle:${e.uid}`,
-      titulo: entrega ? `Entrega: ${entrega[1]}` : titulo,
+      titulo: entrega ? entrega[1] : titulo,
+      tipo: entrega ? 'entrega' : 'tarea',
       area: asignatura.id,
-      prioridad: 'media',
-      ...(entrega ? { icono: 'file-upload' } : {}),
       ...cuando,
       ...(notas ? { notas } : {}),
       notasDeLaFuente: false,

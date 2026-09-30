@@ -67,9 +67,8 @@ function crear(p: Propuesta, id: string): Tarea {
   return {
     id,
     titulo: p.titulo,
-    ...(p.icono ? { icono: p.icono } : {}),
+    ...(p.tipo !== 'tarea' ? { tipo: p.tipo } : {}),
     area: p.area,
-    ...(p.prioridad !== 'media' ? { prioridad: p.prioridad } : {}),
     fecha: p.fecha,
     ...(p.hora ? { hora: p.hora } : {}),
     ...(p.notas ? { notas: p.notas } : {}),

@@ -6,12 +6,12 @@ import type { Propuesta } from './tipos.ts';
 const HOY = '2026-09-30';
 
 const examen = (x: Partial<Propuesta> = {}): Propuesta => ({
-  origen: 'urjc-examen:2026-27:2327007:E:AM', titulo: 'Examen: Cálculo (enero)', area: 'calculo', prioridad: 'alta',
-  icono: 'school', fecha: '2027-01-21', hora: '09:00', notas: '09:00 - 12:00 · Aula 204', notasDeLaFuente: true, ...x,
+  origen: 'urjc-examen:2026-27:2327007:E:AM', titulo: 'Cálculo (enero)', tipo: 'examen', area: 'calculo',
+  fecha: '2027-01-21', hora: '09:00', notas: '09:00 - 12:00 · Aula 204', notasDeLaFuente: true, ...x,
 });
 const entrega = (x: Partial<Propuesta> = {}): Propuesta => ({
-  origen: 'moodle:1@aula', titulo: 'Entrega: Práctica 1', area: 'fundamentos-programacion', prioridad: 'media',
-  icono: 'file-upload', fecha: '2026-10-05', hora: '23:59', notas: 'Sube el código', notasDeLaFuente: false, ...x,
+  origen: 'moodle:1@aula', titulo: 'Práctica 1', tipo: 'entrega', area: 'fundamentos-programacion',
+  fecha: '2026-10-05', hora: '23:59', notas: 'Sube el código', notasDeLaFuente: false, ...x,
 });
 const mia: Tarea = { id: 't-20260930-1', titulo: 'Ir a entrenar', area: 'salud' };
 
@@ -21,9 +21,9 @@ describe('fusionar', () => {
     expect(r.creadas).toBe(2);
     expect(r.actualizadas).toBe(0);
     expect(r.tareas.slice(2)).toEqual([
-      { id: 't-20260930-3', titulo: 'Examen: Cálculo (enero)', icono: 'school', area: 'calculo', prioridad: 'alta',
+      { id: 't-20260930-3', titulo: 'Cálculo (enero)', tipo: 'examen', area: 'calculo',
         fecha: '2027-01-21', hora: '09:00', notas: '09:00 - 12:00 · Aula 204', origen: 'urjc-examen:2026-27:2327007:E:AM' },
-      { id: 't-20260930-4', titulo: 'Entrega: Práctica 1', icono: 'file-upload', area: 'fundamentos-programacion',
+      { id: 't-20260930-4', titulo: 'Práctica 1', tipo: 'entrega', area: 'fundamentos-programacion',
         fecha: '2026-10-05', hora: '23:59', notas: 'Sube el código', origen: 'moodle:1@aula' },
     ]);
     expect(r.vistos).toEqual({
@@ -82,6 +82,10 @@ describe('fusionar', () => {
   it('quita de vistos lo que ya ha pasado', () => {
     const r = fusionar([], { 'moodle:viejo': { fecha: '2026-09-29' }, 'moodle:hoy': { fecha: HOY } }, [], HOY);
     expect(Object.keys(r.vistos)).toEqual(['moodle:hoy']);
+  });
+  it('un evento del profesor se crea como tarea (sin campo tipo)', () => {
+    const r = fusionar([], {}, [entrega({ origen: 'moodle:9@aula', titulo: 'Parcial', tipo: 'tarea' })], HOY);
+    expect('tipo' in r.tareas[0]).toBe(false);
   });
   it('no cambia los arrays ni las tareas que recibe', () => {
     const tareas = [mia];

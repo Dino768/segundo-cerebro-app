@@ -67,6 +67,8 @@ h4.subgrupo { margin: 10px 0 4px 16px; font-size: 14px; color: var(--suave); fon
 .lista > li:last-child { border-bottom: none; }
 .fila-tarea.hecha .titulo-tarea { text-decoration: line-through; color: var(--suave); }
 .punto { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+.sin-casilla { width: 13px; flex-shrink: 0; }
+.icono-tipo { display: inline-flex; color: var(--suave); margin-right: 2px; }
 .titulo-tarea { border: none; background: none; padding: 0; text-align: left; flex: 1; min-width: 120px; }
 .titulo-tarea:hover:not(:disabled) { background: none; color: var(--acento); }
 .prioridad, .estado { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--borde-suave); color: var(--suave); }

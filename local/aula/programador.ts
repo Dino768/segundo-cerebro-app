@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { EstadoAula } from '../../src/uni/aula/estado.ts';
 import { enMadrid } from '../../src/uni/hora.ts';
+import { ErrorFormato } from '../../src/uni/tipos.ts';
 
 export const HORAS_ENTRE_REVISIONES = 20;
 
@@ -34,8 +35,10 @@ export function crearAula(o: { config: string; leerEstado(): Promise<EstadoAula>
   const lanzar = () => {
     if (revisando) return;
     revisando = true;
-    void o.revisar()
-      .catch((e) => console.error(`Aula virtual: ${e instanceof Error ? e.message : String(e)}`))
+    // Los errores del navegador pueden llevar URLs con la sesión: solo se escribe su nombre (o el mensaje si es de formato).
+    void Promise.resolve()
+      .then(() => o.revisar())
+      .catch((e) => console.error(`Aula virtual: ${e instanceof ErrorFormato ? e.message : e instanceof Error ? e.name : 'Error'}`))
       .finally(() => (revisando = false));
   };
   return {

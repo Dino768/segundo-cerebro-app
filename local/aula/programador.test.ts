@@ -1,7 +1,7 @@
 import { mkdtemp, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { crearAula, tocaRevisar } from './programador.ts';
 
 describe('cuándo revisar', () => {
@@ -44,5 +44,33 @@ describe('interruptor y revisión', () => {
     await aula.revisarAhora();
     await new Promise((r) => setTimeout(r, 0));
     expect(revisiones).toBe(1);
+  });
+});
+
+describe('errores de la revisión', () => {
+  const nueva = async (revisar: () => Promise<unknown>) => {
+    const config = path.join(await mkdtemp(path.join(os.tmpdir(), 'aula-cfg-')), 'aula-virtual.json');
+    const aula = crearAula({ config, ahora: () => new Date(), leerEstado: async () => ({}), entrar: async () => true, revisar });
+    await aula.activar(true);
+    return aula;
+  };
+  it('un fallo libera el programador y no escribe datos privados', async () => {
+    const espia = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const aula = await nueva(async () => { throw new Error('https://x?sesskey=SECRETO'); });
+    await aula.revisarAhora();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(aula.ocupado()).toBe(false);
+    expect(espia).toHaveBeenCalled();
+    expect(espia.mock.calls.flat().join(' ')).not.toContain('SECRETO');
+    espia.mockRestore();
+  });
+  it('un fallo síncrono también libera el programador', async () => {
+    const espia = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const aula = await nueva(() => { throw new Error('sesskey=SECRETO'); });
+    await aula.revisarAhora();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(aula.ocupado()).toBe(false);
+    expect(espia.mock.calls.flat().join(' ')).not.toContain('SECRETO');
+    espia.mockRestore();
   });
 });

@@ -72,7 +72,9 @@ export async function revisarAula(d: Dependencias): Promise<ResumenRevision> {
   } catch (e) {
     if (e instanceof SesionCaducada) cosechas = 'necesita-entrar';
     else {
-      const mensaje = e instanceof Error ? e.message : String(e);
+      // Nunca se publica el texto de un error ajeno (puede llevar direcciones con la clave de sesión).
+      const mensaje = e instanceof ErrorFormato ? e.message : 'error inesperado al revisar el aula virtual';
+      console.error('Revisión del aula virtual: fallo', e instanceof Error ? e.name : typeof e);
       await aplicarYSubir(d, hoy, sinc, [], { resultado: 'error', mensaje }, false);
       return { resultado: 'error', mensaje };
     }
@@ -91,7 +93,8 @@ function textoResumen(cs: Cosecha[]): string {
   const avisos = cs.reduce((n, c) => n + c.avisos.length, 0);
   const materiales = cs.reduce((n, c) => n + c.materialesVistos.length, 0);
   const fechas = cs.reduce((n, c) => n + (c.respuesta && c.pregunta ? decidir(c.respuesta, c.pregunta).propuestas.length : 0), 0);
-  return [plural(avisos, 'aviso nuevo', 'avisos nuevos'), plural(materiales, 'material', 'materiales'), plural(fechas, 'fecha', 'fechas')].join(', ');
+  const pendientes = cs.filter((c) => c.pendiente).length;
+  return [plural(avisos, 'aviso nuevo', 'avisos nuevos'), plural(materiales, 'material', 'materiales'), plural(fechas, 'fecha', 'fechas'), ...(pendientes ? [plural(pendientes, 'pendiente', 'pendientes')] : [])].join(', ');
 }
 
 async function cosechar(d: Dependencias, asignaturas: Asignatura[], sinc: SincronizacionAula, hoy: string): Promise<Cosecha[]> {
@@ -124,7 +127,7 @@ async function cosechar(d: Dependencias, asignaturas: Asignatura[], sinc: Sincro
       if (c.respuesta) {
         const imp = new Map(c.respuesta.avisos.map((x) => [x.id, x.importante]));
         c.avisos = c.avisos.map((av) => ({ ...av, importante: imp.get(av.id) ?? false }));
-        if (c.guia && c.respuesta.evaluacion) c.guia.evaluacion = c.respuesta.evaluacion;
+        if (c.guia && c.pregunta?.conGuia) c.guia.evaluacion = c.respuesta.evaluacion ?? 'No he encontrado en la guía cómo se evalúa la asignatura.';
       }
       r.push(c);
     }
@@ -183,7 +186,7 @@ async function cosecharAsignatura(
     if (m.tipo === 'resource') {
       const desc = await bajar(d, nav, `${BASE_AULA}/mod/resource/view.php?id=${m.id}&redirect=1`, `${base}/${dir}`);
       if (desc) {
-        descargados.set(m.id, { archivo: `${dir}/${desc.nombre}`, tipo: tipoDeArchivo(desc.nombre) });
+        if (desc.bytes) descargados.set(m.id, { archivo: `${dir}/${desc.nombre}`, tipo: tipoDeArchivo(desc.nombre) });
         if (esDocumentoDeFechas(m.nombre) || esDocumentoDeFechas(desc.nombre)) {
           const texto = desc.bytes ? await d.textoDe(desc.bytes, desc.nombre) : null;
           if (texto) fuentes.push({ id: `${dir}/${desc.nombre}`, tipo: 'documento', titulo: m.nombre, enlace: m.url, texto });
@@ -318,6 +321,9 @@ async function aplicarYSubir(
       await escribir(d, RUTA_TAREAS, serializarTareas(tareas));
       archivos.push(RUTA_TAREAS);
     }
+    // La importancia que Claude da a avisos ya guardados (los que estaban pendientes); no se toca `leido`.
+    const importantes = new Map(cosechas.flatMap((c) => c.respuesta?.avisos ?? []).map((x) => [x.id, x.importante]));
+    avisos = avisos.map((a) => (importantes.has(a.id) ? { ...a, importante: importantes.get(a.id)! } : a));
     for (const p of delPrograma) avisos = [avisoPrograma(avisos, hoy, p.aviso.titulo, p.aviso.texto, p.asignatura), ...avisos];
 
     if (estado.resultado === 'necesita-entrar') avisos = anadirAvisos(avisos, [avisoEntrar(hoy)]);

@@ -11,7 +11,16 @@ export interface Git {
 
 export function crearGit(carpeta: string): Git {
   const git = (...args: string[]) => ejecutar('git', args, { cwd: carpeta, windowsHide: true });
-  const limpio = async () => (await git('status', '--porcelain', '--untracked-files=no')).stdout.trim() === '';
+  const arbolLimpio = async () => (await git('status', '--porcelain', '--untracked-files=no')).stdout.trim() === '';
+  // Limpio = sin cambios y sin commits propios sin subir (el programa nunca trabaja encima de lo de Diego).
+  const limpio = async () => {
+    if (!(await arbolLimpio())) return false;
+    try {
+      return Number((await git('rev-list', '--count', '@{u}..HEAD')).stdout.trim()) === 0;
+    } catch {
+      return false; // sin rama remota: mejor no tocar nada
+    }
+  };
   return {
     limpio,
     traer: async () => void (await git('pull', '--rebase', '--quiet')),
@@ -31,11 +40,14 @@ export function crearGit(carpeta: string): Git {
         return 'rechazado';
       }
     },
-    // Solo deshace el commit del programa: antes se comprobó que my-context estaba limpio.
+    // Solo deshace el commit del propio programa (asunto «Aula virtual: ...»); si HEAD es de otra persona, no toca nada.
     async volverAlRemoto() {
-      if (!(await limpio())) throw new Error('my-context ha cambiado mientras revisaba: lo intento más tarde');
-      await git('fetch', '--quiet');
-      await git('reset', '--hard', '--quiet', '@{u}');
+      const cambiado = 'my-context ha cambiado mientras revisaba: lo intento más tarde';
+      if (!(await arbolLimpio())) throw new Error(cambiado);
+      const asunto = (await git('log', '-1', '--format=%s')).stdout.trim();
+      if (!asunto.startsWith('Aula virtual:')) throw new Error(cambiado);
+      await git('reset', '--hard', '--quiet', 'HEAD~1');
+      await git('pull', '--rebase', '--quiet');
     },
   };
 }

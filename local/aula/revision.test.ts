@@ -42,9 +42,10 @@ function navegadorFalso(o: { sesion?: boolean; estado?: string } = {}): Navegado
     cerrar: async () => undefined,
   };
 }
-function gitFalso(x: Partial<Git> = {}): Git & { subidas: string[][] } {
+function gitFalso(x: Partial<Git> = {}): Git & { subidas: string[][]; mensajes: string[] } {
   const subidas: string[][] = [];
-  return { limpio: async () => true, traer: async () => undefined, subir: async (a) => (subidas.push(a), 'ok'), volverAlRemoto: async () => undefined, subidas, ...x };
+  const mensajes: string[] = [];
+  return { limpio: async () => true, traer: async () => undefined, subir: async (a, m) => (subidas.push(a), mensajes.push(m), 'ok'), volverAlRemoto: async () => undefined, subidas, mensajes, ...x };
 }
 const deps = (x: Partial<Dependencias> = {}): Dependencias => ({
   carpeta, ahora: AHORA, navegador: async () => navegadorFalso(),
@@ -96,6 +97,7 @@ describe('revisión del aula virtual', () => {
     expect(r.resultado).toBe('ok');
     expect(parseAvisos(await leer('estudios/avisos.yaml'))[0].importante).toBe(false);
     const s = parseSincronizacionAula(await leer('estudios/aula-sincronizacion.yaml'));
+    expect(r.mensaje).toBe('1 aviso nuevo, 1 material, 0 fechas, 1 pendiente');
     expect(s.pendientes).toEqual([{ asignatura: 'calculo', avisos: ['moodle-hilo-555'], documentos: ['General/Planificación.pdf'], guia: false }]);
     // Al día siguiente se lee lo pendiente sin volver a descargar.
     let descargas = 0;
@@ -104,6 +106,7 @@ describe('revisión del aula virtual', () => {
     expect(descargas).toBe(0);
     expect(parseTareas((await leer('agenda/tareas.yaml'))!)).toHaveLength(1);
     expect(parseSincronizacionAula(await leer('estudios/aula-sincronizacion.yaml')).pendientes).toEqual([]);
+    expect(parseAvisos(await leer('estudios/avisos.yaml')).find((a) => a.id === 'moodle-hilo-555')).toEqual(expect.objectContaining({ importante: true, leido: false }));
   });
   it('sesión caducada: no toca nada más y deja el aviso de volver a entrar', async () => {
     const r = await revisarAula(deps({ navegador: async () => navegadorFalso({ sesion: false }) }));
@@ -194,5 +197,35 @@ describe('revisión del aula virtual', () => {
     // Mismo texto al día siguiente: no se vuelve a mandar a Claude.
     await revisarAula(deps({ navegador: async () => navGuia, preguntar }));
     expect(conGuiaPedida).toBe(1);
+  });
+  it('un error ajeno no publica su texto (ni en el estado ni en el commit)', async () => {
+    const git = gitFalso();
+    const nav = navegadorFalso();
+    const r = await revisarAula(deps({ git, navegador: async () => ({ ...nav, ajax: async () => { throw new Error('fallo en https://x/service.php?sesskey=SECRETO'); } }) }));
+    expect(r.resultado).toBe('error');
+    expect(r.mensaje).not.toContain('SECRETO');
+    expect(await leer('estudios/aula-sincronizacion.yaml')).not.toContain('SECRETO');
+    expect(git.mensajes.join(' ')).not.toContain('SECRETO');
+  });
+  it('guía sin evaluación: se escribe con la frase de «no encontrado» y no se reenvía', async () => {
+    const conGuia = JSON.stringify({
+      section: [{ id: '10', title: 'General', cmlist: ['100', '107'] }],
+      cm: [{ id: '100', name: 'Novedades', module: 'forum', url: 'https://aula/mod/forum/view.php?id=100' }, { id: '107', name: 'Guía docente', module: 'resource', url: 'https://aula/mod/resource/view.php?id=107' }],
+    });
+    const nav = navegadorFalso({ estado: conGuia });
+    const navGuia: Navegador = { ...nav, descargar: async () => ({ bytes: new TextEncoder().encode('Texto de la guía.'), nombre: 'Guia.pdf' }) };
+    let conGuiaPedida = 0;
+    const preguntar = async (_m: Modelo, texto: string) => (texto.includes('guía docente: escribe también') && conGuiaPedida++, respuesta({ evaluacion: null }));
+    await revisarAula(deps({ navegador: async () => navGuia, preguntar }));
+    expect(await leer('estudios/calculo/guia-docente.md')).toContain('No he encontrado en la guía cómo se evalúa la asignatura.');
+    await revisarAula(deps({ navegador: async () => navGuia, preguntar }));
+    expect(conGuiaPedida).toBe(1);
+  });
+  it('un archivo que no se guarda (vídeo o demasiado grande) no lleva archivo en la lista', async () => {
+    const nav = navegadorFalso();
+    await revisarAula(deps({ navegador: async () => ({ ...nav, descargar: async () => ({ demasiadoGrande: true as const, nombre: 'Grabación.mp4' }) }) }));
+    const lista = await leer('estudios/calculo/aula-virtual.yaml');
+    expect(lista).toContain('Planificación');
+    expect(lista).not.toContain('archivo:');
   });
 });

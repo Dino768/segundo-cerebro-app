@@ -5,3 +5,8 @@ export const RUTA_BANDEJA = 'ideas/bandeja.md';
 export const RUTA_IDEAS = 'ideas/ideas.yaml';
 export const RUTA_ASIGNATURAS = 'estudios/asignaturas.yaml';
 export const RUTA_UNI_SINCRONIZACION = 'estudios/uni-sincronizacion.yaml';
+export const RUTA_AVISOS = 'estudios/avisos.yaml';
+export const RUTA_AULA_SINCRONIZACION = 'estudios/aula-sincronizacion.yaml';
+export const rutaAulaVirtual = (id: string) => `estudios/${id}/aula-virtual.yaml`;
+export const rutaGuiaDocente = (id: string) => `estudios/${id}/guia-docente.md`;
+export const carpetaMateriales = (id: string) => `estudios/${id}/aula-virtual`;

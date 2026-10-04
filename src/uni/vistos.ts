@@ -8,9 +8,24 @@ export interface Visto {
   fecha: ISODate;
   hora?: string;
   notas?: string;
+  titulo?: string; // solo en las tareas del aula virtual (para poner y quitar la marca ⚠)
 }
 
 export type Vistos = Record<string, Visto>;
+
+export function leerVisto(origen: string, bruto: unknown, archivo: string): Visto {
+  const v = (typeof bruto === 'object' && bruto !== null ? bruto : {}) as Record<string, unknown>;
+  if (!isISODate(v.fecha)) throw new ErrorDatos(archivo, `${origen}: fecha debe tener el formato AAAA-MM-DD`);
+  if (v.hora !== undefined && !isHora(v.hora)) throw new ErrorDatos(archivo, `${origen}: hora debe tener el formato "HH:MM"`);
+  if (v.notas !== undefined && typeof v.notas !== 'string') throw new ErrorDatos(archivo, `${origen}: notas debe ser texto`);
+  if (v.titulo !== undefined && typeof v.titulo !== 'string') throw new ErrorDatos(archivo, `${origen}: titulo debe ser texto`);
+  return {
+    fecha: v.fecha,
+    ...(v.hora !== undefined ? { hora: v.hora as string } : {}),
+    ...(v.notas !== undefined ? { notas: v.notas as string } : {}),
+    ...(v.titulo !== undefined ? { titulo: v.titulo as string } : {}),
+  };
+}
 
 export function parseVistos(texto: string | null): Vistos {
   if (texto === null) return {};
@@ -24,15 +39,7 @@ export function parseVistos(texto: string | null): Vistos {
     throw new ErrorDatos(RUTA_UNI_SINCRONIZACION, 'vistos debe ser una lista de origen: { fecha, hora, notas }');
   const r: Vistos = {};
   for (const [origen, bruto] of Object.entries(mapa as Record<string, unknown>)) {
-    const v = (typeof bruto === 'object' && bruto !== null ? bruto : {}) as Record<string, unknown>;
-    if (!isISODate(v.fecha)) throw new ErrorDatos(RUTA_UNI_SINCRONIZACION, `${origen}: fecha debe tener el formato AAAA-MM-DD`);
-    if (v.hora !== undefined && !isHora(v.hora)) throw new ErrorDatos(RUTA_UNI_SINCRONIZACION, `${origen}: hora debe tener el formato "HH:MM"`);
-    if (v.notas !== undefined && typeof v.notas !== 'string') throw new ErrorDatos(RUTA_UNI_SINCRONIZACION, `${origen}: notas debe ser texto`);
-    r[origen] = {
-      fecha: v.fecha,
-      ...(v.hora !== undefined ? { hora: v.hora as string } : {}),
-      ...(v.notas !== undefined ? { notas: v.notas as string } : {}),
-    };
+    r[origen] = leerVisto(origen, bruto, RUTA_UNI_SINCRONIZACION);
   }
   return r;
 }

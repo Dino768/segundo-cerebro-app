@@ -1,5 +1,5 @@
 import { stringify } from 'yaml';
-import { isISODate, type ISODate } from '../fechas.ts';
+import { addDays, isISODate, type ISODate } from '../fechas.ts';
 import { RUTA_AVISOS } from './rutas.ts';
 import { ErrorDatos, leerYaml } from './yaml.ts';
 
@@ -12,6 +12,7 @@ export interface Aviso {
   texto: string;
   importante: boolean;
   leido: boolean;
+  leidoEl?: ISODate; // el día en que se marcó como leído (caduca a los DIAS_LEIDOS)
   enlace?: string;
 }
 
@@ -29,6 +30,7 @@ export function parseAvisos(texto: string | null): Aviso[] {
       throw new ErrorDatos(RUTA_AVISOS, `${donde}: necesita id, titulo y texto`);
     if (!isISODate(a.fecha)) throw new ErrorDatos(RUTA_AVISOS, `${donde}: fecha debe tener el formato AAAA-MM-DD`);
     if (a.asignatura !== undefined && typeof a.asignatura !== 'string') throw new ErrorDatos(RUTA_AVISOS, `${donde}: asignatura debe ser texto`);
+    if (a.leidoEl !== undefined && !isISODate(a.leidoEl)) throw new ErrorDatos(RUTA_AVISOS, `${donde}: leidoEl debe tener el formato AAAA-MM-DD`);
     if (a.enlace !== undefined && typeof a.enlace !== 'string') throw new ErrorDatos(RUTA_AVISOS, `${donde}: enlace debe ser texto`);
     return {
       id: a.id,
@@ -38,6 +40,7 @@ export function parseAvisos(texto: string | null): Aviso[] {
       texto: a.texto,
       importante: a.importante === true,
       leido: a.leido === true,
+      ...(a.leidoEl ? { leidoEl: a.leidoEl as string } : {}),
       ...(a.enlace ? { enlace: a.enlace as string } : {}),
     };
   });
@@ -47,9 +50,28 @@ export function serializarAvisos(avisos: Aviso[]): string {
   return stringify({ avisos }, { lineWidth: 0 });
 }
 
-export function marcarLeidos(avisos: Aviso[], ids: string[]): Aviso[] {
+// Un aviso leído se ve DIAS_LEIDOS días desde que se leyó; después la app lo oculta y el programa del PC lo borra.
+export const DIAS_LEIDOS = 30;
+
+export function marcarLeidos(avisos: Aviso[], ids: string[], hoy: ISODate): Aviso[] {
   const set = new Set(ids);
-  return avisos.map((a) => (set.has(a.id) && !a.leido ? { ...a, leido: true } : a));
+  return avisos.map((a) => (set.has(a.id) && !a.leido ? { ...a, leido: true, leidoEl: hoy } : a));
+}
+
+export function marcarNoLeido(avisos: Aviso[], id: string): Aviso[] {
+  return avisos.map((a) => {
+    if (a.id !== id) return a;
+    const { leidoEl: _, ...resto } = a;
+    return { ...resto, leido: false };
+  });
+}
+
+export function caducado(a: Aviso, hoy: ISODate): boolean {
+  return a.leido && a.leidoEl !== undefined && a.leidoEl < addDays(hoy, -DIAS_LEIDOS);
+}
+
+export function avisosVisibles(avisos: Aviso[], hoy: ISODate): Aviso[] {
+  return avisos.filter((a) => !caducado(a, hoy));
 }
 
 export function importantesSinLeer(avisos: Aviso[]): Aviso[] {

@@ -4,13 +4,15 @@ import { parseAreas, serializarAreas, type Area } from './datos/areas';
 import { parseAsignaturas, serializarAsignaturas, type Asignatura } from './datos/asignaturas';
 import { parseProyecto, serializarProyecto, type Proyecto } from './datos/proyectos';
 import { parseAulaVirtual, type AulaVirtual } from './datos/aulaVirtual';
-import { marcarLeidos, parseAvisos, serializarAvisos, type Aviso } from './datos/avisos';
+import { marcarLeidos, marcarNoLeido, parseAvisos, serializarAvisos, type Aviso } from './datos/avisos';
 import { seccionEvaluacion } from './datos/guia';
+import { AJUSTES_VACIOS, parseAjustesHorario, parseHorario, serializarAjustesHorario, type AjustesHorario, type Clase } from './datos/horario';
 import { parseBandeja } from './datos/bandeja';
 import { fusionarBandeja, parseIdeas, serializarIdeas, type Idea } from './datos/ideas';
-import { CARPETA_PROYECTOS, RUTA_AREAS, RUTA_ASIGNATURAS, RUTA_AVISOS, RUTA_BANDEJA, RUTA_IDEAS, RUTA_TAREAS, rutaAulaVirtual, rutaGuiaDocente } from './datos/rutas';
+import { CARPETA_PROYECTOS, RUTA_AREAS, RUTA_ASIGNATURAS, RUTA_AVISOS, RUTA_BANDEJA, RUTA_HORARIO, RUTA_HORARIO_AJUSTES, RUTA_IDEAS, RUTA_TAREAS, rutaAulaVirtual, rutaGuiaDocente } from './datos/rutas';
 import { parseTareas, serializarTareas, type Tarea } from './datos/tareas';
 import { ErrorDatos } from './datos/yaml';
+import type { ISODate } from './fechas';
 import { actualizarArchivo, borrarArchivo, ErrorGitHub, leerArchivo, listarCarpeta, type Config } from './github/cliente';
 
 export interface Datos {
@@ -238,17 +240,50 @@ export async function cargarAvisos(cfg: Config): Promise<Aviso[]> {
   return parseAvisos(await leerOpcional(cfg, RUTA_AVISOS));
 }
 
-// Solo cambia `leido`: lo demás lo escribe el programa del PC y se respeta lo que haya añadido mientras tanto.
-export async function leerAvisos(cfg: Config, ids: string[]): Promise<Aviso[]> {
+// Solo cambia `leido`/`leidoEl`: lo demás lo escribe el programa del PC y se respeta lo que haya añadido mientras tanto.
+export async function leerAvisos(cfg: Config, ids: string[], hoy: ISODate): Promise<Aviso[]> {
   let r: Aviso[] = [];
   await actualizarArchivo(cfg, RUTA_AVISOS, (texto) => {
-    r = marcarLeidos(parseAvisos(texto), ids);
+    r = marcarLeidos(parseAvisos(texto), ids, hoy);
     return serializarAvisos(r);
   }, ids.length === 1 ? 'Aviso leído' : `${ids.length} avisos leídos`);
+  return r;
+}
+
+export async function desleerAviso(cfg: Config, id: string): Promise<Aviso[]> {
+  let r: Aviso[] = [];
+  await actualizarArchivo(cfg, RUTA_AVISOS, (texto) => {
+    r = marcarNoLeido(parseAvisos(texto), id);
+    return serializarAvisos(r);
+  }, 'Aviso sin leer');
   return r;
 }
 
 export async function cargarAulaAsignatura(cfg: Config, id: string): Promise<{ aula: AulaVirtual | null; evaluacion: string | null }> {
   const [lista, guia] = await Promise.all([leerOpcional(cfg, rutaAulaVirtual(id)), leerOpcional(cfg, rutaGuiaDocente(id))]);
   return { aula: parseAulaVirtual(lista, rutaAulaVirtual(id)), evaluacion: seccionEvaluacion(guia) };
+}
+
+export interface Horario {
+  clases: Clase[];
+  ajustes: AjustesHorario;
+}
+
+export const HORARIO_VACIO: Horario = { clases: [], ajustes: AJUSTES_VACIOS };
+
+export async function cargarHorario(cfg: Config): Promise<Horario> {
+  const [clases, ajustes] = await Promise.all([leerOpcional(cfg, RUTA_HORARIO), leerOpcional(cfg, RUTA_HORARIO_AJUSTES)]);
+  return { clases: parseHorario(clases), ajustes: parseAjustesHorario(ajustes) };
+}
+
+// Solo cambia lo que toca `cambio` (normalmente quitadas o sueltas) sobre lo que haya en GitHub en ese momento.
+export async function modificarAjustesHorario(
+  cfg: Config, cambio: (a: AjustesHorario) => AjustesHorario, mensaje: string,
+): Promise<AjustesHorario> {
+  let r: AjustesHorario = AJUSTES_VACIOS;
+  await actualizarArchivo(cfg, RUTA_HORARIO_AJUSTES, (texto) => {
+    r = cambio(parseAjustesHorario(texto));
+    return serializarAjustesHorario(r);
+  }, mensaje);
+  return r;
 }

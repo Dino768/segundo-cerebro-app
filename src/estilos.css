@@ -436,3 +436,21 @@ body.con-pantalla-completa { overflow: hidden; }
 .materiales li { padding: 4px 0; }
 
 .casilla { display: flex; gap: 8px; align-items: center; margin: 0 0 8px; }
+/* Horario de clases */
+.horario { display: grid; grid-template-columns: 44px repeat(5, minmax(0, 1fr)); gap: 4px; margin: 12px 0; }
+.horario-cabecera { display: block; height: 22px; text-align: center; font-size: 12px; color: var(--suave); }
+.horario-dia.hoy .horario-cabecera { color: var(--acento); font-weight: 700; }
+.horario-columna { position: relative; height: calc(var(--filas) * 56px); border-top: 1px solid var(--borde-suave); background: repeating-linear-gradient(to bottom, transparent 0 55px, var(--borde-suave) 55px 56px); }
+.horario-hora { position: absolute; right: 4px; transform: translateY(-50%); font-size: 11px; color: var(--suave); }
+.clase-bloque { position: absolute; left: 2px; right: 2px; display: flex; flex-direction: column; gap: 1px; padding: 4px 6px; border-radius: 6px; border: none; border-left: 3px solid; text-align: left; font-size: 12px; overflow: hidden; color: var(--texto); }
+.clase-bloque strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clase-bloque.quitada { text-decoration: line-through; opacity: 0.5; }
+.clase-bloque.suelta { border-left-style: dashed; }
+.clase-marca { align-self: flex-start; font-size: 10px; padding: 0 4px; border-radius: 4px; background: var(--superficie); }
+.clase-aula { font-size: 11px; color: var(--suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.linea-clases { display: block; width: 100%; text-align: left; margin: 0 0 16px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--borde); background: var(--superficie); }
+@media (max-width: 600px) {
+  .horario { grid-template-columns: 30px repeat(5, minmax(0, 1fr)); gap: 2px; }
+  .clase-bloque { padding: 2px 3px; font-size: 10px; }
+  .clase-aula, .clase-marca { display: none; }
+}

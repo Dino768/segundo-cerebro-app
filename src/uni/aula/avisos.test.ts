@@ -10,9 +10,14 @@ describe('avisos del programa', () => {
     expect(r.map((x) => x.id)).toEqual(['b', 'a']);
     expect(r[1]).toEqual(av('a', { leido: true }));
   });
-  it('quita los leídos de hace más de 60 días, nunca los no leídos', () => {
-    const r = limpiarAvisos([av('viejo', { fecha: '2026-08-01', leido: true }), av('viejo-sin-leer', { fecha: '2026-08-01' }), av('reciente', { fecha: '2026-08-10', leido: true })], '2026-10-09');
-    expect(r.map((x) => x.id)).toEqual(['viejo-sin-leer', 'reciente']);
+  it('borra los leídos hace más de 30 días, pone fecha a los leídos sin ella y nunca toca los no leídos', () => {
+    const r = limpiarAvisos([
+      av('viejo', { leido: true, leidoEl: '2026-09-08' }),
+      av('justo', { leido: true, leidoEl: '2026-09-09' }),
+      av('sin-fecha', { fecha: '2026-01-01', leido: true }),
+      av('sin-leer', { fecha: '2026-01-01', leidoEl: '2026-01-01' }),
+    ], '2026-10-09');
+    expect(r.map((x) => [x.id, x.leidoEl])).toEqual([['justo', '2026-09-09'], ['sin-fecha', '2026-10-09'], ['sin-leer', '2026-01-01']]);
   });
   it('avisos propios: importantes, sin leer, con id del día sin repetir', () => {
     const uno = avisoPrograma([], '2026-10-04', 'Fecha por confirmar', 'Texto', 'calculo');

@@ -11,6 +11,8 @@ export interface Destino {
   proyecto?: string;
   pestana?: Pestana;
   aula?: boolean; // Estudio: abrir la sección Aula virtual con todos los avisos
+  asignatura?: string; // Estudio: abrir el Aula virtual de esa asignatura
+  vista?: 'horario'; // Calendario: abrir la vista Horario
 }
 
 export const SECCIONES: { id: Pantalla; nombre: string; icono: string }[] = [

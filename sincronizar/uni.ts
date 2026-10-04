@@ -3,18 +3,21 @@
 // La URL del calendario es una llave: nunca se escribe en la consola ni en los errores.
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { parseAsignaturas } from '../src/datos/asignaturas.ts';
-import { RUTA_ASIGNATURAS, RUTA_TAREAS, RUTA_UNI_SINCRONIZACION } from '../src/datos/rutas.ts';
+import { parseAsignaturas, type Asignatura } from '../src/datos/asignaturas.ts';
+import { parseAjustesHorario, parseHorario, serializarHorario, type Clase } from '../src/datos/horario.ts';
+import { RUTA_ASIGNATURAS, RUTA_HORARIO, RUTA_HORARIO_AJUSTES, RUTA_TAREAS, RUTA_UNI_SINCRONIZACION } from '../src/datos/rutas.ts';
 import { parseTareas, serializarTareas } from '../src/datos/tareas.ts';
 import { leerExamenes, propuestasDeExamenes, type ExamenUrjc } from '../src/uni/examenes.ts';
 import { fusionar } from '../src/uni/fusionar.ts';
 import { hoyEnMadrid } from '../src/uni/hora.ts';
+import { clasesDeUrjc, leerPaginaHorario } from '../src/uni/horario.ts';
 import { leerIcs, type ResultadoIcs } from '../src/uni/ics.ts';
 import { propuestasDeMoodle } from '../src/uni/moodle.ts';
 import { ErrorFormato, porCodigo } from '../src/uni/tipos.ts';
 import { parseVistos, serializarVistos } from '../src/uni/vistos.ts';
 
 const URL_EXAMENES = 'https://servicios.urjc.es/examenes/informacion';
+const URL_HORARIO = 'https://servicios.urjc.es/horarios/calendario-grado';
 const TITULACION = '2327'; // Grado en Ingeniería de Robótica Software (Fuenlabrada)
 const ESPERA_MAXIMA = 30_000;
 
@@ -31,18 +34,23 @@ export interface Resumen {
   actualizadas: number;
   saltados: number;
   escrito: boolean;
+  clases?: number; // solo si hay grupo en horario-ajustes.yaml y el horario se ha leído bien
+  errorHorario?: string; // el horario ha fallado (lo demás se ha guardado igual)
 }
 
 export async function sincronizarUni(o: Opciones): Promise<Resumen> {
-  const [textoTareas, textoAsignaturas, textoVistos] = await Promise.all(
-    [RUTA_TAREAS, RUTA_ASIGNATURAS, RUTA_UNI_SINCRONIZACION].map((ruta) => leerSiExiste(path.join(o.carpeta, ruta))),
+  const [textoTareas, textoAsignaturas, textoVistos, textoAjustes, textoHorario] = await Promise.all(
+    [RUTA_TAREAS, RUTA_ASIGNATURAS, RUTA_UNI_SINCRONIZACION, RUTA_HORARIO_AJUSTES, RUTA_HORARIO]
+      .map((ruta) => leerSiExiste(path.join(o.carpeta, ruta))),
   );
   const tareas = textoTareas === null ? [] : parseTareas(textoTareas);
   const asignaturas = porCodigo(textoAsignaturas === null ? [] : parseAsignaturas(textoAsignaturas));
   if (asignaturas.size === 0) throw new Error(`ninguna asignatura de ${RUTA_ASIGNATURAS} tiene codigo: no hay nada que sincronizar`);
   const vistos = parseVistos(textoVistos);
 
-  const [calendario, examenes] = await Promise.all([descargarCalendario(o), descargarExamenes(o)]);
+  const [calendario, examenes, horario] = await Promise.all([
+    descargarCalendario(o), descargarExamenes(o), horarioNuevo(o, textoAjustes, textoHorario, asignaturas),
+  ]);
   const hoy = hoyEnMadrid(o.ahora);
   const propuestas = [
     ...propuestasDeExamenes(examenes, asignaturas, hoy),
@@ -54,20 +62,49 @@ export async function sincronizarUni(o: Opciones): Promise<Resumen> {
   const vistosNuevos = serializarVistos(r.vistos);
   const cambianTareas = tareasNuevas !== serializarTareas(tareas);
   const cambianVistos = vistosNuevos !== serializarVistos(vistos);
+  const horarioTexto = horario.tipo === 'clases' ? serializarHorario(horario.clases) : null;
+  const cambiaHorario = horarioTexto !== null && horarioTexto !== textoHorario;
   if (!o.prueba) {
     if (cambianTareas) await writeFile(path.join(o.carpeta, RUTA_TAREAS), tareasNuevas);
     if (cambianVistos) await writeFile(path.join(o.carpeta, RUTA_UNI_SINCRONIZACION), vistosNuevos);
+    if (horarioTexto !== null && cambiaHorario) await writeFile(path.join(o.carpeta, RUTA_HORARIO), horarioTexto);
   }
   return {
     creadas: r.creadas,
     actualizadas: r.actualizadas,
     saltados: calendario.saltados,
-    escrito: !o.prueba && (cambianTareas || cambianVistos),
+    escrito: !o.prueba && (cambianTareas || cambianVistos || cambiaHorario),
+    ...(horario.tipo === 'clases' ? { clases: horario.clases.length } : {}),
+    ...(horario.tipo === 'error' ? { errorHorario: horario.error } : {}),
   };
 }
 
+type ResultadoHorario = { tipo: 'clases'; clases: Clase[] } | { tipo: 'error'; error: string } | { tipo: 'sin-grupo' };
+
+// El horario nunca hace fallar lo demás: devuelve las clases, un error o nada (sin grupo en los ajustes).
+async function horarioNuevo(
+  o: Opciones, textoAjustes: string | null, textoHorario: string | null, asignaturas: Map<string, Asignatura>,
+): Promise<ResultadoHorario> {
+  try {
+    const ajustes = parseAjustesHorario(textoAjustes);
+    if (!ajustes.grupo) return { tipo: 'sin-grupo' };
+    const res = await pedir(o, 'la web de horarios de la URJC', URL_HORARIO, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ cod_plan: TITULACION, curso: String(ajustes.curso ?? 1), grupo: ajustes.grupo, semestre: '*' }).toString(),
+    });
+    if (!res.ok) throw new Error(`la web de horarios de la URJC contestó ${res.status}`);
+    const clases = clasesDeUrjc(leerPaginaHorario(await res.text()), asignaturas, ajustes.desdoble);
+    if (clases.length === 0 && parseHorario(textoHorario).length > 0)
+      throw new Error('la web de horarios de la URJC no ha devuelto ninguna clase: se deja el horario que había');
+    return { tipo: 'clases', clases };
+  } catch (e) {
+    return { tipo: 'error', error: `Horario: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
 export function textoResumen(r: Resumen): string {
-  return `Uni: ${r.creadas} nuevas, ${r.actualizadas} actualizadas`;
+  return `Uni: ${r.creadas} nuevas, ${r.actualizadas} actualizadas${r.clases !== undefined ? ` · horario: ${r.clases} clases` : ''}`;
 }
 
 async function leerSiExiste(ruta: string): Promise<string | null> {
@@ -124,6 +161,10 @@ async function principal(): Promise<void> {
     if (r.saltados) console.error(`Aviso: se han saltado ${r.saltados} eventos del calendario sin UID o sin fecha.`);
     if (prueba) console.error('Modo prueba: no se ha guardado nada.');
     console.log(textoResumen(r));
+    if (r.errorHorario) {
+      console.error(`Error: ${r.errorHorario}`);
+      process.exit(3); // lo demás se ha guardado: el workflow sube y luego avisa del fallo
+    }
   } catch (e) {
     console.error(`Error: ${e instanceof Error ? e.message : String(e)}`);
     process.exit(1);

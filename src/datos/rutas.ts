@@ -10,3 +10,5 @@ export const RUTA_AULA_SINCRONIZACION = 'estudios/aula-sincronizacion.yaml';
 export const rutaAulaVirtual = (id: string) => `estudios/${id}/aula-virtual.yaml`;
 export const rutaGuiaDocente = (id: string) => `estudios/${id}/guia-docente.md`;
 export const carpetaMateriales = (id: string) => `estudios/${id}/aula-virtual`;
+export const RUTA_HORARIO = 'estudios/horario.yaml';
+export const RUTA_HORARIO_AJUSTES = 'estudios/horario-ajustes.yaml';

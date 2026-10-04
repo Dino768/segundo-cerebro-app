@@ -1,17 +1,25 @@
 import { Fragment, useState } from 'react';
+import { anadirSuelta, borrarSuelta, clasesActivas, clasesDelDia, quitarClase, volverAPoner, type ClaseDelDia } from '../agenda/horario';
 import { alternarArea, encendidasEfectivas, filtrarPorAreas, hayOtrasAreas, OTRAS, tareasDelDia } from '../agenda/tareas';
 import { EtiquetaTarea } from '../componentes/EtiquetaTarea';
 import { FilaTarea } from '../componentes/FilaTarea';
 import type { Edicion } from '../componentes/FormTarea';
+import { CuadriculaHorario } from '../componentes/horario/CuadriculaHorario';
+import { FilaClase } from '../componentes/horario/FilaClase';
+import { FormClaseSuelta } from '../componentes/horario/FormClaseSuelta';
+import { VentanaClase } from '../componentes/horario/VentanaClase';
+import type { Destino } from '../componentes/navegacion';
 import { VentanaArea } from '../componentes/VentanaArea';
+import { guardarClasesVisibles, leerClasesVisibles } from '../estado/clasesVisibles';
 import { useDatos } from '../estado/datos';
+import { useHorario } from '../estado/horario';
 import { useHoy } from '../estado/hoy';
 import {
   addDays, cuadriculaMes, DIAS, diaDeSemana, diasSemana, formatoCorto, formatoLargo, fromISO, nombreMes,
   sumarMeses, type ISODate,
 } from '../fechas';
 
-type Vista = 'mes' | 'semana';
+type Vista = 'mes' | 'semana' | 'horario';
 
 // El filtro de áreas se recuerda en cada dispositivo. Si el navegador no deja guardarlo, se empieza con todas.
 // `conocidas` guarda qué áreas había cuando se tocó el filtro por última vez, para que una nueva (de aquí o de
@@ -51,10 +59,22 @@ function guardarFiltro(f: FiltroAreas): void {
   }
 }
 
-export function Calendario({ editar, diaInicial }: { editar(e: Edicion): void; diaInicial?: ISODate }) {
+export function Calendario({ editar, ir, diaInicial, vistaInicial }: { editar(e: Edicion): void; ir(d: Destino): void; diaInicial?: ISODate; vistaInicial?: 'horario' }) {
   const { datos, soloLectura, tareasBloqueadas, areasBloqueadas } = useDatos();
   const hoy = useHoy();
-  const [vista, setVista] = useState<Vista>('mes');
+  const [vista, setVista] = useState<Vista>(vistaInicial ?? 'mes');
+  const { horario, error: errorHorario, cerrarError, cambiarAjustes } = useHorario();
+  const [conClases, setConClases] = useState(leerClasesVisibles);
+  const [claseAbierta, setClaseAbierta] = useState<ClaseDelDia | null>(null);
+  const [nuevaSuelta, setNuevaSuelta] = useState(false);
+  const alternarClases = () => {
+    guardarClasesVisibles(!conClases);
+    setConClases(!conClases);
+  };
+  const clasesDe = (dia: ISODate) => (conClases ? clasesActivas(horario.clases, horario.ajustes, dia) : []);
+  const cambiarClase = async (cambio: Parameters<typeof cambiarAjustes>[0], mensaje: string) => {
+    if (await cambiarAjustes(cambio, mensaje)) setClaseAbierta(null);
+  };
   const [seleccionado, setSeleccionado] = useState<ISODate>(diaInicial ?? hoy);
   const [filtro, setFiltro] = useState<FiltroAreas>(leerFiltro);
   const [editandoArea, setEditandoArea] = useState<{ id?: string } | null>(null);
@@ -77,7 +97,7 @@ export function Calendario({ editar, diaInicial }: { editar(e: Edicion): void; d
   const semanas = vista === 'mes' ? cuadriculaMes(fecha.getFullYear(), fecha.getMonth() + 1) : [diasSemana(seleccionado)];
   const titulo = vista === 'mes' ? nombreMes(fecha.getFullYear(), fecha.getMonth() + 1) : `Semana del ${formatoCorto(semanas[0][0])}`;
   const maximo = vista === 'mes' ? 3 : 8;
-  const mover = (n: number) => setSeleccionado((s) => (vista === 'semana' ? addDays(s, 7 * n) : sumarMeses(s, n)));
+  const mover = (n: number) => setSeleccionado((s) => (vista === 'mes' ? sumarMeses(s, n) : addDays(s, 7 * n)));
 
   return (
     <section>
@@ -86,13 +106,20 @@ export function Calendario({ editar, diaInicial }: { editar(e: Edicion): void; d
         <h2>{titulo}</h2>
         <button onClick={() => mover(1)} aria-label="Siguiente">›</button>
         <button onClick={() => setSeleccionado(hoy)}>Hoy</button>
-        <button onClick={() => setVista((v) => (v === 'mes' ? 'semana' : 'mes'))}>
-          {vista === 'mes' ? 'Ver semana' : 'Ver mes'}
-        </button>
+        <div className="pestanas" role="tablist">
+          {(['mes', 'semana', 'horario'] as const).map((v) => (
+            <button key={v} role="tab" aria-selected={vista === v} className={vista === v ? 'activa' : ''} onClick={() => setVista(v)}>
+              {v === 'mes' ? 'Mes' : v === 'semana' ? 'Semana' : '🎓 Horario'}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="filtros-areas" aria-label="Calendarios">
         <button className={`pastilla${efectivas.length === 0 ? ' encendida' : ''}`} onClick={() => cambiarAreas([])}>
           Todo
+        </button>
+        <button className={`pastilla${conClases ? ' encendida' : ''}`} aria-pressed={conClases} onClick={alternarClases}>
+          🎓 Clases
         </button>
         {botones.map((b) => (
           <Fragment key={b.id}>
@@ -114,44 +141,97 @@ export function Calendario({ editar, diaInicial }: { editar(e: Edicion): void; d
         <button className="pastilla" onClick={() => setEditandoArea({})} disabled={soloLectura || areasBloqueadas}>+ Nueva área</button>
       </div>
       {editandoArea && <VentanaArea id={editandoArea.id} cerrar={() => setEditandoArea(null)} />}
-      <div className={`cal-cabecera ${vista}`}>
-        {DIAS.map((d) => (
-          <span key={d}>{d}</span>
-        ))}
-      </div>
-      {semanas.map((semana) => (
-        <div key={semana[0]} className={`cal-semana ${vista}`}>
-          {semana.map((dia) => {
-            const ts = tareasDelDia(tareas, dia);
-            const fuera = vista === 'mes' && fromISO(dia).getMonth() !== fecha.getMonth();
-            const clases = ['cal-dia', dia === hoy && 'hoy', dia === seleccionado && 'seleccionado', fuera && 'fuera']
-              .filter(Boolean)
-              .join(' ');
-            return (
-              <button key={dia} className={clases} onClick={() => setSeleccionado(dia)}>
-                <span className="numero">
-                  {vista === 'semana' ? `${diaDeSemana(dia)} ${fromISO(dia).getDate()}` : fromISO(dia).getDate()}
-                </span>
-                {ts.slice(0, maximo).map((t) => (
-                  <EtiquetaTarea key={t.id} tarea={t} dia={dia} />
-                ))}
-                {ts.length > maximo && <span className="mas">+{ts.length - maximo}</span>}
-              </button>
-            );
-          })}
+      {claseAbierta && (
+        <VentanaClase
+          clase={claseAbierta}
+          asignaturas={datos.asignaturas}
+          bloqueado={soloLectura}
+          error={errorHorario}
+          cerrar={() => setClaseAbierta(null)}
+          alAbrir={() => ir({ pantalla: 'estudio', asignatura: claseAbierta.asignatura })}
+          alQuitar={() => void cambiarClase((a) => quitarClase(a, claseAbierta), 'Quitar una clase del horario')}
+          alPoner={() => void cambiarClase((a) => volverAPoner(a, claseAbierta), 'Volver a poner una clase del horario')}
+          alBorrar={() => void cambiarClase((a) => borrarSuelta(a, claseAbierta), 'Borrar una clase suelta')}
+        />
+      )}
+      {nuevaSuelta && (
+        <FormClaseSuelta
+          asignaturas={datos.asignaturas}
+          dia={seleccionado}
+          error={errorHorario}
+          cerrar={() => setNuevaSuelta(false)}
+          guardar={(s) => {
+            void cambiarAjustes((a) => anadirSuelta(a, s), 'Añadir una clase suelta').then((ok) => ok && setNuevaSuelta(false));
+          }}
+        />
+      )}
+      {errorHorario && (
+        <div className="banner error">
+          {errorHorario} <button onClick={cerrarError}>Cerrar</button>
         </div>
-      ))}
-      <div className="barra">
-        <h3>{formatoLargo(seleccionado)}</h3>
-        <button disabled={soloLectura || tareasBloqueadas} onClick={() => editar({ nueva: { fecha: seleccionado } })}>
-          + Nueva tarea
-        </button>
-      </div>
-      <ul className="lista">
-        {tareasDelDia(tareas, seleccionado).map((t) => (
-          <FilaTarea key={t.id} tarea={t} dia={seleccionado} alEditar={(x) => editar({ tarea: x })} />
-        ))}
-      </ul>
+      )}
+      {vista === 'horario' ? (
+        <>
+          <CuadriculaHorario
+            dias={semanas[0].slice(0, 5)}
+            clases={semanas[0].slice(0, 5).map((d) => clasesDelDia(horario.clases, horario.ajustes, d))}
+            asignaturas={datos.asignaturas}
+            hoy={hoy}
+            alElegir={setClaseAbierta}
+          />
+          {horario.clases.length === 0 && <p className="vacio">Todavía no hay horario: aparece después de la próxima sincronización de la uni.</p>}
+          <button disabled={soloLectura} onClick={() => setNuevaSuelta(true)}>+ Clase suelta</button>
+        </>
+      ) : (
+        <>
+          <div className={`cal-cabecera ${vista}`}>
+            {DIAS.map((d) => (
+              <span key={d}>{d}</span>
+            ))}
+          </div>
+          {semanas.map((semana) => (
+            <div key={semana[0]} className={`cal-semana ${vista}`}>
+              {semana.map((dia) => {
+                const ts = tareasDelDia(tareas, dia);
+                const fuera = vista === 'mes' && fromISO(dia).getMonth() !== fecha.getMonth();
+                const clases = ['cal-dia', dia === hoy && 'hoy', dia === seleccionado && 'seleccionado', fuera && 'fuera']
+                  .filter(Boolean)
+                  .join(' ');
+                return (
+                  <button key={dia} className={clases} onClick={() => setSeleccionado(dia)}>
+                    <span className="numero">
+                      {vista === 'semana' ? `${diaDeSemana(dia)} ${fromISO(dia).getDate()}` : fromISO(dia).getDate()}
+                    </span>
+                    {clasesDe(dia).length > 0 && (
+                      <span className="etiqueta-tarea" style={{ borderLeftColor: 'var(--suave)' }}>
+                        {`🎓 ${vista === 'mes' ? clasesDe(dia).length : clasesDe(dia).map((c) => c.inicio.replace(/^0/, '')).join(' · ')}`}
+                      </span>
+                    )}
+                    {ts.slice(0, maximo).map((t) => (
+                      <EtiquetaTarea key={t.id} tarea={t} dia={dia} />
+                    ))}
+                    {ts.length > maximo && <span className="mas">+{ts.length - maximo}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+          <div className="barra">
+            <h3>{formatoLargo(seleccionado)}</h3>
+            <button disabled={soloLectura || tareasBloqueadas} onClick={() => editar({ nueva: { fecha: seleccionado } })}>
+              + Nueva tarea
+            </button>
+          </div>
+          <ul className="lista">
+            {clasesDe(seleccionado).map((c) => (
+              <FilaClase key={`${c.inicio}-${c.asignatura}`} clase={c} asignaturas={datos.asignaturas} alElegir={setClaseAbierta} />
+            ))}
+            {tareasDelDia(tareas, seleccionado).map((t) => (
+              <FilaTarea key={t.id} tarea={t} dia={seleccionado} alEditar={(x) => editar({ tarea: x })} />
+            ))}
+          </ul>
+        </>
+      )}
     </section>
   );
 }

@@ -425,3 +425,12 @@ body.con-pantalla-completa { overflow: hidden; }
 .proximo-examen-titulo { display: flex; align-items: center; gap: 8px; font-weight: 600; }
 
 .linea-avisos { display: block; width: 100%; text-align: left; margin: 0 0 16px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--borde); background: var(--aviso); font-weight: 600; }
+
+.aula-virtual .avisos li { border-bottom: 1px solid var(--borde); padding: 10px 0; }
+.aviso-uni.importante { border-left: 3px solid var(--peligro); padding-left: 10px; }
+.aviso-uni.leido { opacity: 0.6; }
+.aviso-cabecera { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }
+.aviso-texto { white-space: pre-line; margin: 6px 0; }
+.aviso-acciones { display: flex; gap: 14px; font-size: 14px; }
+.etiqueta { font-size: 12px; color: var(--peligro); font-weight: 600; }
+.materiales li { padding: 4px 0; }

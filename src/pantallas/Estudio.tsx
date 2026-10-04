@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AulaVirtual } from '../componentes/estudio/AulaVirtual';
 import { EstudioLocal } from '../componentes/estudio/EstudioLocal';
 import { FormAsignatura } from '../componentes/estudio/FormAsignatura';
 import { Historial } from '../componentes/estudio/Historial';
@@ -11,13 +12,16 @@ import { useDatos } from '../estado/datos';
 const CLAVE = 'sc-estudio-asignatura';
 
 export function Estudio({ aulaInicial = false }: { aulaInicial?: boolean }) {
-  void aulaInicial; // se usa en la Task 12
   const { datos, soloLectura } = useDatos();
   const local = useLocal();
   const asignaturas = [GENERAL, ...datos.asignaturas];
-  const [elegida, setElegida] = useState(() => leerPreferencia(CLAVE) ?? GENERAL.id);
+  const [elegida, setElegida] = useState(() => (aulaInicial ? GENERAL.id : (leerPreferencia(CLAVE) ?? GENERAL.id)));
+  const [vista, setVista] = useState<'chat' | 'aula'>(aulaInicial ? 'aula' : 'chat');
   const [form, setForm] = useState<Asignatura | 'nueva' | null>(null);
   const asignatura = asignaturas.find((a) => a.id === elegida) ?? GENERAL;
+
+  const conAula = Boolean(asignatura.codigo) || asignatura.id === GENERAL.id;
+  const verAula = conAula && vista === 'aula';
 
   const elegir = (id: string) => {
     setElegida(id);
@@ -37,9 +41,16 @@ export function Estudio({ aulaInicial = false }: { aulaInicial?: boolean }) {
         alNueva={() => setForm('nueva')}
         alEditar={(a) => setForm(a)}
       />
-      {local.estado === 'comprobando' && <p className="cargando">Buscando el programa local…</p>}
-      {local.estado === 'si' && <EstudioLocal key={asignatura.id} asignatura={asignatura} local={local} />}
-      {(local.estado === 'no' || local.estado === 'cerrado' || local.estado === 'antiguo') && (
+      {conAula && (
+        <div className="pestanas" role="tablist">
+          <button role="tab" aria-selected={vista === 'chat'} className={vista === 'chat' ? 'activa' : ''} onClick={() => setVista('chat')}>💬 Chat y pizarras</button>
+          <button role="tab" aria-selected={vista === 'aula'} className={vista === 'aula' ? 'activa' : ''} onClick={() => setVista('aula')}>🎓 Aula virtual</button>
+        </div>
+      )}
+      {verAula && <AulaVirtual key={asignatura.id} asignatura={asignatura} enPc={local.estado === 'si'} />}
+      {!verAula && local.estado === 'comprobando' && <p className="cargando">Buscando el programa local…</p>}
+      {!verAula && local.estado === 'si' && <EstudioLocal key={asignatura.id} asignatura={asignatura} local={local} />}
+      {!verAula && (local.estado === 'no' || local.estado === 'cerrado' || local.estado === 'antiguo') && (
         <>
           <div className="banner aviso">
             {local.estado === 'antiguo'

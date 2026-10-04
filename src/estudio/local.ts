@@ -166,3 +166,5 @@ export async function operarPizarra(asignatura: string, id: string, n: number, o
   const p = await pedir<Pizarra>('pizarra/operacion', enviarJson({ asignatura, id, n, op }));
   return revisada(p) ?? p;
 }
+
+export const urlMaterial = (asignatura: string, archivo: string) => `${BASE}/aula/material?${consulta({ asignatura, archivo })}`;

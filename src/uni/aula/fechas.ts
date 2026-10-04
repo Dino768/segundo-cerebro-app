@@ -92,21 +92,29 @@ const MESES: Record<string, number> = {
 const DIA_CLAVE: Record<string, string> = { lunes: 'lun', martes: 'mar', miercoles: 'mie', jueves: 'jue', viernes: 'vie', sabado: 'sab', domingo: 'dom' };
 
 // Comprueba que el día y el mes de la fecha están de verdad en la cita (ya normalizada).
+// Antes se quitan horas, rangos de horas y aulas, para que «10:00» o «aula 10» no valgan como día.
 function fechaEnCita(cita: string, fecha: ISODate): boolean {
   const [, m, d] = fecha.split('-').map(Number);
-  if (!new RegExp(`(^|\\D)0?${d}(\\D|$)`).test(cita)) return false;
-  const meses = [...cita.matchAll(/\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/g)].map((x) => MESES[x[1]]);
+  const pares: [number, number][] = [];
+  let limpia = cita.replace(/(\d{4})-(\d{2})-(\d{2})/g, (_, _a, mm, dd) => {
+    pares.push([Number(dd), Number(mm)]);
+    return ' ';
+  });
+  for (const re of [/\d{1,2}\s*-\s*\d{1,2}\s*h\b/g, /\d{1,2}[:.]\d{2}/g, /a las \d{1,2}/g, /\d{1,2}\s*h\b/g, /aula \d+/g]) limpia = limpia.replace(re, ' ');
+  for (const x of limpia.matchAll(/(\d{1,2})[/-](\d{1,2})/g)) pares.push([Number(x[1]), Number(x[2])]);
+  const diaOk = pares.some(([dd, mm]) => dd === d && mm === m) || new RegExp('(^|[^0-9])0?' + d + '([^0-9]|$)').test(limpia);
+  if (!diaOk) return false;
+  const meses = [...limpia.matchAll(/\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/g)].map((x) => MESES[x[1]]);
   if (meses.length && !meses.includes(m)) return false;
-  const pares = [...cita.matchAll(/(\d{1,2})[/-](\d{1,2})/g)];
-  if (pares.length && !pares.some((x) => Number(x[1]) === d && Number(x[2]) === m)) return false;
+  if (pares.length && !pares.some(([dd, mm]) => dd === d && mm === m)) return false;
   return true;
 }
 
 function horaEnCita(cita: string, hora: string): boolean {
   const [h, mm] = hora.split(':');
   const H = String(Number(h));
-  if (new RegExp(`(^|\\D)0?${H}:${mm}(?!\\d)`).test(cita)) return true;
-  return mm === '00' && new RegExp(`a las 0?${H}(?!\\d|:)`).test(cita);
+  if (new RegExp('(^|[^0-9])0?' + H + '[:.]' + mm + '(?![0-9])').test(cita)) return true;
+  return mm === '00' && new RegExp('a las 0?' + H + '(?![0-9]|[:.][0-9])').test(cita);
 }
 
 export function problemas(f: FechaClaude, p: Pregunta): string[] {

@@ -70,7 +70,21 @@ describe('comprobaciones', () => {
     expect(necesitaMas({ fechas: [f()], avisos: [], evaluacion: null }, p)).toBe(false);
     expect(necesitaMas({ fechas: [f({ duda: 'el profe dice 12 y luego 19' })], avisos: [], evaluacion: null }, p)).toBe(true);
     expect(necesitaMas({ fechas: [f({ fecha: '2026-11-13' })], avisos: [], evaluacion: null }, p)).toBe(true);
-    expect(necesitaMas({ fechas: [f(), f({ fecha: '2026-11-19', cita: 'el primer parcial' })], avisos: [], evaluacion: null }, p)).toBe(true); // misma clave, dos fechas
+    const dos: Pregunta = { ...p, fuentes: [{ ...p.fuentes[0], texto: p.fuentes[0].texto + ' O el jueves 19 de noviembre a las 10:00.' }] };
+    expect(necesitaMas({ fechas: [f(), f({ fecha: '2026-11-19', cita: 'o el jueves 19 de noviembre a las 10:00' })], avisos: [], evaluacion: null }, dos)).toBe(true); // misma clave, dos fechas
+  });
+});
+
+describe('la hora no cuenta como día', () => {
+  const con = (texto: string): Pregunta => ({ ...p, fuentes: [{ ...p.fuentes[0], texto }] });
+  const prob = (texto: string, x: Partial<FechaClaude>) => problemas(f({ cita: texto, hora: null, ...x }), con(texto));
+  it('horas, rangos y aulas no valen como día', () => {
+    expect(prob('el 1 de noviembre a las 10:00', { fecha: '2026-11-10', hora: '10:00' })).toContain('la fecha no está en la cita');
+    expect(prob('el 1 de noviembre a las 10:00', { fecha: '2026-11-01', hora: '10:00' })).toEqual([]);
+    expect(prob('hasta el 5/11/2026 a las 23.59', { fecha: '2026-11-05', hora: '23:59' })).toEqual([]);
+    expect(prob('el 12 de noviembre de 10-12h', { fecha: '2026-11-12' })).toEqual([]);
+    expect(prob('el examen es el 2026-11-12', { fecha: '2026-11-12' })).toEqual([]);
+    expect(prob('aula 12, el 3 de noviembre', { fecha: '2026-11-12' })).toContain('la fecha no está en la cita');
   });
 });
 

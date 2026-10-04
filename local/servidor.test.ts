@@ -22,7 +22,7 @@ const registro = path.join(raiz, 'registro.jsonl');
 let cerrar: () => void;
 let ocupado: () => boolean;
 const aulaFalsa = {
-  estado: async () => ({ activo: false, revisando: false, estado: {} }),
+  estado: async () => ({ activo: false, revisando: false, entrando: false, estado: {} }),
   activar: vi.fn(async (_activo: boolean) => undefined),
   revisarAhora: vi.fn(async () => undefined),
   entrar: vi.fn(async () => true),
@@ -196,7 +196,7 @@ describe('aula virtual', () => {
     const carpeta = path.join(estudios, 'calculo', 'aula-virtual', 'Tema 1');
     mkdirSync(carpeta, { recursive: true });
     writeFileSync(path.join(carpeta, 'a.pdf'), 'contenido del pdf');
-    expect(await (await fetch(`${API}aula/estado`)).json()).toEqual({ activo: false, revisando: false, estado: {} });
+    expect(await (await fetch(`${API}aula/estado`)).json()).toEqual({ activo: false, revisando: false, entrando: false, estado: {} });
     expect((await post('aula/activo', { activo: true })).status).toBe(200);
     expect(aulaFalsa.activar).toHaveBeenCalledWith(true);
     expect((await post('aula/revisar', {})).status).toBe(200);

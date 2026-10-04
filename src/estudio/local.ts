@@ -169,7 +169,15 @@ export async function operarPizarra(asignatura: string, id: string, n: number, o
 
 export const urlMaterial = (asignatura: string, archivo: string) => `${BASE}/aula/material?${consulta({ asignatura, archivo })}`;
 
-export interface EstadoAulaLocal { activo: boolean; revisando: boolean; estado: { ultimaRevision?: string; resultado?: 'ok' | 'necesita-entrar' | 'error'; mensaje?: string } }
+type ResultadoAula = 'ok' | 'necesita-entrar' | 'error';
+export interface EstadoAulaLocal {
+  activo: boolean;
+  revisando: boolean;
+  entrando?: boolean;
+  estado: { ultimaRevision?: string; resultado?: ResultadoAula; mensaje?: string };
+  // Última revisión de este arranque del programa, si es más nueva que lo guardado en my-context.
+  ultimoResultado?: { resultado: ResultadoAula; mensaje: string; cuando: string };
+}
 export const estadoAula = () => pedir<EstadoAulaLocal>('aula/estado');
 export const activarAula = (activo: boolean) => pedir<{ ok: true }>('aula/activo', enviarJson({ activo }));
 export const revisarAula = () => pedir<{ ok: true }>('aula/revisar', { method: 'POST' });

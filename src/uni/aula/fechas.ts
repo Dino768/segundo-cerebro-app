@@ -93,16 +93,42 @@ const DIA_CLAVE: Record<string, string> = { lunes: 'lun', martes: 'mar', miercol
 
 // Comprueba que el día y el mes de la fecha están de verdad en la cita (ya normalizada).
 // Antes se quitan horas, rangos de horas y aulas, para que «10:00» o «aula 10» no valgan como día.
-function fechaEnCita(cita: string, fecha: ISODate): boolean {
-  const [, m, d] = fecha.split('-').map(Number);
+const MES = '(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)';
+const SEMANA = '(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo)';
+
+// La cita sin horas, rangos de horas ni aulas, y las fechas numéricas que trae (día, mes).
+function limpiarCita(cita: string): { limpia: string; pares: [number, number][] } {
   const pares: [number, number][] = [];
   let limpia = cita.replace(/(\d{4})-(\d{2})-(\d{2})/g, (_, _a, mm, dd) => {
     pares.push([Number(dd), Number(mm)]);
     return ' ';
   });
-  for (const re of [/de \d{1,2} a \d{1,2}(?![0-9])(?!\s*\/)(?! de (?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b)/g, /\d{1,2} horas?\b/g, /\d{1,2}\s*-\s*\d{1,2}\s*h\b/g, /\d{1,2}[:.]\d{2}/g, /a las \d{1,2}/g, /\d{1,2}\s*h\b/g, /aula \d+/g]) limpia = limpia.replace(re, ' ');
+  for (const re of [new RegExp(`de \\d{1,2} a \\d{1,2}(?![0-9])(?!\\s*\\/)(?! de ${MES}\\b)`, 'g'), /\d{1,2} horas?\b/g, /\d{1,2}\s*-\s*\d{1,2}\s*h\b/g, /\d{1,2}[:.]\d{2}/g, /a las \d{1,2}/g, /\d{1,2}\s*h\b/g, /aula \d+/g]) limpia = limpia.replace(re, ' ');
   for (const x of limpia.matchAll(/(\d{1,2})[/-](\d{1,2})/g)) pares.push([Number(x[1]), Number(x[2])]);
-  const diaOk = pares.some(([dd, mm]) => dd === d && mm === m) || new RegExp('(^|[^0-9])0?' + d + '([^0-9]|$)').test(limpia);
+  return { limpia, pares };
+}
+
+// Fechas distintas (día y mes) que se leen en la cita: «13 de noviembre», «13/11», «2026-11-13».
+function fechasDeCita(cita: string): Set<string> {
+  const { limpia, pares } = limpiarCita(cita);
+  const r = new Set<string>();
+  for (const [d, m] of pares) if (d >= 1 && d <= 31 && m >= 1 && m <= 12) r.add(`${d}-${m}`);
+  for (const x of limpia.matchAll(new RegExp(`(?<![0-9])(\\d{1,2})\\s+(?:de\\s+)?(${MES})\\b`, 'g'))) r.add(`${Number(x[1])}-${MESES[x[2]]}`);
+  return r;
+}
+
+// El número del día tiene que ir pegado a una fecha: «13 de noviembre», «13 noviembre», «13/11», «jueves 13».
+// Así «dura 13 minutos» o «semana 13» no valen como el día 13.
+function diaPegado(limpia: string, d: number): boolean {
+  const n = `0?${d}`;
+  return new RegExp(`(?:^|[^0-9])${n}(?:\\s*de\\s+${MES}\\b|\\s+${MES}\\b|\\s*[/-]\\s*\\d{1,2}(?![0-9]))`).test(limpia)
+    || new RegExp(`\\b${SEMANA}[\\s,]+(?:el\\s+)?(?:dia\\s+)?${n}(?![0-9])`).test(limpia);
+}
+
+function fechaEnCita(cita: string, fecha: ISODate): boolean {
+  const [, m, d] = fecha.split('-').map(Number);
+  const { limpia, pares } = limpiarCita(cita);
+  const diaOk = pares.some(([dd, mm]) => dd === d && mm === m) || diaPegado(limpia, d);
   if (!diaOk) return false;
   const meses = [...limpia.matchAll(/\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/g)].map((x) => MESES[x[1]]);
   if (meses.length && !meses.includes(m)) return false;
@@ -125,6 +151,8 @@ export function problemas(f: FechaClaude, p: Pregunta): string[] {
   if (!isISODate(f.fecha)) return ['falta la fecha'];
   const r: string[] = [];
   if (!fechaEnCita(cita, f.fecha)) r.push('la fecha no está en la cita');
+  // «El parcial del 13 de noviembre se cambia al 20»: la cita valdría para las dos fechas.
+  if (fechasDeCita(cita).size > 1) r.push('la cita tiene varias fechas');
   const D = Number(f.fecha.slice(8, 10));
   const real = diaDeSemana(f.fecha);
   const pares = [...cita.matchAll(/\b(lunes|martes|miercoles|jueves|viernes|sabado|domingo)[\s,]+(?:el\s+)?(?:dia\s+)?(\d{1,2})\b/g)]
@@ -188,7 +216,15 @@ export function decidir(r: RespuestaClaude, p: Pregunta): Decision {
     const elegida = [...validas].sort((a, b) => (a.fecha! !== b.fecha! ? (a.fecha! < b.fecha! ? -1 : 1) : a.hora === b.hora ? 0 : a.hora === null ? 1 : b.hora === null ? -1 : a.hora < b.hora ? -1 : 1))[0];
     // Un examen oficial (parte A) el mismo día ya está en la agenda.
     const oficial = p.conocidas.some((c) => c.origen.startsWith('urjc-examen:') && c.fecha === elegida.fecha && elegida.tipo === 'examen');
-    if (oficial) continue;
+    if (oficial) {
+      // No se repite, pero si había dudas se avisa igual (el profe puede estar dando otro día).
+      if (dudosa)
+        avisos.push({
+          titulo: `Fecha por confirmar: ${que} de ${p.asignatura.nombre}`,
+          texto: `La fecha más temprana (${elegida.fecha}) coincide con el examen oficial, que ya está en tu agenda. Compruébala:\n${notas}`,
+        });
+      continue;
+    }
     const titulo = dudosa ? `⚠ ${que}: ${p.asignatura.nombre} (por confirmar)` : `${que}: ${p.asignatura.nombre}`;
     propuestas.push({
       origen: `aula:${p.asignatura.id}:${clave}`, titulo, tipo: elegida.tipo, area: p.asignatura.id, fecha: elegida.fecha!,

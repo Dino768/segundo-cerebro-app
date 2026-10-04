@@ -200,3 +200,42 @@ describe('correcciones de la revisión', () => {
     expect(d.avisos).toHaveLength(1);
   });
 });
+
+describe('una cita con varias fechas no vale para cualquiera', () => {
+  const con = (cita: string, fecha: string) => problemas(f({ cita, fecha, hora: null }), { ...p, fuentes: [{ ...p.fuentes[0], texto: cita }] });
+  it('el número tiene que ir pegado a la fecha (mes o día de la semana)', () => {
+    expect(con('el examen dura 13 minutos, será el 5 de noviembre', '2026-11-13')).toContain('la fecha no está en la cita');
+    expect(con('el examen dura 13 minutos, será el 5 de noviembre', '2026-11-05')).toEqual([]);
+    expect(con('semana 13 (5 de noviembre)', '2026-11-13')).toContain('la fecha no está en la cita');
+    expect(con('semana 13 (5 de noviembre)', '2026-11-05')).toEqual([]);
+    expect(con('el día 13 hay examen de noviembre', '2026-11-13')).toContain('la fecha no está en la cita');
+  });
+  it('el número pegado a la fecha sí vale', () => {
+    expect(con('el 12 noviembre', '2026-11-12')).toEqual([]);
+    expect(con('el 12-11', '2026-11-12')).toEqual([]);
+    expect(con('el jueves día 12, en noviembre', '2026-11-12')).toEqual([]);
+  });
+  it('dos fechas distintas en la cita: se marca para las dos', () => {
+    const cita = 'el parcial del 13 de noviembre se cambia al 20 de noviembre';
+    expect(con(cita, '2026-11-13')).toContain('la cita tiene varias fechas');
+    expect(con(cita, '2026-11-20')).toContain('la cita tiene varias fechas');
+    expect(con('el 5/11 o el 12/11', '2026-11-12')).toContain('la cita tiene varias fechas');
+  });
+  it('una lista de días con un solo mes queda marcada (acaba con ⚠)', () => {
+    expect(con('entregas 13, 20 y 27 de noviembre', '2026-11-13')).toContain('la fecha no está en la cita');
+    expect(con('entregas 13, 20 y 27 de noviembre', '2026-11-20')).toContain('la fecha no está en la cita');
+  });
+});
+
+describe('examen oficial el mismo día pero con dudas', () => {
+  it('no se repite en la agenda, pero se avisa de que está por confirmar', () => {
+    const texto = 'El examen final será el jueves 21 de enero. O el viernes 22 de enero.';
+    const pp = { ...p, fuentes: [{ ...p.fuentes[0], texto }] };
+    const d = decidir({ fechas: [
+      f({ clave: 'final', que: 'Examen final', fecha: '2027-01-21', hora: null, cita: 'el examen final será el jueves 21 de enero' }),
+      f({ clave: 'final', que: 'Examen final', fecha: '2027-01-22', hora: null, cita: 'o el viernes 22 de enero' }),
+    ], avisos: [], evaluacion: null }, pp);
+    expect(d.propuestas).toEqual([]);
+    expect(d.avisos).toEqual([{ titulo: 'Fecha por confirmar: Examen final de Cálculo', texto: expect.stringContaining('2027-01-21') }]);
+  });
+});

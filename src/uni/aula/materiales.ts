@@ -25,9 +25,20 @@ export function tipoDeModulo(m: ModuloAula): TipoMaterial {
   return tipoDeArchivo(m.nombre);
 }
 
+const MAXIMO_NOMBRE = 100;
+// Nombres que Windows no deja usar (con o sin extensión).
+const RESERVADO = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
+
 export function nombreSeguro(nombre: string): string {
-  const limpio = nombre.replace(/[<>:"/\\|?*\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().replace(/^\.+|\.+$/g, '').trim();
-  return (limpio || 'sin nombre').slice(0, 100);
+  let limpio = nombre.replace(/[<>:"/\\|?*\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().replace(/^\.+|\.+$/g, '').trim() || 'sin nombre';
+  if (RESERVADO.test(limpio)) limpio = `_${limpio}`;
+  if (limpio.length > MAXIMO_NOMBRE) {
+    // Se recorta el nombre y no la extensión (si no, «.pdf» se perdería); tampoco quedan puntos ni espacios al final.
+    const ext = /\.[^.\s]{1,10}$/.exec(limpio)?.[0] ?? '';
+    const base = limpio.slice(0, limpio.length - ext.length).slice(0, MAXIMO_NOMBRE - ext.length).replace(/[.\s]+$/, '');
+    limpio = (base || 'sin nombre') + ext;
+  }
+  return limpio;
 }
 
 const sinTildes = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();

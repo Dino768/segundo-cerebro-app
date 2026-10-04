@@ -31,6 +31,24 @@ describe('materiales', () => {
     expect(nombreSeguro('..')).toBe('sin nombre');
     expect(nombreSeguro('x'.repeat(200)).length).toBe(100);
   });
+  it('al recortar conserva la extensión y no deja puntos ni espacios al final', () => {
+    const de104 = 'Planificación y calendario de evaluación de la asignatura Cálculo, grupo de la mañana, curso 2026-27.pdf';
+    expect(de104.length).toBe(104);
+    const r = nombreSeguro(de104);
+    expect(r.length).toBeLessThanOrEqual(100);
+    expect(r.endsWith('.pdf')).toBe(true);
+    expect(r).toBe('Planificación y calendario de evaluación de la asignatura Cálculo, grupo de la mañana, curso 202.pdf');
+    expect(tipoDeArchivo(r)).toBe('pdf');
+    // El carácter 100 es un espacio (y antes un punto): no se quedan al final.
+    expect(nombreSeguro('a'.repeat(98) + '. bcd')).toBe('a'.repeat(98));
+  });
+  it('nombres reservados de Windows llevan _ delante', () => {
+    expect(nombreSeguro('CON.pdf')).toBe('_CON.pdf');
+    expect(nombreSeguro('aux')).toBe('_aux');
+    expect(nombreSeguro('com1.txt')).toBe('_com1.txt');
+    expect(nombreSeguro('Lpt9')).toBe('_Lpt9');
+    expect(nombreSeguro('console.pdf')).toBe('console.pdf');
+  });
   it('documentos cuyo nombre suena a fechas', () => {
     expect(esDocumentoDeFechas('Planificación de la asignatura.pdf')).toBe(true);
     expect(esDocumentoDeFechas('CRONOGRAMA 2026-27')).toBe(true);

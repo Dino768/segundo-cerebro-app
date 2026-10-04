@@ -7,6 +7,13 @@ import { ErrorFormato } from '../../src/uni/tipos.ts';
 export const BASE_AULA = 'https://www.aulavirtual.urjc.es/moodle';
 const ENTRADA = `${BASE_AULA}/login/index.php?authCASattras=CASattras`;
 const ESPERA = 60_000;
+// Botón «Credenciales» de la página de entrada de la URJC: entra con la galleta persistente de Microsoft.
+export const BOTON_CREDENCIALES = '#saml2_module-Acceso_AzureAD';
+
+// ¿Estamos ya dentro de Moodle (y no en la entrada ni en Microsoft)?
+export function enMoodle(url: string): boolean {
+  return url.startsWith(BASE_AULA) && !esPaginaDeEntrada(url) && !url.includes('login.microsoftonline.com');
+}
 
 export interface Descarga { bytes: Uint8Array; nombre: string; tipo?: string }
 export interface Navegador {
@@ -28,21 +35,45 @@ async function lanzar(perfil: string, visible: boolean): Promise<BrowserContext>
 
 // Nombre del archivo: el de Content-Disposition o el final de la URL.
 export function nombreDeDescarga(url: string, disposicion: string | undefined): string {
+  const decodificar = (t: string) => {
+    try { return decodeURIComponent(t); } catch { return t; }
+  };
   const utf = disposicion && /filename\*=UTF-8''([^;]+)/i.exec(disposicion);
-  if (utf) return decodeURIComponent(utf[1]);
+  if (utf) return decodificar(utf[1]);
   const simple = disposicion && /filename="?([^";]+)"?/i.exec(disposicion);
   if (simple) return simple[1];
-  const ultimo = new URL(url).pathname.split('/').pop() ?? 'archivo';
-  return decodeURIComponent(ultimo) || 'archivo';
+  let ultimo: string | undefined;
+  try { ultimo = new URL(url).pathname.split('/').pop(); } catch { ultimo = url.split(/[?#]/)[0].split('/').pop(); }
+  return decodificar(ultimo ?? '') || 'archivo';
 }
 
 export async function abrirNavegador(perfil: string): Promise<Navegador> {
   const ctx = await lanzar(perfil, false);
   const req = ctx.request;
+  const comprobar = async () => {
+    const r = await req.get(`${BASE_AULA}/my/`, { timeout: ESPERA });
+    return r.ok() && !esPaginaDeEntrada(r.url());
+  };
   return {
+    // Las galletas de la URJC y de Moodle mueren al cerrar Chrome; la de Microsoft dura meses.
+    // Si /my/ no vale, se intenta volver a entrar solo pulsando «Credenciales».
     async sesionValida() {
-      const r = await req.get(`${BASE_AULA}/my/`, { timeout: ESPERA });
-      return r.ok() && !esPaginaDeEntrada(r.url());
+      try {
+        if (await comprobar()) return true;
+        const pagina = await ctx.newPage();
+        try {
+          await pagina.goto(ENTRADA);
+          const boton = await pagina.$(BOTON_CREDENCIALES);
+          if (boton) await boton.click();
+          const limite = Date.now() + 30_000;
+          while (Date.now() < limite && !enMoodle(pagina.url())) await pagina.waitForTimeout(1000);
+        } finally {
+          await pagina.close().catch(() => undefined);
+        }
+        return await comprobar();
+      } catch {
+        return false;
+      }
     },
     async pedirTexto(url) {
       const r = await req.get(url, { timeout: ESPERA });
@@ -88,8 +119,9 @@ export async function entrar(perfil: string, esperaMaxima = 10 * 60_000): Promis
     while (Date.now() < limite) {
       if (pagina.isClosed()) return false;
       const url = pagina.url();
-      if (url.startsWith(BASE_AULA) && !esPaginaDeEntrada(url)) {
-        const r = await ctx.request.get(`${BASE_AULA}/my/`);
+      if (enMoodle(url)) {
+        const r = await ctx.request.get(`${BASE_AULA}/my/`).catch(() => null);
+        if (!r) return false;
         if (!esPaginaDeEntrada(r.url())) return true;
       }
       await pagina.waitForTimeout(1000).catch(() => undefined);

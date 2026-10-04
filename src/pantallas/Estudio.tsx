@@ -10,7 +10,8 @@ import { useDatos } from '../estado/datos';
 
 const CLAVE = 'sc-estudio-asignatura';
 
-export function Estudio() {
+export function Estudio({ aulaInicial = false }: { aulaInicial?: boolean }) {
+  void aulaInicial; // se usa en la Task 12
   const { datos, soloLectura } = useDatos();
   const local = useLocal();
   const asignaturas = [GENERAL, ...datos.asignaturas];

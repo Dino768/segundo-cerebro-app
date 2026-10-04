@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as cliente from './github/cliente';
 import { parseProyecto } from './datos/proyectos';
 import { ErrorDatos } from './datos/yaml';
-import { borrarProyecto, cargarAgenda, cargarTodo, guardarProyecto, listarIdsProyectos, migrarBandeja, modificarAreas, modificarAsignaturas, modificarIdeas, modificarTareas, moverYBorrarArea } from './repositorio';
+import { borrarProyecto, cargarAgenda, cargarAulaAsignatura, cargarAvisos, leerAvisos, cargarTodo, guardarProyecto, listarIdsProyectos, migrarBandeja, modificarAreas, modificarAsignaturas, modificarIdeas, modificarTareas, moverYBorrarArea } from './repositorio';
 
 vi.mock('./github/cliente', async (importOriginal) => {
   const real = await importOriginal<typeof import('./github/cliente')>();
@@ -331,5 +331,31 @@ describe('arreglos menores', () => {
   it('listarIdsProyectos lee los ids de GitHub', async () => {
     listar.mockResolvedValue(['juego.md', 'notas.txt', 'app.md']);
     expect(await listarIdsProyectos(cfg)).toEqual(['juego', 'app']);
+  });
+});
+
+describe('avisos y aula virtual', () => {
+  const AVISOS = 'avisos:\n  - id: a\n    fecha: 2026-10-03\n    titulo: A\n    texto: t\n    importante: true\n  - id: b\n    fecha: 2026-10-03\n    titulo: B\n    texto: t\n';
+
+  it('cargarAvisos: sin archivo da lista vacía y con archivo, la lista', async () => {
+    leer.mockRejectedValueOnce(new cliente.ErrorGitHub('no-existe', 'no', 404));
+    expect(await cargarAvisos(cfg)).toEqual([]);
+    leer.mockResolvedValueOnce({ texto: AVISOS, sha: 'a' });
+    expect((await cargarAvisos(cfg)).map((a) => a.id)).toEqual(['a', 'b']);
+  });
+
+  it('leerAvisos marca leído y respeta un aviso nuevo del programa', async () => {
+    const nuevo = `${AVISOS}  - id: c\n    fecha: 2026-10-04\n    titulo: C\n    texto: t\n    importante: true\n`;
+    const escrito = simularRemoto(nuevo);
+    const r = await leerAvisos(cfg, ['a']);
+    expect(r.map((a) => [a.id, a.leido])).toEqual([['a', true], ['b', false], ['c', false]]);
+    expect(escrito()).toContain('leido: true');
+    expect(escrito()).toContain('id: c');
+    expect(actualizar.mock.calls[0][1]).toBe('estudios/avisos.yaml');
+  });
+
+  it('cargarAulaAsignatura sin archivos', async () => {
+    leer.mockRejectedValue(new cliente.ErrorGitHub('no-existe', 'no', 404));
+    expect(await cargarAulaAsignatura(cfg, 'fisica')).toEqual({ aula: null, evaluacion: null });
   });
 });

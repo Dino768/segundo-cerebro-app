@@ -423,3 +423,5 @@ body.con-pantalla-completa { overflow: hidden; }
 .grupo-plegable > summary.grupo { margin-top: 14px; }
 .proximo-examen { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 4px; border: 0; border-bottom: 1px solid var(--borde-suave); border-radius: 0; background: transparent; flex-wrap: wrap; }
 .proximo-examen-titulo { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+
+.linea-avisos { display: block; width: 100%; text-align: left; margin: 0 0 16px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--borde); background: var(--aviso); font-weight: 600; }

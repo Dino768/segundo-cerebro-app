@@ -3,10 +3,12 @@ import { urgentes } from '../agenda/grupos';
 import { atrasadas, tareasDelDia, topSinFecha } from '../agenda/tareas';
 import { colorDeArea } from '../agenda/areas';
 import { BarraProgreso } from '../componentes/BarraProgreso';
+import { useAvisos } from '../estado/aula';
 import { Captura } from '../componentes/Captura';
 import { EtiquetaTarea } from '../componentes/EtiquetaTarea';
 import { FilaTarea } from '../componentes/FilaTarea';
 import type { Edicion } from '../componentes/FormTarea';
+import { LineaAvisos } from '../componentes/LineaAvisos';
 import { Icono } from '../componentes/Icono';
 import { ProximosExamenes } from '../componentes/ProximosExamenes';
 import type { Destino } from '../componentes/navegacion';
@@ -24,6 +26,7 @@ interface Props {
 }
 
 export function Inicio({ editar, ir }: Props) {
+  const { avisos } = useAvisos();
   const { datos } = useDatos();
   const hoy = useHoy();
   const ahora = useAhora();
@@ -64,6 +67,7 @@ export function Inicio({ editar, ir }: Props) {
         <p>{formatoLargo(hoy)} · {horaCorta(ahora)}</p>
       </header>
       <Captura />
+      <LineaAvisos avisos={avisos} ir={ir} />
       <div className="rejilla-inicio">
         <section className="tarjeta">
           <h2 className="titulo-seccion">

@@ -93,7 +93,7 @@ function Contenido() {
             alCambiarPestana={setPestana}
           />
         )}
-        {actual === 'estudio' && <Estudio />}
+        {actual === 'estudio' && <Estudio key={visita} aulaInicial={destino.aula === true} />}
         {actual === 'ajustes' && <Ajustes />}
       </main>
       <MenuMovil actual={actual} ir={ir} bloqueado={forzarAjustes} />

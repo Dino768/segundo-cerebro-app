@@ -3,9 +3,12 @@ import { soltarProyecto } from './agenda/proyectos';
 import { parseAreas, serializarAreas, type Area } from './datos/areas';
 import { parseAsignaturas, serializarAsignaturas, type Asignatura } from './datos/asignaturas';
 import { parseProyecto, serializarProyecto, type Proyecto } from './datos/proyectos';
+import { parseAulaVirtual, type AulaVirtual } from './datos/aulaVirtual';
+import { marcarLeidos, parseAvisos, serializarAvisos, type Aviso } from './datos/avisos';
+import { seccionEvaluacion } from './datos/guia';
 import { parseBandeja } from './datos/bandeja';
 import { fusionarBandeja, parseIdeas, serializarIdeas, type Idea } from './datos/ideas';
-import { CARPETA_PROYECTOS, RUTA_AREAS, RUTA_ASIGNATURAS, RUTA_BANDEJA, RUTA_IDEAS, RUTA_TAREAS } from './datos/rutas';
+import { CARPETA_PROYECTOS, RUTA_AREAS, RUTA_ASIGNATURAS, RUTA_AVISOS, RUTA_BANDEJA, RUTA_IDEAS, RUTA_TAREAS, rutaAulaVirtual, rutaGuiaDocente } from './datos/rutas';
 import { parseTareas, serializarTareas, type Tarea } from './datos/tareas';
 import { ErrorDatos } from './datos/yaml';
 import { actualizarArchivo, borrarArchivo, ErrorGitHub, leerArchivo, listarCarpeta, type Config } from './github/cliente';
@@ -229,4 +232,23 @@ export async function borrarProyecto(cfg: Config, original: Proyecto): Promise<{
 
   if (archivo) await borrarArchivo(cfg, ruta, archivo.sha, `Borrar proyecto: ${original.titulo}`);
   return { tareas, ideas };
+}
+
+export async function cargarAvisos(cfg: Config): Promise<Aviso[]> {
+  return parseAvisos(await leerOpcional(cfg, RUTA_AVISOS));
+}
+
+// Solo cambia `leido`: lo demás lo escribe el programa del PC y se respeta lo que haya añadido mientras tanto.
+export async function leerAvisos(cfg: Config, ids: string[]): Promise<Aviso[]> {
+  let r: Aviso[] = [];
+  await actualizarArchivo(cfg, RUTA_AVISOS, (texto) => {
+    r = marcarLeidos(parseAvisos(texto), ids);
+    return serializarAvisos(r);
+  }, ids.length === 1 ? 'Aviso leído' : `${ids.length} avisos leídos`);
+  return r;
+}
+
+export async function cargarAulaAsignatura(cfg: Config, id: string): Promise<{ aula: AulaVirtual | null; evaluacion: string | null }> {
+  const [lista, guia] = await Promise.all([leerOpcional(cfg, rutaAulaVirtual(id)), leerOpcional(cfg, rutaGuiaDocente(id))]);
+  return { aula: parseAulaVirtual(lista, rutaAulaVirtual(id)), evaluacion: seccionEvaluacion(guia) };
 }

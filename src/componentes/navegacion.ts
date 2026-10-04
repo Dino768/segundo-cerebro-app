@@ -10,6 +10,7 @@ export interface Destino {
   dia?: ISODate;
   proyecto?: string;
   pestana?: Pestana;
+  aula?: boolean; // Estudio: abrir la sección Aula virtual con todos los avisos
 }
 
 export const SECCIONES: { id: Pantalla; nombre: string; icono: string }[] = [

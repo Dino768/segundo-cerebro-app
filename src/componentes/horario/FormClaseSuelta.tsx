@@ -6,12 +6,13 @@ import type { ISODate } from '../../fechas';
 interface Props {
   asignaturas: Asignatura[];
   dia: ISODate;
+  error?: string | null; // el último intento no se ha guardado: el formulario sigue abierto con lo escrito
   guardar(s: Suelta): void;
   cerrar(): void;
 }
 
 // Una clase que no está en el horario de la URJC (p. ej. una recuperación que avisa el profe).
-export function FormClaseSuelta({ asignaturas, dia, guardar, cerrar }: Props) {
+export function FormClaseSuelta({ asignaturas, dia, error, guardar, cerrar }: Props) {
   const [asignatura, setAsignatura] = useState(asignaturas[0]?.id ?? '');
   const [fecha, setFecha] = useState(dia);
   const [inicio, setInicio] = useState('09:00');
@@ -41,6 +42,7 @@ export function FormClaseSuelta({ asignaturas, dia, guardar, cerrar }: Props) {
         <label>Acaba <input type="time" value={fin} onChange={(e) => setFin(e.target.value)} required /></label>
         <label>Aula (opcional) <input value={aula} onChange={(e) => setAula(e.target.value)} maxLength={80} /></label>
         <label>Nota (opcional) <input value={nota} onChange={(e) => setNota(e.target.value)} maxLength={120} placeholder="Recuperación" /></label>
+        {error && <div className="banner error">{error}</div>}
         <div className="botones">
           <button type="submit" className="activa" disabled={!valido}>Guardar</button>
           <button type="button" onClick={cerrar}>Cancelar</button>

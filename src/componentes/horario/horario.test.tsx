@@ -54,6 +54,11 @@ describe('horario en pantalla', () => {
     expect(html).toContain('value="2026-10-15"');
     expect(html).toContain('Álgebra');
   });
+  it('las ventanas enseñan dentro el error al guardar', () => {
+    const error = 'Sin conexión: el cambio del horario no se ha guardado.';
+    expect(renderToString(<VentanaClase clase={calculo} asignaturas={asignaturas} bloqueado={false} error={error} alAbrir={nada} alQuitar={nada} alPoner={nada} alBorrar={nada} cerrar={nada} />)).toContain(error);
+    expect(renderToString(<FormClaseSuelta asignaturas={asignaturas} dia="2026-10-15" error={error} guardar={nada} cerrar={nada} />)).toContain(error);
+  });
   it('fila de la lista del día', () => {
     const html = renderToString(<ul><FilaClase clase={calculo} asignaturas={asignaturas} alElegir={nada} /></ul>);
     expect(html).toContain('9:00');

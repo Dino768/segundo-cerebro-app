@@ -63,7 +63,7 @@ export function Calendario({ editar, ir, diaInicial, vistaInicial }: { editar(e:
   const { datos, soloLectura, tareasBloqueadas, areasBloqueadas } = useDatos();
   const hoy = useHoy();
   const [vista, setVista] = useState<Vista>(vistaInicial ?? 'mes');
-  const { horario, cambiarAjustes } = useHorario();
+  const { horario, error: errorHorario, cerrarError, cambiarAjustes } = useHorario();
   const [conClases, setConClases] = useState(leerClasesVisibles);
   const [claseAbierta, setClaseAbierta] = useState<ClaseDelDia | null>(null);
   const [nuevaSuelta, setNuevaSuelta] = useState(false);
@@ -146,6 +146,7 @@ export function Calendario({ editar, ir, diaInicial, vistaInicial }: { editar(e:
           clase={claseAbierta}
           asignaturas={datos.asignaturas}
           bloqueado={soloLectura}
+          error={errorHorario}
           cerrar={() => setClaseAbierta(null)}
           alAbrir={() => ir({ pantalla: 'estudio', asignatura: claseAbierta.asignatura })}
           alQuitar={() => void cambiarClase((a) => quitarClase(a, claseAbierta), 'Quitar una clase del horario')}
@@ -157,12 +158,17 @@ export function Calendario({ editar, ir, diaInicial, vistaInicial }: { editar(e:
         <FormClaseSuelta
           asignaturas={datos.asignaturas}
           dia={seleccionado}
+          error={errorHorario}
           cerrar={() => setNuevaSuelta(false)}
           guardar={(s) => {
-            setNuevaSuelta(false);
-            void cambiarAjustes((a) => anadirSuelta(a, s), 'Añadir una clase suelta');
+            void cambiarAjustes((a) => anadirSuelta(a, s), 'Añadir una clase suelta').then((ok) => ok && setNuevaSuelta(false));
           }}
         />
+      )}
+      {errorHorario && (
+        <div className="banner error">
+          {errorHorario} <button onClick={cerrarError}>Cerrar</button>
+        </div>
       )}
       {vista === 'horario' ? (
         <>

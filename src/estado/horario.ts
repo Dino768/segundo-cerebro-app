@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AjustesHorario } from '../datos/horario';
+import { ErrorDatos } from '../datos/yaml';
+import { ErrorGitHub } from '../github/cliente';
 import { cargarHorario, HORARIO_VACIO, modificarAjustesHorario, type Horario } from '../repositorio';
 import { useDatos } from './datos';
 
@@ -24,13 +26,41 @@ function guardarCache(h: Horario): void {
   }
 }
 
+type Cambio = (a: AjustesHorario) => AjustesHorario;
+
+// Qué decirle a Diego si algo del horario falla. Un archivo mal escrito siempre se explica (si no, los cambios
+// fallarían sin decir nada); al cargar, sin conexión no se dice nada (se ve el último horario guardado).
+export function mensajeError(e: unknown, alGuardar: boolean): string | null {
+  if (e instanceof ErrorDatos)
+    return `Error en ${e.archivo}: ${e.message}. No se puede cambiar el horario hasta que se arregle (pídeselo a Claude).`;
+  if (!alGuardar) return null;
+  if (e instanceof ErrorGitHub && e.tipo === 'red') return 'Sin conexión: el cambio del horario no se ha guardado.';
+  return e instanceof Error ? `No se ha podido guardar el cambio del horario: ${e.message}` : 'No se ha podido guardar el cambio del horario.';
+}
+
+// Guarda un cambio: si sale bien, queda lo que hay en GitHub; si falla, se vuelve a lo de antes y se explica.
+export async function guardarCambio(
+  previo: Horario, cambio: Cambio, guardar: (c: Cambio) => Promise<AjustesHorario>,
+): Promise<{ horario: Horario; error: string | null }> {
+  try {
+    return { horario: { ...previo, ajustes: await guardar(cambio) }, error: null };
+  } catch (e) {
+    return { horario: previo, error: mensajeError(e, true) };
+  }
+}
+
 // Horario de clases: se lee al abrir la pantalla y al volver a la app. Si falla, se queda el último que se vio.
 export function useHorario(): {
   horario: Horario;
-  cambiarAjustes(cambio: (a: AjustesHorario) => AjustesHorario, mensaje: string): Promise<boolean>;
+  error: string | null;
+  cerrarError(): void;
+  cambiarAjustes(cambio: Cambio, mensaje: string): Promise<boolean>;
 } {
   const { config, estado } = useDatos();
   const [horario, setHorario] = useState<Horario>(leerCache);
+  const [error, setError] = useState<string | null>(null);
+  const actual = useRef(horario);
+  actual.current = horario;
 
   const traer = useCallback(async () => {
     if (!config || estado !== 'listo') return;
@@ -38,8 +68,11 @@ export function useHorario(): {
       const h = await cargarHorario(config);
       setHorario(h);
       guardarCache(h);
-    } catch {
-      // sin conexión o archivo roto: se queda lo que había
+      setError(null);
+    } catch (e) {
+      // sin conexión: se queda lo que había, sin molestar; archivo roto: se explica
+      const m = mensajeError(e, false);
+      if (m) setError(m);
     }
   }, [config, estado]);
 
@@ -50,22 +83,16 @@ export function useHorario(): {
     return () => document.removeEventListener('visibilitychange', alVolver);
   }, [traer]);
 
-  const cambiarAjustes = useCallback(async (cambio: (a: AjustesHorario) => AjustesHorario, mensaje: string) => {
+  const cambiarAjustes = useCallback(async (cambio: Cambio, mensaje: string) => {
     if (!config) return false;
-    setHorario((h) => ({ ...h, ajustes: cambio(h.ajustes) }));
-    try {
-      const ajustes = await modificarAjustesHorario(config, cambio, mensaje);
-      setHorario((h) => {
-        const nuevo = { ...h, ajustes };
-        guardarCache(nuevo);
-        return nuevo;
-      });
-      return true;
-    } catch {
-      await traer();
-      return false;
-    }
-  }, [config, traer]);
+    const previo = actual.current;
+    setHorario({ ...previo, ajustes: cambio(previo.ajustes) });
+    const r = await guardarCambio(previo, cambio, (c) => modificarAjustesHorario(config, c, mensaje));
+    setHorario(r.horario);
+    setError(r.error);
+    if (!r.error) guardarCache(r.horario);
+    return r.error === null;
+  }, [config]);
 
-  return { horario, cambiarAjustes };
+  return { horario, error, cerrarError: () => setError(null), cambiarAjustes };
 }

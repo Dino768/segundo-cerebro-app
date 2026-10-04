@@ -7,6 +7,7 @@ interface Props {
   clase: ClaseDelDia;
   asignaturas: Asignatura[];
   bloqueado: boolean; // sin conexión o sin token: no se puede cambiar nada
+  error?: string | null; // el último cambio no se ha guardado
   alAbrir(): void;
   alQuitar(): void;
   alPoner(): void;
@@ -14,7 +15,7 @@ interface Props {
   cerrar(): void;
 }
 
-export function VentanaClase({ clase, asignaturas, bloqueado, alAbrir, alQuitar, alPoner, alBorrar, cerrar }: Props) {
+export function VentanaClase({ clase, asignaturas, bloqueado, error, alAbrir, alQuitar, alPoner, alBorrar, cerrar }: Props) {
   const { nombre, color } = datosAsignatura(asignaturas, clase.asignatura);
   return (
     <div className="fondo-modal" onClick={cerrar}>
@@ -28,6 +29,7 @@ export function VentanaClase({ clase, asignaturas, bloqueado, alAbrir, alQuitar,
         {clase.profesor && <p>👤 {clase.profesor}</p>}
         {clase.desdoble && <p>{`Desdoble ${clase.desdoble}`}</p>}
         {clase.nota && <p>📝 {clase.nota}</p>}
+        {error && <div className="banner error">{error}</div>}
         <div className="botones">
           <button className="activa" onClick={alAbrir}>Abrir asignatura</button>
           {clase.suelta ? (

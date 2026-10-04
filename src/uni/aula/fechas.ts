@@ -59,7 +59,8 @@ export function leerRespuesta(texto: string): RespuestaClaude {
   } catch {
     throw new ErrorFormato('Claude ha devuelto un JSON roto');
   }
-  const fechas = d.fechas ?? [];
+  if (!('fechas' in d)) throw new ErrorFormato('falta la lista «fechas»');
+  const fechas = d.fechas;
   const avisos = d.avisos ?? [];
   if (!Array.isArray(fechas)) throw new ErrorFormato('fechas debe ser una lista');
   if (!Array.isArray(avisos)) throw new ErrorFormato('avisos debe ser una lista');
@@ -84,35 +85,68 @@ export function leerRespuesta(texto: string): RespuestaClaude {
 }
 
 const normal = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
-const DIAS_TEXTO: [RegExp, string][] = [
-  [/\blunes\s+(?:dia\s+)?\d/, 'lun'], [/\bmartes\s+(?:dia\s+)?\d/, 'mar'], [/\bmiercoles\s+(?:dia\s+)?\d/, 'mie'],
-  [/\bjueves\s+(?:dia\s+)?\d/, 'jue'], [/\bviernes\s+(?:dia\s+)?\d/, 'vie'], [/\bsabado\s+(?:dia\s+)?\d/, 'sab'], [/\bdomingo\s+(?:dia\s+)?\d/, 'dom'],
-];
+const MESES: Record<string, number> = {
+  enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6, julio: 7, agosto: 8,
+  septiembre: 9, setiembre: 9, octubre: 10, noviembre: 11, diciembre: 12,
+};
+const DIA_CLAVE: Record<string, string> = { lunes: 'lun', martes: 'mar', miercoles: 'mie', jueves: 'jue', viernes: 'vie', sabado: 'sab', domingo: 'dom' };
+
+// Comprueba que el día y el mes de la fecha están de verdad en la cita (ya normalizada).
+function fechaEnCita(cita: string, fecha: ISODate): boolean {
+  const [, m, d] = fecha.split('-').map(Number);
+  if (!new RegExp(`(^|\\D)0?${d}(\\D|$)`).test(cita)) return false;
+  const meses = [...cita.matchAll(/\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/g)].map((x) => MESES[x[1]]);
+  if (meses.length && !meses.includes(m)) return false;
+  const pares = [...cita.matchAll(/(\d{1,2})[/-](\d{1,2})/g)];
+  if (pares.length && !pares.some((x) => Number(x[1]) === d && Number(x[2]) === m)) return false;
+  return true;
+}
+
+function horaEnCita(cita: string, hora: string): boolean {
+  const [h, mm] = hora.split(':');
+  const H = String(Number(h));
+  if (new RegExp(`(^|\\D)0?${H}:${mm}(?!\\d)`).test(cita)) return true;
+  return mm === '00' && new RegExp(`a las 0?${H}(?!\\d|:)`).test(cita);
+}
 
 export function problemas(f: FechaClaude, p: Pregunta): string[] {
   if (!f.exacta) return [];
-  const r: string[] = [];
   const fuente = p.fuentes.find((x) => x.id === f.fuente);
   const cita = normal(f.cita);
-  if (!fuente || !cita || !normal(fuente.texto).includes(cita)) r.push('la cita no está en el texto');
-  if (!isISODate(f.fecha)) {
-    r.push('falta la fecha');
-    return r;
+  if (!fuente || !cita || !normal(fuente.texto).includes(cita)) return ['la cita no está en el texto'];
+  if (!isISODate(f.fecha)) return ['falta la fecha'];
+  const r: string[] = [];
+  if (!fechaEnCita(cita, f.fecha)) r.push('la fecha no está en la cita');
+  const D = Number(f.fecha.slice(8, 10));
+  const real = diaDeSemana(f.fecha);
+  const pares = [...cita.matchAll(/\b(lunes|martes|miercoles|jueves|viernes|sabado|domingo)[\s,]+(?:el\s+)?(?:dia\s+)?(\d{1,2})\b/g)]
+    .map((x) => ({ dia: DIA_CLAVE[x[1]], n: Number(x[2]) }));
+  const mismoNumero = pares.filter((x) => x.n === D);
+  for (const x of mismoNumero.length ? mismoNumero : pares.slice(0, 1)) {
+    if (x.dia !== real) {
+      r.push(`el ${f.fecha} no es ${NOMBRE_DIA[x.dia]}`);
+      break;
+    }
   }
-  const dia = DIAS_TEXTO.find(([re]) => re.test(cita))?.[1];
-  if (dia && diaDeSemana(f.fecha) !== dia) r.push(`el ${f.fecha} no es ${NOMBRE_DIA[dia]}`);
   const curso = cursoAcademico(p.hoy);
   if (f.fecha < p.hoy) r.push('la fecha ya ha pasado');
-  else if (f.fecha > curso.fin) r.push('la fecha está fuera del curso');
-  if (f.hora !== null && !isHora(f.hora)) r.push('la hora no es válida');
+  else if (f.fecha > curso.fin || f.fecha < curso.inicio) r.push('la fecha está fuera del curso');
+  if (f.hora !== null) {
+    if (!isHora(f.hora)) r.push('la hora no es válida');
+    else if (!horaEnCita(cita, f.hora)) r.push('la hora no está en la cita');
+  }
   return r;
 }
 
 export function necesitaMas(r: RespuestaClaude, p: Pregunta): boolean {
-  const porClave = new Map<string, Set<string | null>>();
+  const porClave = new Map<string, Set<string>>();
   for (const f of r.fechas) {
     if (f.duda || problemas(f, p).length) return true;
-    if (f.exacta) porClave.set(f.clave, (porClave.get(f.clave) ?? new Set()).add(f.fecha));
+    if (!f.exacta) continue;
+    porClave.set(f.clave, (porClave.get(f.clave) ?? new Set()).add(`${f.fecha} ${f.hora ?? ''}`));
+    // Cambiar una fecha que ya está en la agenda lo tiene que leer un modelo más fuerte (spec §5).
+    const conocida = p.conocidas.find((c) => c.origen === `aula:${p.asignatura.id}:${f.clave}`);
+    if (conocida && (conocida.fecha !== f.fecha || (conocida.hora && f.hora && conocida.hora !== f.hora))) return true;
   }
   return [...porClave.values()].some((s) => s.size > 1);
 }

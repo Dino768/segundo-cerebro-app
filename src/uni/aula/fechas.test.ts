@@ -51,7 +51,7 @@ describe('comprobaciones', () => {
     expect(problemas(f(), p)).toEqual([]);
   });
   it('la cita tiene que estar de verdad en el texto (sin mayúsculas, tildes ni espacios de sobra)', () => {
-    expect(problemas(f({ cita: 'EL  PRIMER parcial sera el jueves 12 de noviembre' }), p)).toEqual([]);
+    expect(problemas(f({ cita: 'EL  PRIMER parcial sera el jueves 12 de noviembre a las 10:00' }), p)).toEqual([]);
     expect(problemas(f({ cita: 'el parcial es el 20' }), p)).toEqual(['la cita no está en el texto']);
     expect(problemas(f({ fuente: 'otra' }), p)).toEqual(['la cita no está en el texto']);
   });
@@ -71,5 +71,43 @@ describe('comprobaciones', () => {
     expect(necesitaMas({ fechas: [f({ duda: 'el profe dice 12 y luego 19' })], avisos: [], evaluacion: null }, p)).toBe(true);
     expect(necesitaMas({ fechas: [f({ fecha: '2026-11-13' })], avisos: [], evaluacion: null }, p)).toBe(true);
     expect(necesitaMas({ fechas: [f(), f({ fecha: '2026-11-19', cita: 'el primer parcial' })], avisos: [], evaluacion: null }, p)).toBe(true); // misma clave, dos fechas
+  });
+});
+
+describe('comprobaciones estrictas', () => {
+  const con = (texto: string): Pregunta => ({ ...p, fuentes: [{ ...p.fuentes[0], texto }] });
+  const prob = (texto: string, x: Partial<FechaClaude>, pp: Pregunta = con(texto)) => problemas(f({ cita: texto, hora: null, ...x }), pp);
+  it('el día y el mes tienen que estar en la cita', () => {
+    expect(problemas(f({ cita: 'el primer parcial', fecha: '2026-12-03', hora: null }), p)).toContain('la fecha no está en la cita');
+    expect(problemas(f({ cita: 'el primer parcial será el jueves 12 de noviembre', fecha: '2026-11-19', hora: null }), p)).toContain('la fecha no está en la cita');
+    expect(prob('el 12 de diciembre', { fecha: '2026-11-12' })).toContain('la fecha no está en la cita');
+    expect(prob('12/11', { fecha: '2026-11-12' })).toEqual([]);
+  });
+  it('el día de la semana con coma y en rangos', () => {
+    expect(prob('el jueves, 12 de noviembre', { fecha: '2026-11-12' })).toEqual([]);
+    expect(prob('el jueves, 13 de noviembre', { fecha: '2026-11-13' })).toContain('el 2026-11-13 no es jueves');
+    expect(prob('del lunes 9 al viernes 13 de noviembre', { fecha: '2026-11-13' })).toEqual([]);
+    expect(prob('del lunes 9 al jueves 13 de noviembre', { fecha: '2026-11-13' })).toContain('el 2026-11-13 no es jueves');
+  });
+  it('la hora tiene que estar en la cita', () => {
+    expect(problemas(f({ hora: '16:00' }), p)).toContain('la hora no está en la cita');
+    expect(prob('el parcial es el jueves 12 de noviembre a las 10', { fecha: '2026-11-12', hora: '10:00' })).toEqual([]);
+  });
+  it('en agosto el curso empieza en septiembre', () => {
+    const pp = { ...con('el 20 de agosto'), hoy: '2027-08-01' };
+    expect(prob('el 20 de agosto', { fecha: '2027-08-20' }, pp)).toContain('la fecha está fuera del curso');
+  });
+  it('una respuesta sin «fechas» es un error', () => {
+    expect(() => leerRespuesta('{"resultado": []}')).toThrow(/fechas/);
+  });
+  it('necesitaMas: misma clave con otra hora, o cambio sobre una fecha ya conocida', () => {
+    const texto = 'el parcial es el jueves 12 de noviembre a las 10:00 o a las 12:00';
+    const pp = con(texto);
+    const a = f({ cita: texto, hora: '10:00' });
+    const b = f({ cita: texto, hora: '12:00' });
+    expect(necesitaMas({ fechas: [a, b], avisos: [], evaluacion: null }, pp)).toBe(true);
+    const conocida = (fecha: string) => ({ ...p, conocidas: [{ origen: 'aula:calculo:primer-parcial', titulo: 'Primer parcial: Cálculo', tipo: 'examen' as const, fecha }] });
+    expect(necesitaMas({ fechas: [f()], avisos: [], evaluacion: null }, conocida('2026-11-19'))).toBe(true);
+    expect(necesitaMas({ fechas: [f()], avisos: [], evaluacion: null }, conocida('2026-11-12'))).toBe(false);
   });
 });

@@ -13,6 +13,8 @@ export interface Propuesta {
   notas?: string;
   // true: las notas vienen de la fuente (aulas de un examen) y se actualizan si la fuente las cambia.
   notasDeLaFuente: boolean;
+  // true: el título viene de la fuente (aula virtual: marca ⚠) y se actualiza si la fuente lo cambia.
+  tituloDeLaFuente?: boolean;
 }
 
 // Una fuente ha devuelto algo que no tiene el formato esperado: no se escribe nada.

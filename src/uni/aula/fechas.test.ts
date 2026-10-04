@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cursoAcademico, leerRespuesta, necesitaMas, problemas, textoPregunta, type FechaClaude, type Pregunta } from './fechas.ts';
+import { cursoAcademico, decidir, leerRespuesta, necesitaMas, problemas, textoPregunta, type FechaClaude, type Pregunta } from './fechas.ts';
 
 const calculo = { id: 'calculo', nombre: 'Cálculo', color: '#36ace7', codigo: '2327007' };
 const p: Pregunta = {
@@ -123,5 +123,60 @@ describe('comprobaciones estrictas', () => {
     const conocida = (fecha: string) => ({ ...p, conocidas: [{ origen: 'aula:calculo:primer-parcial', titulo: 'Primer parcial: Cálculo', tipo: 'examen' as const, fecha }] });
     expect(necesitaMas({ fechas: [f()], avisos: [], evaluacion: null }, conocida('2026-11-19'))).toBe(true);
     expect(necesitaMas({ fechas: [f()], avisos: [], evaluacion: null }, conocida('2026-11-12'))).toBe(false);
+  });
+});
+
+describe('decisión final', () => {
+  const r = (fechas: FechaClaude[]) => ({ fechas, avisos: [], evaluacion: null });
+  it('una fecha clara va a la agenda con la cita y el enlace en las notas', () => {
+    expect(decidir(r([f()]), p)).toEqual({
+      propuestas: [{
+        origen: 'aula:calculo:primer-parcial', titulo: 'Primer parcial: Cálculo', tipo: 'examen', area: 'calculo',
+        fecha: '2026-11-12', hora: '10:00',
+        notas: '«el primer parcial será el jueves 12 de noviembre a las 10:00» (Primer parcial, https://x/555)',
+        notasDeLaFuente: true, tituloDeLaFuente: true,
+      }],
+      avisos: [],
+    });
+  });
+  it('sin día exacto no va a la agenda', () => {
+    expect(decidir(r([f({ exacta: false, fecha: null, cita: 'a mediados de noviembre' })]), p).propuestas).toEqual([]);
+  });
+  it('ante la duda, la más temprana con ⚠ y un aviso importante', () => {
+    const d = decidir(r([
+      f({ fecha: '2026-11-19', cita: 'el primer parcial', duda: 'el aviso dice 12 y la guía 19' }),
+      f({ fecha: '2026-11-12' }),
+    ]), p);
+    expect(d.propuestas).toHaveLength(1);
+    expect(d.propuestas[0].fecha).toBe('2026-11-12');
+    expect(d.propuestas[0].titulo).toBe('⚠ Primer parcial: Cálculo (por confirmar)');
+    expect(d.propuestas[0].notas).toContain('«el primer parcial»');
+    expect(d.avisos).toEqual([{ titulo: 'Fecha por confirmar: Primer parcial de Cálculo', texto: expect.stringContaining('2026-11-12') }]);
+  });
+  it('una fecha que no pasa las comprobaciones no cuenta como candidata; si no queda ninguna, solo aviso', () => {
+    const d = decidir(r([f({ cita: 'inventada' })]), p);
+    expect(d.propuestas).toEqual([]);
+    expect(d.avisos[0].titulo).toBe('Fecha sin confirmar: Primer parcial de Cálculo');
+  });
+  it('no repite un examen oficial que ya está el mismo día', () => {
+    const conOficial = { ...p, fuentes: [{ ...p.fuentes[0], texto: 'El examen final será el jueves 21 de enero.' }] };
+    const d = decidir(r([f({ clave: 'final', que: 'Examen final', fecha: '2027-01-21', hora: null, cita: 'el examen final será el jueves 21 de enero' })]), conOficial);
+    expect(d.propuestas).toEqual([]);
+  });
+});
+
+describe('la cita no deja que un rango o «N horas» valga como día', () => {
+  const con = (cita: string, fecha: string) => {
+    const pp = { ...p, fuentes: [{ ...p.fuentes[0], texto: cita }] };
+    return problemas(f({ cita, fecha, hora: null }), pp);
+  };
+  it('«de 10 a 12» no es el día 10', () => {
+    expect(con('el 1 de noviembre de 10 a 12', '2026-11-10')).toContain('la fecha no está en la cita');
+  });
+  it('«10 horas» no es el día 10', () => {
+    expect(con('el 1 de noviembre, 10 horas', '2026-11-10')).toContain('la fecha no está en la cita');
+  });
+  it('el día 1 sí está', () => {
+    expect(con('el 1 de noviembre de 10 a 12', '2026-11-01')).toEqual([]);
   });
 });

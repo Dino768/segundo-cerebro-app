@@ -95,3 +95,31 @@ describe('fusionar', () => {
     expect(vistos).toEqual({});
   });
 });
+
+describe('fusionar: tareas del aula virtual', () => {
+  const aula = (x: Partial<Propuesta> = {}): Propuesta => ({
+    origen: 'aula:calculo:primer-parcial', titulo: '⚠ Primer parcial: Cálculo (por confirmar)', tipo: 'examen', area: 'calculo',
+    fecha: '2026-11-12', notas: '«cita»', notasDeLaFuente: true, tituloDeLaFuente: true, ...x,
+  });
+  it('el título es de la fuente: se quita la ⚠ al confirmarse', () => {
+    const uno = fusionar([], {}, [aula()], HOY);
+    expect(uno.vistos['aula:calculo:primer-parcial'].titulo).toBe('⚠ Primer parcial: Cálculo (por confirmar)');
+    const dos = fusionar(uno.tareas, uno.vistos, [aula({ titulo: 'Primer parcial: Cálculo' })], HOY);
+    expect(dos.tareas[0].titulo).toBe('Primer parcial: Cálculo');
+  });
+  it('si Diego cambió el título, se respeta mientras la fuente no lo cambie', () => {
+    const uno = fusionar([], {}, [aula()], HOY);
+    const editada = [{ ...uno.tareas[0], titulo: 'Parcial 1 cálculo' }];
+    expect(fusionar(editada, uno.vistos, [aula()], HOY).tareas[0].titulo).toBe('Parcial 1 cálculo');
+  });
+  it('avisa cuando una fecha se adelanta (no cuando se retrasa)', () => {
+    const uno = fusionar([], {}, [aula({ fecha: '2026-11-19' })], HOY);
+    const antes = fusionar(uno.tareas, uno.vistos, [aula({ fecha: '2026-11-12' })], HOY);
+    expect(antes.adelantadas).toEqual([{ origen: 'aula:calculo:primer-parcial', titulo: '⚠ Primer parcial: Cálculo (por confirmar)', antes: '2026-11-19', ahora: '2026-11-12' }]);
+    expect(fusionar(antes.tareas, antes.vistos, [aula({ fecha: '2026-11-26' })], HOY).adelantadas).toEqual([]);
+  });
+  it('la parte A no cambia: sin tituloDeLaFuente el título no se apunta ni se toca', () => {
+    const r = fusionar([], {}, [examen()], HOY);
+    expect(r.vistos['urjc-examen:2026-27:2327007:E:AM'].titulo).toBeUndefined();
+  });
+});

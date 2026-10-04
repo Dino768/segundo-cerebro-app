@@ -2,7 +2,7 @@
 import type { Asignatura } from '../../datos/asignaturas.ts';
 import type { TipoTarea } from '../../datos/tareas.ts';
 import { diaDeSemana, isHora, isISODate, type ISODate } from '../../fechas.ts';
-import { ErrorFormato } from '../tipos.ts';
+import { ErrorFormato, type Propuesta } from '../tipos.ts';
 
 export type Modelo = 'haiku' | 'sonnet' | 'opus';
 export const MODELOS: Modelo[] = ['haiku', 'sonnet', 'opus'];
@@ -100,7 +100,7 @@ function fechaEnCita(cita: string, fecha: ISODate): boolean {
     pares.push([Number(dd), Number(mm)]);
     return ' ';
   });
-  for (const re of [/\d{1,2}\s*-\s*\d{1,2}\s*h\b/g, /\d{1,2}[:.]\d{2}/g, /a las \d{1,2}/g, /\d{1,2}\s*h\b/g, /aula \d+/g]) limpia = limpia.replace(re, ' ');
+  for (const re of [/de \d{1,2} a \d{1,2}(?![0-9])/g, /\d{1,2} horas?\b/g, /\d{1,2}\s*-\s*\d{1,2}\s*h\b/g, /\d{1,2}[:.]\d{2}/g, /a las \d{1,2}/g, /\d{1,2}\s*h\b/g, /aula \d+/g]) limpia = limpia.replace(re, ' ');
   for (const x of limpia.matchAll(/(\d{1,2})[/-](\d{1,2})/g)) pares.push([Number(x[1]), Number(x[2])]);
   const diaOk = pares.some(([dd, mm]) => dd === d && mm === m) || new RegExp('(^|[^0-9])0?' + d + '([^0-9]|$)').test(limpia);
   if (!diaOk) return false;
@@ -157,4 +157,49 @@ export function necesitaMas(r: RespuestaClaude, p: Pregunta): boolean {
     if (conocida && (conocida.fecha !== f.fecha || (conocida.hora && f.hora && conocida.hora !== f.hora))) return true;
   }
   return [...porClave.values()].some((s) => s.size > 1);
+}
+
+export interface AvisoNuevo { titulo: string; texto: string }
+export interface Decision { propuestas: Propuesta[]; avisos: AvisoNuevo[] }
+
+function nota(f: FechaClaude, p: Pregunta): string {
+  const fuente = p.fuentes.find((x) => x.id === f.fuente);
+  const donde = fuente ? ` (${[fuente.titulo, fuente.enlace].filter(Boolean).join(', ')})` : '';
+  return `«${f.cita}»${donde}`;
+}
+
+// Decide qué fechas llegan a la agenda. Solo cuentan las que pasan todas las comprobaciones;
+// ante la duda se pone la más temprana, con ⚠ y un aviso, para que no pille a Diego por sorpresa.
+export function decidir(r: RespuestaClaude, p: Pregunta): Decision {
+  const propuestas: Propuesta[] = [];
+  const avisos: AvisoNuevo[] = [];
+  const grupos = new Map<string, FechaClaude[]>();
+  for (const f of r.fechas) if (f.exacta) grupos.set(f.clave, [...(grupos.get(f.clave) ?? []), f]);
+  for (const [clave, fs] of grupos) {
+    const que = fs[0].que;
+    const validas = fs.filter((f) => problemas(f, p).length === 0 && f.fecha);
+    const fechasDistintas = new Set(fs.map((f) => f.fecha));
+    const dudosa = fs.some((f) => f.duda || problemas(f, p).length) || fechasDistintas.size > 1;
+    const notas = [...new Set(fs.map((f) => nota(f, p)))].join('\n');
+    if (validas.length === 0) {
+      avisos.push({ titulo: `Fecha sin confirmar: ${que} de ${p.asignatura.nombre}`, texto: `No he podido comprobar la fecha. Lo que dice el profe:\n${notas}` });
+      continue;
+    }
+    const elegida = [...validas].sort((a, b) => (a.fecha! < b.fecha! ? -1 : 1))[0];
+    // Un examen oficial (parte A) el mismo día ya está en la agenda.
+    const oficial = p.conocidas.some((c) => c.origen.startsWith('urjc-examen:') && c.fecha === elegida.fecha && elegida.tipo === 'examen');
+    if (oficial) continue;
+    const titulo = dudosa ? `⚠ ${que}: ${p.asignatura.nombre} (por confirmar)` : `${que}: ${p.asignatura.nombre}`;
+    propuestas.push({
+      origen: `aula:${p.asignatura.id}:${clave}`, titulo, tipo: elegida.tipo, area: p.asignatura.id, fecha: elegida.fecha!,
+      ...(elegida.hora && isHora(elegida.hora) ? { hora: elegida.hora } : {}),
+      notas, notasDeLaFuente: true, tituloDeLaFuente: true,
+    });
+    if (dudosa)
+      avisos.push({
+        titulo: `Fecha por confirmar: ${que} de ${p.asignatura.nombre}`,
+        texto: `He puesto la fecha más temprana (${elegida.fecha}) para que no te pille por sorpresa. Compruébala:\n${notas}`,
+      });
+  }
+  return { propuestas, avisos };
 }

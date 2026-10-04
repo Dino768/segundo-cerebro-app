@@ -150,7 +150,7 @@ describe('decisión final', () => {
     expect(d.propuestas).toHaveLength(1);
     expect(d.propuestas[0].fecha).toBe('2026-11-12');
     expect(d.propuestas[0].titulo).toBe('⚠ Primer parcial: Cálculo (por confirmar)');
-    expect(d.propuestas[0].notas).toContain('«el primer parcial»');
+    expect(d.propuestas[0].notas).toContain('«el primer parcial» (no comprobada)');
     expect(d.avisos).toEqual([{ titulo: 'Fecha por confirmar: Primer parcial de Cálculo', texto: expect.stringContaining('2026-11-12') }]);
   });
   it('una fecha que no pasa las comprobaciones no cuenta como candidata; si no queda ninguna, solo aviso', () => {
@@ -178,5 +178,25 @@ describe('la cita no deja que un rango o «N horas» valga como día', () => {
   });
   it('el día 1 sí está', () => {
     expect(con('el 1 de noviembre de 10 a 12', '2026-11-01')).toEqual([]);
+  });
+});
+
+describe('correcciones de la revisión', () => {
+  const con = (texto: string, x: Partial<FechaClaude>) => ({ pp: { ...p, fuentes: [{ ...p.fuentes[0], texto }] }, ff: f(x) });
+  it('rangos de días no se quitan como si fueran horas', () => {
+    const { pp, ff } = con('la entrega es de 3 a 7 de noviembre', { cita: 'la entrega es de 3 a 7 de noviembre', fecha: '2026-11-07', hora: null });
+    expect(problemas(ff, pp)).toEqual([]);
+  });
+  it('dos horas distintas el mismo día: la más temprana, con ⚠ y aviso', () => {
+    const texto = 'el parcial será el jueves 12 de noviembre a las 10:00 o a las 12:00';
+    const pp = { ...p, fuentes: [{ ...p.fuentes[0], texto }] };
+    const d = decidir({ fechas: [
+      f({ hora: '12:00', cita: 'el jueves 12 de noviembre a las 12:00' }),
+      f({ hora: '10:00', cita: 'el jueves 12 de noviembre a las 10:00' }),
+    ].map((x) => x), avisos: [], evaluacion: null }, { ...pp, fuentes: [{ ...p.fuentes[0], texto: 'el parcial será el jueves 12 de noviembre a las 10:00 o el jueves 12 de noviembre a las 12:00' }] });
+    expect(d.propuestas).toHaveLength(1);
+    expect(d.propuestas[0].hora).toBe('10:00');
+    expect(d.propuestas[0].titulo).toBe('⚠ Primer parcial: Cálculo (por confirmar)');
+    expect(d.avisos).toHaveLength(1);
   });
 });

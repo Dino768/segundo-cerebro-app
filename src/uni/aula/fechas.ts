@@ -100,7 +100,7 @@ function fechaEnCita(cita: string, fecha: ISODate): boolean {
     pares.push([Number(dd), Number(mm)]);
     return ' ';
   });
-  for (const re of [/de \d{1,2} a \d{1,2}(?![0-9])/g, /\d{1,2} horas?\b/g, /\d{1,2}\s*-\s*\d{1,2}\s*h\b/g, /\d{1,2}[:.]\d{2}/g, /a las \d{1,2}/g, /\d{1,2}\s*h\b/g, /aula \d+/g]) limpia = limpia.replace(re, ' ');
+  for (const re of [/de \d{1,2} a \d{1,2}(?![0-9])(?!\s*\/)(?! de (?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b)/g, /\d{1,2} horas?\b/g, /\d{1,2}\s*-\s*\d{1,2}\s*h\b/g, /\d{1,2}[:.]\d{2}/g, /a las \d{1,2}/g, /\d{1,2}\s*h\b/g, /aula \d+/g]) limpia = limpia.replace(re, ' ');
   for (const x of limpia.matchAll(/(\d{1,2})[/-](\d{1,2})/g)) pares.push([Number(x[1]), Number(x[2])]);
   const diaOk = pares.some(([dd, mm]) => dd === d && mm === m) || new RegExp('(^|[^0-9])0?' + d + '([^0-9]|$)').test(limpia);
   if (!diaOk) return false;
@@ -165,7 +165,7 @@ export interface Decision { propuestas: Propuesta[]; avisos: AvisoNuevo[] }
 function nota(f: FechaClaude, p: Pregunta): string {
   const fuente = p.fuentes.find((x) => x.id === f.fuente);
   const donde = fuente ? ` (${[fuente.titulo, fuente.enlace].filter(Boolean).join(', ')})` : '';
-  return `«${f.cita}»${donde}`;
+  return `«${f.cita}»${problemas(f, p).length ? " (no comprobada)" : ""}${donde}`;
 }
 
 // Decide qué fechas llegan a la agenda. Solo cuentan las que pasan todas las comprobaciones;
@@ -178,14 +178,14 @@ export function decidir(r: RespuestaClaude, p: Pregunta): Decision {
   for (const [clave, fs] of grupos) {
     const que = fs[0].que;
     const validas = fs.filter((f) => problemas(f, p).length === 0 && f.fecha);
-    const fechasDistintas = new Set(fs.map((f) => f.fecha));
-    const dudosa = fs.some((f) => f.duda || problemas(f, p).length) || fechasDistintas.size > 1;
+    const distintas = new Set(fs.map((f) => `${f.fecha} ${f.hora ?? ""}`));
+    const dudosa = fs.some((f) => f.duda || problemas(f, p).length) || distintas.size > 1;
     const notas = [...new Set(fs.map((f) => nota(f, p)))].join('\n');
     if (validas.length === 0) {
       avisos.push({ titulo: `Fecha sin confirmar: ${que} de ${p.asignatura.nombre}`, texto: `No he podido comprobar la fecha. Lo que dice el profe:\n${notas}` });
       continue;
     }
-    const elegida = [...validas].sort((a, b) => (a.fecha! < b.fecha! ? -1 : 1))[0];
+    const elegida = [...validas].sort((a, b) => (a.fecha! !== b.fecha! ? (a.fecha! < b.fecha! ? -1 : 1) : a.hora === b.hora ? 0 : a.hora === null ? 1 : b.hora === null ? -1 : a.hora < b.hora ? -1 : 1))[0];
     // Un examen oficial (parte A) el mismo día ya está en la agenda.
     const oficial = p.conocidas.some((c) => c.origen.startsWith('urjc-examen:') && c.fecha === elegida.fecha && elegida.tipo === 'examen');
     if (oficial) continue;

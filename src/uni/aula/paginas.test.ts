@@ -61,6 +61,16 @@ describe('contenido del curso', () => {
     expect(foroDeAvisos(c)?.id).toBe('100');
     expect(moduloGuia(c)?.id).toBe('101');
   });
+  it('la guía: primero un archivo, luego un enlace y por último una etiqueta (a veces vacía)', () => {
+    const curso = (cm: object[]) => leerContenido({ section: [{ id: '10', title: 'General', cmlist: cm.map((x: any) => x.id) }], cm });
+    const etiqueta = { id: '1', name: 'Guía docente', module: 'label' };
+    const archivo = { id: '2', name: 'Guía docente 2026-27', module: 'resource', url: 'https://x/mod/resource/view.php?id=2' };
+    const enlace = { id: '3', name: 'Guía docente', module: 'url', url: 'https://x/mod/url/view.php?id=3' };
+    expect(moduloGuia(curso([etiqueta, archivo]))?.id).toBe('2');
+    expect(moduloGuia(curso([etiqueta, enlace]))?.id).toBe('3');
+    expect(moduloGuia(curso([enlace, archivo]))?.id).toBe('2');
+    expect(moduloGuia(curso([etiqueta]))?.id).toBe('1');
+  });
   it('sin un foro con nombre de avisos, el primer foro de la primera sección', () => {
     const otro = JSON.parse(estado);
     otro.cm[0].name = 'Foro general';

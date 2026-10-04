@@ -204,6 +204,17 @@ describe('revisión del aula virtual', () => {
     await revisarAula(deps({ navegador: async () => navGuia, preguntar }));
     expect(conGuiaPedida).toBe(1);
   });
+  it('guía como etiqueta vacía y sin otro archivo: se salta la guía sin error', async () => {
+    const conGuia = JSON.stringify({
+      section: [{ id: '10', title: 'General', cmlist: ['100', '107'] }],
+      cm: [{ id: '100', name: 'Novedades', module: 'forum', url: 'https://aula/mod/forum/view.php?id=100' }, { id: '107', name: 'Guía docente', module: 'label' }],
+    });
+    const nav = navegadorFalso({ estado: conGuia });
+    const navVacio: Navegador = { ...nav, pedirTexto: async (u) => (u.includes('/course/view.php') ? '<li id="module-107"></li>' : nav.pedirTexto(u)) };
+    const r = await revisarAula(deps({ navegador: async () => navVacio }));
+    expect(r.resultado).toBe('ok');
+    expect(await leer('estudios/calculo/guia-docente.md')).toBeNull();
+  });
   it('un error ajeno no publica su texto (ni en el estado ni en el commit)', async () => {
     const git = gitFalso();
     const nav = navegadorFalso();

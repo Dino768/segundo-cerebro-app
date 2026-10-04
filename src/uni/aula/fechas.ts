@@ -140,7 +140,21 @@ function horaEnCita(cita: string, hora: string): boolean {
   const [h, mm] = hora.split(':');
   const H = String(Number(h));
   if (new RegExp('(^|[^0-9])0?' + H + '[:.]' + mm + '(?![0-9])').test(cita)) return true;
-  return mm === '00' && new RegExp('a las 0?' + H + '(?![0-9]|[:.][0-9])').test(cita);
+  if (mm !== '00') return false;
+  // Solo cuenta la hora de inicio: «a las 11», «de 11 a 13h», «entre las 11 y las 13».
+  return new RegExp('a las 0?' + H + '(?![0-9]|[:.][0-9])').test(cita)
+    || new RegExp('(^|[^0-9])de 0?' + H + ' a [0-9]{1,2}(?![0-9]|[:.][0-9])').test(cita)
+    || new RegExp('entre las 0?' + H + ' y las [0-9]{1,2}(?![0-9]|[:.][0-9])').test(cita);
+}
+
+// Quita del final de «que» el nombre de la asignatura (ya se añade solo): « de X», « del X», «: X» o X a secas.
+function sinAsignatura(que: string, nombre: string): string {
+  const q = normal(que);
+  const n = normal(nombre);
+  const resto = [' de ', ' del ', ': ', ''].map((pre) => pre + n).filter((x) => x && q.endsWith(x)).sort((a, b) => b.length - a.length)[0];
+  if (!resto) return que;
+  const corto = que.slice(0, que.length - resto.length).trim();
+  return corto || que;
 }
 
 export function problemas(f: FechaClaude, p: Pregunta): string[] {
@@ -204,7 +218,7 @@ export function decidir(r: RespuestaClaude, p: Pregunta): Decision {
   const grupos = new Map<string, FechaClaude[]>();
   for (const f of r.fechas) if (f.exacta) grupos.set(f.clave, [...(grupos.get(f.clave) ?? []), f]);
   for (const [clave, fs] of grupos) {
-    const que = fs[0].que;
+    const que = sinAsignatura(fs[0].que, p.asignatura.nombre);
     const validas = fs.filter((f) => problemas(f, p).length === 0 && f.fecha);
     const distintas = new Set(fs.map((f) => `${f.fecha} ${f.hora ?? ""}`));
     const dudosa = fs.some((f) => f.duda || problemas(f, p).length) || distintas.size > 1;

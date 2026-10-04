@@ -239,3 +239,40 @@ describe('examen oficial el mismo día pero con dudas', () => {
     expect(d.avisos).toEqual([{ titulo: 'Fecha por confirmar: Examen final de Cálculo', texto: expect.stringContaining('2027-01-21') }]);
   });
 });
+
+describe('horas en rango y títulos sin la asignatura repetida', () => {
+  const electro = { id: 'electronica', nombre: 'Electrónica Digital', color: '#000000', codigo: '2327011' };
+  const texto = 'Como he comentado hoy en clase, el día 15 de octubre, de 11 a 13h, recuperaremos la clase de Electrónica Digital.';
+  const pe: Pregunta = { asignatura: electro, hoy: '2026-10-04', conGuia: false, conocidas: [], fuentes: [{ id: 'a1', tipo: 'aviso', titulo: 'Clase', fecha: '2026-10-03', texto }] };
+  const fe = (x: Partial<FechaClaude> = {}): FechaClaude => ({
+    clave: 'recuperacion', que: 'Recuperación', tipo: 'evento', fecha: '2026-10-15', hora: '11:00', exacta: true, cita: texto, fuente: 'a1', duda: null, ...x,
+  });
+  it('un rango cuenta por su hora de inicio', () => {
+    expect(problemas(fe(), pe)).toEqual([]);
+    expect(problemas(fe({ hora: '13:00' }), pe)).toContain('la hora no está en la cita');
+  });
+  it.each([
+    ['de 11 a 13 horas', '11:00'], ['de 11:00 a 13:30', '11:00'], ['de 11:30 a 13:00', '11:30'], ['entre las 11 y las 13', '11:00'], ['de 9 a 11h', '09:00'],
+  ])('«%s» vale para %s', (frase, hora) => {
+    const c = `el día 15 de octubre, ${frase}, recuperaremos la clase`;
+    const pp = { ...pe, fuentes: [{ ...pe.fuentes[0], texto: c }] };
+    expect(problemas(fe({ cita: c, hora }), pp)).toEqual([]);
+  });
+  it('«entre las 11 y las 13» no vale para las 13', () => {
+    const c = 'el día 15 de octubre, entre las 11 y las 13, recuperaremos la clase';
+    const pp = { ...pe, fuentes: [{ ...pe.fuentes[0], texto: c }] };
+    expect(problemas(fe({ cita: c, hora: '13:00' }), pp)).toContain('la hora no está en la cita');
+  });
+  const titulo = (que: string, nombre: string) => {
+    const pp = { ...pe, asignatura: { ...electro, nombre } };
+    return decidir({ fechas: [fe({ que })], avisos: [], evaluacion: null }, pp).propuestas[0].titulo;
+  };
+  it('el título no repite la asignatura', () => {
+    expect(titulo('Parcial de Electrónica Digital', 'Electrónica Digital')).toBe('Parcial: Electrónica Digital');
+    expect(titulo('Desdoble de Álgebra', 'Álgebra')).toBe('Desdoble: Álgebra');
+    expect(titulo('Parcial del Álgebra', 'Álgebra')).toBe('Parcial: Álgebra');
+    expect(titulo('Parcial: Álgebra', 'Álgebra')).toBe('Parcial: Álgebra');
+    expect(titulo('Primer parcial', 'Álgebra')).toBe('Primer parcial: Álgebra');
+    expect(titulo('Álgebra', 'Álgebra')).toBe('Álgebra: Álgebra');
+  });
+});

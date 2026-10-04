@@ -13,6 +13,7 @@ Formato:
 Fechas:
 - Solo cosas que el estudiante tiene que hacer o a las que tiene que ir: exámenes y parciales ("examen"), entregas de prácticas o trabajos ("entrega"), y otras citas con fecha como presentaciones o sesiones obligatorias ("evento"). No pongas fechas de clases normales ni de publicación de notas.
 - "clave": corta, en minúsculas y con guiones (primer-parcial, practica-2). Si la fecha ya está en «Fechas que Diego ya tiene» con origen `aula:<asignatura>:<clave>`, usa ESA clave (así se mueve la fecha en vez de repetirla).
+- "que": nombre corto de la cita (Primer parcial, Práctica 2), sin el nombre de la asignatura (ya se añade solo).
 - No repitas los exámenes oficiales que ya están (origen `urjc-examen:`) salvo que el texto los cambie.
 - "fecha": AAAA-MM-DD. "hora": "HH:MM" o null. Las fechas relativas («el jueves que viene») se calculan desde la fecha de publicación del aviso.
 - "exacta": true solo si hay un día concreto. «A mediados de noviembre» → exacta false y fecha null.

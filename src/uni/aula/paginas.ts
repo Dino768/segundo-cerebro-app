@@ -80,7 +80,9 @@ export function foroDeAvisos(c: ContenidoCurso): ModuloAula | undefined {
 
 const GUIA = /gu[ií]a\s+(docente|de\s+(la\s+)?asignatura|del\s+estudiante)|teaching\s+guide|course\s+guide/i;
 export function moduloGuia(c: ContenidoCurso): ModuloAula | undefined {
-  return c.secciones.flatMap((s) => s.modulos).find((m) => ['resource', 'url', 'label'].includes(m.tipo) && GUIA.test(m.nombre));
+  // Primero un archivo, luego un enlace y, si no hay más, la etiqueta (que a veces está vacía, sin enlace).
+  const posibles = c.secciones.flatMap((s) => s.modulos).filter((m) => GUIA.test(m.nombre));
+  return ['resource', 'url', 'label'].map((t) => posibles.find((m) => m.tipo === t)).find(Boolean);
 }
 
 // La guía docente suele ser una etiqueta con el PDF enlazado: se busca en la página del curso.

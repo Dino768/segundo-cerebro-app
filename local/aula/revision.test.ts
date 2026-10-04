@@ -7,6 +7,8 @@ import { parseTareas } from '../../src/datos/tareas.ts';
 import { SesionCaducada } from '../../src/uni/aula/paginas.ts';
 import { parseSincronizacionAula } from '../../src/uni/aula/estado.ts';
 import type { Modelo } from '../../src/uni/aula/fechas.ts';
+import { serializarAulaVirtual } from '../../src/datos/aulaVirtual.ts';
+import { ErrorFormato } from '../../src/uni/tipos.ts';
 import { LimiteClaude } from './claude.ts';
 import type { Git } from './git.ts';
 import type { Navegador } from './navegador.ts';
@@ -45,7 +47,11 @@ function navegadorFalso(o: { sesion?: boolean; estado?: string } = {}): Navegado
 function gitFalso(x: Partial<Git> = {}): Git & { subidas: string[][]; mensajes: string[] } {
   const subidas: string[][] = [];
   const mensajes: string[] = [];
-  return { limpio: async () => true, traer: async () => undefined, subir: async (a, m) => (subidas.push(a), mensajes.push(m), 'ok'), volverAlRemoto: async () => undefined, subidas, mensajes, ...x };
+  const g: Git & { subidas: string[][]; mensajes: string[] } = {
+    limpio: async () => true, listoParaRevisar: async () => g.limpio(), ignorado: async () => true, traer: async () => undefined,
+    subir: async (a, m) => (subidas.push(a), mensajes.push(m), 'ok'), volverAlRemoto: async () => undefined, subidas, mensajes, ...x,
+  };
+  return g;
 }
 const deps = (x: Partial<Dependencias> = {}): Dependencias => ({
   carpeta, ahora: AHORA, navegador: async () => navegadorFalso(),
@@ -227,5 +233,95 @@ describe('revisión del aula virtual', () => {
     const lista = await leer('estudios/calculo/aula-virtual.yaml');
     expect(lista).toContain('Planificación');
     expect(lista).not.toContain('archivo:');
+  });
+});
+
+describe('revisión segura: lo de Diego no se toca', () => {
+  it('si my-context cambia mientras cosecha, no escribe ni sube nada', async () => {
+    let cambiado = false;
+    const git = gitFalso({ limpio: async () => !cambiado });
+    const r = await revisarAula(deps({ git, preguntar: async () => ((cambiado = true), respuesta()) }));
+    expect(r).toEqual({ resultado: 'error', mensaje: 'my-context ha cambiado mientras revisaba: lo intento más tarde' });
+    expect(git.subidas).toEqual([]);
+    expect(await leer('agenda/tareas.yaml')).toBe('[]\n');
+    expect(await leer('estudios/avisos.yaml')).toBeNull();
+    expect(await leer('estudios/aula-sincronizacion.yaml')).toBeNull();
+    expect(await leer('estudios/calculo/aula-virtual.yaml')).toBeNull();
+  });
+  it('tras un push rechazado vuelve a comprobar antes de escribir otra vez', async () => {
+    let comprobaciones = 0;
+    const git = gitFalso({ limpio: async () => ++comprobaciones <= 2, subir: async (a, m) => (git.subidas.push(a), git.mensajes.push(m), 'rechazado') });
+    const r = await revisarAula(deps({ git }));
+    expect(r.mensaje).toBe('my-context ha cambiado mientras revisaba: lo intento más tarde');
+    expect(git.subidas).toHaveLength(1);
+  });
+  it('sin aula-virtual/ en el .gitignore no descarga nada', async () => {
+    let abierto = false;
+    const git = gitFalso({ ignorado: async () => false });
+    const r = await revisarAula(deps({ git, navegador: async () => ((abierto = true), navegadorFalso()) }));
+    expect(r).toEqual({ resultado: 'error', mensaje: 'falta estudios/*/aula-virtual/ en el .gitignore de my-context' });
+    expect(abierto).toBe(false);
+    expect(await leer('estudios/calculo/aula-virtual/General/Planificación.pdf')).toBeNull();
+  });
+  it('el aula virtual que no responde no es una sesión caducada', async () => {
+    const nav = navegadorFalso();
+    const r = await revisarAula(deps({ navegador: async () => ({ ...nav, sesionValida: async () => { throw new ErrorFormato('el aula virtual no responde (mantenimiento o sin conexión)'); } }) }));
+    expect(r).toEqual({ resultado: 'error', mensaje: 'el aula virtual no responde (mantenimiento o sin conexión)' });
+    expect(parseAvisos(await leer('estudios/avisos.yaml')).map((a) => a.id)).not.toContain('programa-entrar');
+  });
+});
+
+describe('un fallo suelto no tira la revisión entera', () => {
+  it('una descarga que falla: se salta, queda con su enlace y se reintenta otro día', async () => {
+    const nav = navegadorFalso();
+    const r = await revisarAula(deps({ navegador: async () => ({ ...nav, descargar: async () => { throw new ErrorFormato('el aula virtual contestó 500 al descargar'); } }) }));
+    expect(r.resultado).toBe('ok');
+    expect(parseAvisos(await leer('estudios/avisos.yaml')).map((a) => a.id)).toEqual(['moodle-hilo-555']);
+    const lista = await leer('estudios/calculo/aula-virtual.yaml');
+    expect(lista).toContain('Planificación');
+    expect(lista).not.toContain('archivo:');
+    expect(parseSincronizacionAula(await leer('estudios/aula-sincronizacion.yaml')).vistos.materiales).not.toContain('103');
+    let descargas = 0;
+    await revisarAula(deps({ navegador: async () => ({ ...nav, descargar: async (...a) => (descargas++, nav.descargar(...a)) }) }));
+    expect(descargas).toBe(1);
+    expect(await leer('estudios/calculo/aula-virtual.yaml')).toContain('archivo: General/Planificación.pdf');
+  });
+  it('un error al guardar el archivo también se salta', async () => {
+    // Una carpeta con el nombre del archivo hace fallar la escritura.
+    await mkdir(path.join(carpeta, 'estudios/calculo/aula-virtual/General/Planificación.pdf'), { recursive: true });
+    const r = await revisarAula(deps());
+    expect(r.resultado).toBe('ok');
+    expect(parseSincronizacionAula(await leer('estudios/aula-sincronizacion.yaml')).vistos.materiales).not.toContain('103');
+  });
+  it('un hilo del foro que no se entiende se salta sin marcarlo como visto', async () => {
+    const nav = navegadorFalso();
+    const r = await revisarAula(deps({ navegador: async () => ({ ...nav, pedirTexto: async (u) => (u.includes('discuss.php') ? '<p>nada</p>' : nav.pedirTexto(u)) }) }));
+    expect(r.resultado).toBe('ok');
+    expect(await leer('estudios/avisos.yaml')).not.toContain('moodle-hilo-555');
+    expect(parseSincronizacionAula(await leer('estudios/aula-sincronizacion.yaml')).vistos.avisos).toEqual([]);
+  });
+  it('una asignatura que no se entiende se salta sin tocarla; las demás se guardan', async () => {
+    await writeFile(path.join(carpeta, 'estudios/asignaturas.yaml'),
+      'asignaturas:\n  - id: calculo\n    nombre: Cálculo\n    color: "#36ace7"\n    codigo: "2327007"\n  - id: fisica\n    nombre: Física\n    color: "#ff0000"\n    codigo: "2327008"\n');
+    const listaFisica = serializarAulaVirtual({ actualizado: '2026-10-01', secciones: [{ nombre: 'Tema 1', materiales: [{ id: '900', nombre: 'Apuntes', tipo: 'pdf', enlace: 'https://x/900' }] }] });
+    await mkdir(path.join(carpeta, 'estudios/fisica'), { recursive: true });
+    await writeFile(path.join(carpeta, 'estudios/fisica/aula-virtual.yaml'), listaFisica);
+    const nav = navegadorFalso();
+    const r = await revisarAula(deps({ navegador: async () => ({
+      ...nav,
+      ajax: async (_s, metodo, args) => metodo.startsWith('core_course_get_enrolled')
+        ? { courses: [{ id: 7, shortname: '2026-27_2327007_7_1', fullname: 'Cálculo' }, { id: 8, shortname: '2026-27_2327008_8_1', fullname: 'Física' }] }
+        : (args.courseid === 8 ? '{"cosas": 1}' : estado),
+    }) }));
+    expect(r).toEqual({ resultado: 'ok', mensaje: '1 aviso nuevo, 1 material, 1 fecha, 1 asignatura con problemas (fisica)' });
+    expect(await leer('estudios/fisica/aula-virtual.yaml')).toBe(listaFisica);
+    expect(await leer('estudios/calculo/aula-virtual.yaml')).toContain('Planificación');
+    expect(parseSincronizacionAula(await leer('estudios/aula-sincronizacion.yaml')).estado.mensaje).toContain('(fisica)');
+  });
+  it('un documento de fechas sin texto (escaneado) se apunta en el resumen y no va a Claude', async () => {
+    let pregunta = '';
+    const r = await revisarAula(deps({ textoDe: async () => null, preguntar: async (_m, t) => ((pregunta = t), respuesta()) }));
+    expect(r.mensaje).toBe('1 aviso nuevo, 1 material, 1 fecha, 1 documento sin texto');
+    expect(pregunta).not.toContain('Planificación.pdf');
   });
 });

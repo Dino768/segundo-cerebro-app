@@ -2,8 +2,13 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const ejecutar = promisify(execFile);
+export const PREFIJO_COMMIT = 'Aula virtual:';
 export interface Git {
   limpio(): Promise<boolean>;
+  // Al empezar una revisión: si solo quedan sin subir commits del programa (se apagó el PC entre el commit y el push), los sube.
+  // Después, lo mismo que limpio().
+  listoParaRevisar(): Promise<boolean>;
+  ignorado(ruta: string): Promise<boolean>;
   traer(): Promise<void>;
   subir(archivos: string[], mensaje: string): Promise<'ok' | 'rechazado'>;
   volverAlRemoto(): Promise<void>;
@@ -12,17 +17,45 @@ export interface Git {
 export function crearGit(carpeta: string): Git {
   const git = (...args: string[]) => ejecutar('git', args, { cwd: carpeta, windowsHide: true });
   const arbolLimpio = async () => (await git('status', '--porcelain', '--untracked-files=no')).stdout.trim() === '';
-  // Limpio = sin cambios y sin commits propios sin subir (el programa nunca trabaja encima de lo de Diego).
-  const limpio = async () => {
-    if (!(await arbolLimpio())) return false;
+  // Asuntos de los commits locales sin subir; null si no hay rama remota (mejor no tocar nada).
+  const sinSubir = async (): Promise<string[] | null> => {
     try {
-      return Number((await git('rev-list', '--count', '@{u}..HEAD')).stdout.trim()) === 0;
+      const salida = (await git('log', '--format=%s', '@{u}..HEAD')).stdout.trim();
+      return salida ? salida.split('\n') : [];
     } catch {
-      return false; // sin rama remota: mejor no tocar nada
+      return null;
     }
   };
+  // Limpio = sin cambios y sin commits propios sin subir (el programa nunca trabaja encima de lo de Diego).
+  const limpio = async () => (await arbolLimpio()) && (await sinSubir())?.length === 0;
   return {
     limpio,
+    async listoParaRevisar() {
+      if (!(await arbolLimpio())) return false;
+      const asuntos = await sinSubir();
+      if (asuntos && asuntos.length && asuntos.every((a) => a.startsWith(PREFIJO_COMMIT))) {
+        try {
+          await git('pull', '--rebase', '--quiet');
+        } catch {
+          await git('rebase', '--abort').catch(() => undefined);
+          return false;
+        }
+        try {
+          await git('push', '--quiet');
+        } catch {
+          return false;
+        }
+      }
+      return limpio();
+    },
+    async ignorado(ruta) {
+      try {
+        await git('check-ignore', '--quiet', '--', ruta);
+        return true;
+      } catch {
+        return false; // código 1: no está ignorada
+      }
+    },
     traer: async () => void (await git('pull', '--rebase', '--quiet')),
     async subir(archivos, mensaje) {
       await git('add', '--', ...archivos);
@@ -45,7 +78,7 @@ export function crearGit(carpeta: string): Git {
       const cambiado = 'my-context ha cambiado mientras revisaba: lo intento más tarde';
       if (!(await arbolLimpio())) throw new Error(cambiado);
       const asunto = (await git('log', '-1', '--format=%s')).stdout.trim();
-      if (!asunto.startsWith('Aula virtual:')) throw new Error(cambiado);
+      if (!asunto.startsWith(PREFIJO_COMMIT)) throw new Error(cambiado);
       await git('reset', '--hard', '--quiet', 'HEAD~1');
       await git('pull', '--rebase', '--quiet');
     },

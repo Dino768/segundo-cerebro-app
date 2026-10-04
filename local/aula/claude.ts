@@ -11,7 +11,7 @@ export class LimiteClaude extends Error {
 }
 
 export function argumentosAula(modelo: Modelo, instrucciones: string): string[] {
-  return ['-p', '--model', modelo, '--output-format', 'json', '--system-prompt-file', instrucciones, '--tools', '', '--strict-mcp-config'];
+  return ['-p', '--model', modelo, '--output-format', 'json', '--system-prompt-file', instrucciones, '--tools', '', '--strict-mcp-config', '--no-session-persistence'];
 }
 
 export function leerSalidaClaude(stdout: string): string {

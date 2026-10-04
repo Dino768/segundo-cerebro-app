@@ -41,7 +41,13 @@ interface Cosecha {
   respuesta?: RespuestaClaude;
   pregunta?: Pregunta;
   pendiente?: Pendiente;
+  sinTexto: number;              // documentos de fechas de los que no se pudo sacar el texto (escaneados)
 }
+// Lo cosechado y las asignaturas que se saltaron (página que no se entiende): esas no se tocan esta vez.
+interface Cosechado { cosechas: Cosecha[]; conProblemas: string[]; primerProblema?: string }
+
+export const CAMBIADO = 'my-context ha cambiado mientras revisaba: lo intento más tarde';
+export const SIN_GITIGNORE = 'falta estudios/*/aula-virtual/ en el .gitignore de my-context';
 
 const ruta = (d: Dependencias, r: string) => path.join(d.carpeta, ...r.split('/'));
 async function leer(d: Dependencias, r: string): Promise<string | null> {
@@ -60,44 +66,67 @@ const huella = (t: string) => createHash('sha1').update(t).digest('hex');
 const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
 
 export async function revisarAula(d: Dependencias): Promise<ResumenRevision> {
-  if (!(await d.git.limpio())) return { resultado: 'error', mensaje: 'my-context tiene cambios sin subir: lo intento más tarde' };
+  if (!(await d.git.listoParaRevisar())) return { resultado: 'error', mensaje: 'my-context tiene cambios sin subir: lo intento más tarde' };
   await d.git.traer();
   const hoy = hoyEnMadrid(d.ahora);
   const asignaturas = parseAsignaturas((await leer(d, RUTA_ASIGNATURAS)) ?? '').filter((a) => a.codigo);
   const sinc = parseSincronizacionAula(await leer(d, RUTA_AULA_SINCRONIZACION));
 
-  let cosechas: Cosecha[] | 'necesita-entrar';
+  // Los materiales descargados nunca se suben: si el .gitignore de my-context no los excluye, no se baja nada.
+  for (const a of asignaturas) {
+    if (!(await d.git.ignorado(`${carpetaMateriales(a.id)}/prueba.pdf`))) {
+      const estado = { resultado: 'error' as const, mensaje: SIN_GITIGNORE };
+      await aplicarYSubir(d, hoy, sinc, [], estado, false);
+      return estado;
+    }
+  }
+
+  let cosechado: Cosechado | 'necesita-entrar';
   try {
-    cosechas = await cosechar(d, asignaturas, sinc, hoy);
+    cosechado = await cosechar(d, asignaturas, sinc, hoy);
   } catch (e) {
-    if (e instanceof SesionCaducada) cosechas = 'necesita-entrar';
+    if (e instanceof SesionCaducada) cosechado = 'necesita-entrar';
     else {
       // Nunca se publica el texto de un error ajeno (puede llevar direcciones con la clave de sesión).
       const mensaje = e instanceof ErrorFormato ? e.message : 'error inesperado al revisar el aula virtual';
       console.error('Revisión del aula virtual: fallo', e instanceof Error ? e.name : typeof e);
+      // Si my-context cambió entretanto no se escribe nada; el resultado lo guarda en memoria el programador.
       await aplicarYSubir(d, hoy, sinc, [], { resultado: 'error', mensaje }, false);
       return { resultado: 'error', mensaje };
     }
   }
-  if (cosechas === 'necesita-entrar') {
+  if (cosechado === 'necesita-entrar') {
     const mensaje = 'La URJC ha cerrado la sesión: vuelve a entrar al aula virtual';
     await aplicarYSubir(d, hoy, sinc, [], { resultado: 'necesita-entrar', mensaje }, false);
     return { resultado: 'necesita-entrar', mensaje };
   }
-  const mensaje = textoResumen(cosechas);
-  await aplicarYSubir(d, hoy, sinc, cosechas, { resultado: 'ok', mensaje }, true);
+  const { cosechas, conProblemas, primerProblema } = cosechado;
+  // Si no se ha podido leer ninguna asignatura, la revisión ha fallado (no se marca como hecha).
+  if (conProblemas.length && !cosechas.length) {
+    const mensaje = `${primerProblema} (${conProblemas.join(', ')})`;
+    await aplicarYSubir(d, hoy, sinc, [], { resultado: 'error', mensaje }, false);
+    return { resultado: 'error', mensaje };
+  }
+  const mensaje = textoResumen(cosechas, conProblemas);
+  if ((await aplicarYSubir(d, hoy, sinc, cosechas, { resultado: 'ok', mensaje }, true)) === 'cambiado') return { resultado: 'error', mensaje: CAMBIADO };
   return { resultado: 'ok', mensaje };
 }
 
-function textoResumen(cs: Cosecha[]): string {
+function textoResumen(cs: Cosecha[], conProblemas: string[]): string {
   const avisos = cs.reduce((n, c) => n + c.avisos.length, 0);
   const materiales = cs.reduce((n, c) => n + c.materialesVistos.length, 0);
   const fechas = cs.reduce((n, c) => n + (c.respuesta && c.pregunta ? decidir(c.respuesta, c.pregunta).propuestas.length : 0), 0);
   const pendientes = cs.filter((c) => c.pendiente).length;
-  return [plural(avisos, 'aviso nuevo', 'avisos nuevos'), plural(materiales, 'material', 'materiales'), plural(fechas, 'fecha', 'fechas'), ...(pendientes ? [plural(pendientes, 'pendiente', 'pendientes')] : [])].join(', ');
+  const sinTexto = cs.reduce((n, c) => n + c.sinTexto, 0);
+  return [
+    plural(avisos, 'aviso nuevo', 'avisos nuevos'), plural(materiales, 'material', 'materiales'), plural(fechas, 'fecha', 'fechas'),
+    ...(pendientes ? [plural(pendientes, 'pendiente', 'pendientes')] : []),
+    ...(sinTexto ? [plural(sinTexto, 'documento sin texto', 'documentos sin texto')] : []),
+    ...(conProblemas.length ? [`${plural(conProblemas.length, 'asignatura con problemas', 'asignaturas con problemas')} (${conProblemas.join(', ')})`] : []),
+  ].join(', ');
 }
 
-async function cosechar(d: Dependencias, asignaturas: Asignatura[], sinc: SincronizacionAula, hoy: string): Promise<Cosecha[]> {
+async function cosechar(d: Dependencias, asignaturas: Asignatura[], sinc: SincronizacionAula, hoy: string): Promise<Cosechado> {
   const nav = await d.navegador();
   try {
     if (!(await nav.sesionValida())) throw new SesionCaducada();
@@ -105,12 +134,23 @@ async function cosechar(d: Dependencias, asignaturas: Asignatura[], sinc: Sincro
     const cursos = leerCursos(await nav.ajax(sesskey, 'core_course_get_enrolled_courses_by_timeline_classification', { offset: 0, limit: 0, classification: 'all', sort: 'fullname' }));
     const textos = await leerTareasConocidas(d);
     const r: Cosecha[] = [];
+    const conProblemas: string[] = [];
+    let primerProblema: string | undefined;
     let sinClaude = false;
     for (const a of asignaturas) {
       const curso = cursoDeAsignatura(cursos, a.codigo!);
       if (!curso) continue;
-      const contenido = leerContenido(await nav.ajax(sesskey, 'core_courseformat_get_state', { courseid: curso.id }));
-      const c = await cosecharAsignatura(d, nav, a, curso.id, contenido, sinc, hoy, textos);
+      let c: Cosecha;
+      try {
+        const contenido = leerContenido(await nav.ajax(sesskey, 'core_courseformat_get_state', { courseid: curso.id }));
+        c = await cosecharAsignatura(d, nav, a, curso.id, contenido, sinc, hoy, textos);
+      } catch (e) {
+        // Una asignatura cuya página no se entiende se salta entera: no se borra ni se marca nada suyo.
+        if (!(e instanceof ErrorFormato)) throw e;
+        conProblemas.push(a.id);
+        primerProblema ??= e.message;
+        continue;
+      }
       if (c.pregunta && c.pregunta.fuentes.length) {
         if (sinClaude) c.pendiente = pendienteDe(c);
         else {
@@ -131,7 +171,7 @@ async function cosechar(d: Dependencias, asignaturas: Asignatura[], sinc: Sincro
       }
       r.push(c);
     }
-    return r;
+    return { cosechas: r, conProblemas, primerProblema };
   } finally {
     await nav.cerrar();
   }
@@ -179,24 +219,35 @@ async function cosecharAsignatura(
   const materialesVistos: string[] = [];
   const guiaModulo = moduloGuia(contenido);
 
+  let sinTexto = 0;
   for (const m of nuevosMateriales(contenido, new Set(sinc.vistos.materiales))) {
-    materialesVistos.push(m.id);
-    if (m.id === guiaModulo?.id) continue; // la guía va aparte
-    const dir = nombreSeguro(m.seccion || 'General');
-    if (m.tipo === 'resource') {
-      const desc = await bajar(d, nav, `${BASE_AULA}/mod/resource/view.php?id=${m.id}&redirect=1`, `${base}/${dir}`);
-      if (desc) {
-        if (desc.bytes) descargados.set(m.id, { archivo: `${dir}/${desc.nombre}`, tipo: tipoDeArchivo(desc.nombre) });
-        if (esDocumentoDeFechas(m.nombre) || esDocumentoDeFechas(desc.nombre)) {
-          const texto = desc.bytes ? await d.textoDe(desc.bytes, desc.nombre) : null;
-          if (texto) fuentes.push({ id: `${dir}/${desc.nombre}`, tipo: 'documento', titulo: m.nombre, enlace: m.url, texto });
-        }
-      }
-    } else if (m.tipo === 'folder' && m.url) {
-      const sub = `${dir}/${nombreSeguro(m.nombre)}`;
-      for (const f of leerCarpeta(await nav.pedirTexto(m.url))) await bajar(d, nav, f.url, `${base}/${sub}`, f.nombre);
-      descargados.set(m.id, { archivo: sub, tipo: 'carpeta' });
+    if (m.id === guiaModulo?.id) {
+      materialesVistos.push(m.id);
+      continue; // la guía va aparte
     }
+    const dir = nombreSeguro(m.seccion || 'General');
+    try {
+      if (m.tipo === 'resource') {
+        const desc = await bajar(d, nav, `${BASE_AULA}/mod/resource/view.php?id=${m.id}&redirect=1`, `${base}/${dir}`);
+        if (desc.bytes) descargados.set(m.id, { archivo: `${dir}/${desc.nombre}`, tipo: tipoDeArchivo(desc.nombre) });
+        if (desc.bytes && (esDocumentoDeFechas(m.nombre) || esDocumentoDeFechas(desc.nombre))) {
+          const texto = await d.textoDe(desc.bytes, desc.nombre);
+          if (texto) fuentes.push({ id: `${dir}/${desc.nombre}`, tipo: 'documento', titulo: m.nombre, enlace: m.url, texto });
+          else sinTexto++; // PDF escaneado: se apunta en el resumen
+        }
+      } else if (m.tipo === 'folder' && m.url) {
+        const sub = `${dir}/${nombreSeguro(m.nombre)}`;
+        for (const f of leerCarpeta(await nav.pedirTexto(m.url))) await bajar(d, nav, f.url, `${base}/${sub}`, f.nombre);
+        descargados.set(m.id, { archivo: sub, tipo: 'carpeta' });
+      }
+    } catch (e) {
+      if (e instanceof SesionCaducada) throw e;
+      // Descarga o escritura fallida: queda en la lista solo con su enlace y se reintenta en la siguiente revisión.
+      descargados.delete(m.id);
+      console.error('Aula virtual: no he podido guardar un material', e instanceof ErrorFormato ? e.message : e instanceof Error ? e.name : typeof e);
+      continue;
+    }
+    materialesVistos.push(m.id);
   }
 
   // Avisos: hilos nuevos del foro de avisos.
@@ -209,7 +260,13 @@ async function cosecharAsignatura(
       const id = `moodle-hilo-${h.id}`;
       if (vistos.has(id)) continue;
       const enlace = `${BASE_AULA}/mod/forum/discuss.php?d=${h.id}`;
-      const msj = leerHilo(await nav.pedirTexto(enlace), h);
+      let msj: ReturnType<typeof leerHilo>;
+      try {
+        msj = leerHilo(await nav.pedirTexto(enlace), h);
+      } catch (e) {
+        if (!(e instanceof ErrorFormato)) throw e;
+        continue; // hilo que no se entiende: no se marca como visto y se vuelve a intentar otro día
+      }
       avisosVistos.push(id);
       avisos.push({ id, asignatura: a.id, fecha: msj.fecha, titulo: msj.titulo, texto: msj.texto, importante: false, leido: false, enlace });
       fuentes.push({ id, tipo: 'aviso', titulo: msj.titulo, fecha: msj.fecha, enlace, texto: msj.texto });
@@ -225,7 +282,12 @@ async function cosecharAsignatura(
       : guiaModulo.tipo === 'label'
         ? enlaceGuia(await nav.pedirTexto(`${BASE_AULA}/course/view.php?id=${idCurso}`), guiaModulo.id)
         : guiaModulo.url;
-    const desc = url ? await bajar(d, nav, url, base, undefined, 'guia-docente') : null;
+    const desc = url
+      ? await bajar(d, nav, url, base, undefined, 'guia-docente').catch((e) => {
+        if (e instanceof SesionCaducada) throw e;
+        return null; // si la guía no baja hoy, se intenta en la siguiente revisión
+      })
+      : null;
     const texto = desc?.bytes ? await d.textoDe(desc.bytes, desc.nombre) : null;
     if (texto && huella(texto) !== sinc.vistos.guias[a.id]) {
       guia = { huella: huella(texto), texto };
@@ -262,7 +324,7 @@ async function cosecharAsignatura(
     .filter((t) => t.area === a.id && t.fecha && t.origen && t.fecha >= hoy)
     .map((t) => ({ origen: t.origen!, titulo: t.titulo, tipo: t.tipo, fecha: t.fecha!, ...(t.hora ? { hora: t.hora } : {}) }));
   const pregunta: Pregunta = { asignatura: a, hoy, conocidas, fuentes, conGuia: fuentes.some((f) => f.tipo === 'guia') };
-  return { asignatura: a, lista, materialesVistos, avisos, avisosVistos, guia, pregunta };
+  return { asignatura: a, lista, materialesVistos, avisos, avisosVistos, guia, pregunta, sinTexto };
 }
 
 // Descarga a `estudios/<id>/aula-virtual/...`. Los vídeos y lo de más de 50 MB no se bajan (quedan en la lista con su enlace).
@@ -282,9 +344,11 @@ async function bajar(d: Dependencias, nav: Navegador, url: string, carpeta: stri
 async function aplicarYSubir(
   d: Dependencias, hoy: string, sincInicial: SincronizacionAula, cosechas: Cosecha[],
   estado: { resultado: ResultadoRevision; mensaje: string }, completa: boolean,
-): Promise<void> {
+): Promise<'ok' | 'cambiado'> {
   const { fecha, hora } = enMadrid(d.ahora);
   for (let intento = 0; intento < 3; intento++) {
+    // Diego puede haber tocado my-context durante la cosecha (minutos): nunca se escribe ni se hace commit encima.
+    if (!(await d.git.limpio())) return 'cambiado';
     const sinc = intento === 0 ? sincInicial : parseSincronizacionAula(await leer(d, RUTA_AULA_SINCRONIZACION));
     let avisos = parseAvisos(await leer(d, RUTA_AVISOS));
     let tareas = parseTareas((await leer(d, RUTA_TAREAS)) ?? '[]\n');
@@ -336,7 +400,7 @@ async function aplicarYSubir(
     await escribir(d, RUTA_AULA_SINCRONIZACION, serializarSincronizacionAula(sinc));
 
     const res = await d.git.subir([...new Set(archivos)], `Aula virtual: ${estado.mensaje}`);
-    if (res === 'ok') return;
+    if (res === 'ok') return 'ok';
     await d.git.volverAlRemoto();
   }
   throw new Error('no he podido subir los cambios del aula virtual después de 3 intentos');

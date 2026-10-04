@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { BASE_AULA, enMoodle, nombreDeDescarga } from './navegador.ts';
+import { ErrorFormato } from '../../src/uni/tipos.ts';
+import { BASE_AULA, enMoodle, nombreDeDescarga, validarSesion } from './navegador.ts';
 
 describe('nombreDeDescarga', () => {
   it('usa Content-Disposition (también en UTF-8) y si no, el final de la URL', () => {
@@ -21,5 +22,27 @@ describe('enMoodle', () => {
     expect(enMoodle(`${BASE_AULA}/login/index.php`)).toBe(false);
     expect(enMoodle('https://identifica.urjc.es/CAS/login')).toBe(false);
     expect(enMoodle('https://login.microsoftonline.com/x')).toBe(false);
+  });
+});
+
+describe('validarSesion', () => {
+  const MY = `${BASE_AULA}/my/`;
+  const ENTRADA = 'https://www.aulavirtual.urjc.es/moodle/login/index.php';
+  it('sin conexión o con el aula en mantenimiento (5xx) no parece una sesión caducada', async () => {
+    const reentrar = async () => undefined;
+    await expect(validarSesion(async () => { throw new Error('net::ERR_INTERNET_DISCONNECTED'); }, reentrar)).rejects.toThrow(ErrorFormato);
+    await expect(validarSesion(async () => ({ status: 503, url: MY }), reentrar)).rejects.toThrow(/no responde/);
+  });
+  it('llevado a la entrada: intenta volver a entrar solo; si no puede, false', async () => {
+    let reentradas = 0;
+    expect(await validarSesion(async () => ({ status: 200, url: ENTRADA }), async () => void reentradas++)).toBe(false);
+    expect(reentradas).toBe(1);
+    const respuestas = [{ status: 200, url: ENTRADA }, { status: 200, url: MY }];
+    expect(await validarSesion(async () => respuestas.shift()!, async () => undefined)).toBe(true);
+    expect(await validarSesion(async () => ({ status: 200, url: MY }), async () => { throw new Error('no'); })).toBe(true);
+  });
+  it('si falla el intento de volver a entrar, decide la última comprobación', async () => {
+    const respuestas = [{ status: 200, url: ENTRADA }, { status: 200, url: ENTRADA }];
+    expect(await validarSesion(async () => respuestas.shift()!, async () => { throw new Error('ventana cerrada'); })).toBe(false);
   });
 });

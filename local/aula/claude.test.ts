@@ -4,7 +4,7 @@ import { argumentosAula, LimiteClaude, leerSalidaClaude, preguntarClaude } from 
 describe('Claude para el aula virtual', () => {
   it('sin herramientas, con el modelo pedido y sus propias instrucciones', () => {
     expect(argumentosAula('haiku', 'C:/i.md')).toEqual([
-      '-p', '--model', 'haiku', '--output-format', 'json', '--system-prompt-file', 'C:/i.md', '--tools', '', '--strict-mcp-config',
+      '-p', '--model', 'haiku', '--output-format', 'json', '--system-prompt-file', 'C:/i.md', '--tools', '', '--strict-mcp-config', '--no-session-persistence',
     ]);
   });
   it('lee el texto de la respuesta', () => {

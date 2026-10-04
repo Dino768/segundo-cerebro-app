@@ -47,19 +47,40 @@ export function nombreDeDescarga(url: string, disposicion: string | undefined): 
   return decodificar(ultimo ?? '') || 'archivo';
 }
 
+export const NO_RESPONDE = 'el aula virtual no responde (mantenimiento o sin conexión)';
+
+// ¿Sigue abierta la sesión? false solo si /my/ lleva a la entrada y volver a entrar solo no funciona.
+// Sin conexión o con el aula caída (5xx) lanza ErrorFormato: eso no es una sesión caducada.
+export async function validarSesion(pedirMy: () => Promise<{ status: number; url: string }>, reentrar: () => Promise<void>): Promise<boolean> {
+  const comprobar = async () => {
+    let r: { status: number; url: string };
+    try {
+      r = await pedirMy();
+    } catch {
+      throw new ErrorFormato(NO_RESPONDE);
+    }
+    if (esPaginaDeEntrada(r.url) || r.url.includes('login.microsoftonline.com')) return false;
+    if (r.status >= 500) throw new ErrorFormato(NO_RESPONDE);
+    if (r.status < 200 || r.status >= 300) throw new ErrorFormato(`el aula virtual contestó ${r.status}`);
+    return true;
+  };
+  if (await comprobar()) return true;
+  await reentrar().catch(() => undefined); // lo decide la comprobación de después
+  return comprobar();
+}
+
 export async function abrirNavegador(perfil: string): Promise<Navegador> {
   const ctx = await lanzar(perfil, false);
   const req = ctx.request;
-  const comprobar = async () => {
-    const r = await req.get(`${BASE_AULA}/my/`, { timeout: ESPERA });
-    return r.ok() && !esPaginaDeEntrada(r.url());
-  };
   return {
     // Las galletas de la URJC y de Moodle mueren al cerrar Chrome; la de Microsoft dura meses.
     // Si /my/ no vale, se intenta volver a entrar solo pulsando «Credenciales».
-    async sesionValida() {
-      try {
-        if (await comprobar()) return true;
+    sesionValida: () => validarSesion(
+      async () => {
+        const r = await req.get(`${BASE_AULA}/my/`, { timeout: ESPERA });
+        return { status: r.status(), url: r.url() };
+      },
+      async () => {
         const pagina = await ctx.newPage();
         try {
           await pagina.goto(ENTRADA);
@@ -70,11 +91,8 @@ export async function abrirNavegador(perfil: string): Promise<Navegador> {
         } finally {
           await pagina.close().catch(() => undefined);
         }
-        return await comprobar();
-      } catch {
-        return false;
-      }
-    },
+      },
+    ),
     async pedirTexto(url) {
       const r = await req.get(url, { timeout: ESPERA });
       if (esPaginaDeEntrada(r.url())) throw new SesionCaducada();

@@ -31,17 +31,25 @@ export function leerSalidaClaude(stdout: string): string {
 }
 
 // `cwd`: la revisión usa os.tmpdir() para que Claude no cargue el AGENTS.md de my-context (gastaría más).
-export function preguntarClaude(cmd: Comando, modelo: Modelo, instrucciones: string, texto: string, cwd: string): Promise<string> {
+export function preguntarClaude(cmd: Comando, modelo: Modelo, instrucciones: string, texto: string, cwd: string, esperaMaxima = 5 * 60_000): Promise<string> {
   return new Promise((resolver, rechazar) => {
     const hijo = spawn(cmd.bin, [...cmd.previos, ...argumentosAula(modelo, instrucciones)], { cwd, windowsHide: true });
+    let acabado = false;
+    const reloj = setTimeout(() => {
+      acabado = true;
+      hijo.kill();
+      rechazar(new Error('Claude ha tardado demasiado en contestar'));
+    }, esperaMaxima);
     let salida = '';
     let errores = '';
     hijo.stdout.on('data', (d) => (salida += String(d)));
     hijo.stderr.on('data', (d) => (errores = (errores + String(d)).slice(-2000)));
     hijo.stdin.on('error', () => undefined);
     hijo.stdin.end(texto);
-    hijo.on('error', (e: NodeJS.ErrnoException) => rechazar(new Error(e.code === 'ENOENT' ? NO_ENCONTRADO : e.message)));
+    hijo.on('error', (e: NodeJS.ErrnoException) => (clearTimeout(reloj), rechazar(new Error(e.code === 'ENOENT' ? NO_ENCONTRADO : e.message))));
     hijo.on('close', () => {
+      clearTimeout(reloj);
+      if (acabado) return;
       try {
         resolver(leerSalidaClaude(salida));
       } catch (e) {

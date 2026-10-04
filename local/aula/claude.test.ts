@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { argumentosAula, LimiteClaude, leerSalidaClaude } from './claude.ts';
+import { argumentosAula, LimiteClaude, leerSalidaClaude, preguntarClaude } from './claude.ts';
 
 describe('Claude para el aula virtual', () => {
   it('sin herramientas, con el modelo pedido y sus propias instrucciones', () => {
@@ -14,5 +14,9 @@ describe('Claude para el aula virtual', () => {
     expect(() => leerSalidaClaude(JSON.stringify({ type: 'result', is_error: true, result: 'Claude AI usage limit reached' }))).toThrow(LimiteClaude);
     expect(() => leerSalidaClaude(JSON.stringify({ type: 'result', is_error: true, result: 'algo raro' }))).toThrow(/algo raro/);
     expect(() => leerSalidaClaude('')).toThrow();
+  });
+  it('si Claude tarda demasiado, corta y avisa', async () => {
+    const cmd = { bin: process.execPath, previos: ['-e', 'setTimeout(() => {}, 10000)', '--'] };
+    await expect(preguntarClaude(cmd, 'haiku', 'C:/i.md', 'hola', process.cwd(), 200)).rejects.toThrow(/tardado/);
   });
 });

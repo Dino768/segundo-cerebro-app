@@ -1,0 +1,286 @@
+{
+  "section": [
+    {
+      "id": "5376742",
+      "section": 0,
+      "number": 0,
+      "title": "General",
+      "cmlist": [
+        "11070612",
+        "11209866",
+        "11070613"
+      ]
+    },
+    {
+      "id": "5376743",
+      "section": 1,
+      "number": 1,
+      "title": "Tema 1",
+      "cmlist": [
+        "11070614",
+        "11070615"
+      ]
+    },
+    {
+      "id": "5376744",
+      "section": 2,
+      "number": 2,
+      "title": "Tema 2",
+      "cmlist": [
+        "11070616"
+      ]
+    },
+    {
+      "id": "5376745",
+      "section": 3,
+      "number": 3,
+      "title": "Tema 3",
+      "cmlist": []
+    },
+    {
+      "id": "5376746",
+      "section": 4,
+      "number": 4,
+      "title": "Tema 4",
+      "cmlist": [
+        "11070617",
+        "11489947",
+        "11070618",
+        "11490208",
+        "11490269",
+        "11490271",
+        "11490273",
+        "11490276",
+        "11490098",
+        "11490189",
+        "11490201"
+      ]
+    },
+    {
+      "id": "5376747",
+      "section": 5,
+      "number": 5,
+      "title": "Tema 5",
+      "cmlist": []
+    },
+    {
+      "id": "5376748",
+      "section": 6,
+      "number": 6,
+      "title": "Tema 6",
+      "cmlist": []
+    },
+    {
+      "id": "5376749",
+      "section": 7,
+      "number": 7,
+      "title": "Tema 7",
+      "cmlist": []
+    },
+    {
+      "id": "5376750",
+      "section": 8,
+      "number": 8,
+      "title": "Tema 8",
+      "cmlist": []
+    },
+    {
+      "id": "5376751",
+      "section": 9,
+      "number": 9,
+      "title": "Tema 9",
+      "cmlist": []
+    },
+    {
+      "id": "5376752",
+      "section": 10,
+      "number": 10,
+      "title": "Tema 10",
+      "cmlist": []
+    },
+    {
+      "id": "5376753",
+      "section": 11,
+      "number": 11,
+      "title": "Tema 11",
+      "cmlist": []
+    },
+    {
+      "id": "5376754",
+      "section": 12,
+      "number": 12,
+      "title": "Tema 12",
+      "cmlist": []
+    },
+    {
+      "id": "5376755",
+      "section": 13,
+      "number": 13,
+      "title": "Tema 13",
+      "cmlist": []
+    },
+    {
+      "id": "5376756",
+      "section": 14,
+      "number": 14,
+      "title": "Tema 14",
+      "cmlist": [
+        "11070621"
+      ]
+    },
+    {
+      "id": "5376757",
+      "section": 15,
+      "number": 15,
+      "title": "Tema 15",
+      "cmlist": [
+        "11070624"
+      ]
+    }
+  ],
+  "cm": [
+    {
+      "id": "11070612",
+      "name": "Novedades",
+      "module": "forum",
+      "modname": "Foro",
+      "sectionid": "5376742",
+      "url": "https://www.aulavirtual.urjc.es/moodle/mod/forum/view.php?id=11070612"
+    },
+    {
+      "id": "11209866",
+      "name": "URJCTeams 1",
+      "module": "urjcteams",
+      "modname": "URJCTeams",
+      "sectionid": "5376742",
+      "url": "https://www.aulavirtual.urjc.es/moodle/mod/urjcteams/view.php?id=11209866"
+    },
+    {
+      "id": "11070613",
+      "name": "Foro general",
+      "module": "forum",
+      "modname": "Foro",
+      "sectionid": "5376742",
+      "url": "https://www.aulavirtual.urjc.es/moodle/mod/forum/view.php?id=11070613"
+    },
+    {
+      "id": "11070614",
+      "name": "Etiqueta 2",
+      "module": "label",
+      "modname": "Etiqueta",
+      "sectionid": "5376743"
+    },
+    {
+      "id": "11070615",
+      "name": "Guía docente",
+      "module": "label",
+      "modname": "Etiqueta",
+      "sectionid": "5376743"
+    },
+    {
+      "id": "11070616",
+      "name": "Etiqueta 3",
+      "module": "label",
+      "modname": "Etiqueta",
+      "sectionid": "5376744"
+    },
+    {
+      "id": "11070617",
+      "name": "Etiqueta 4",
+      "module": "label",
+      "modname": "Etiqueta",
+      "sectionid": "5376746"
+    },
+    {
+      "id": "11489947",
+      "name": "Recurso 5",
+      "module": "resource",
+      "modname": "Recurso",
+      "sectionid": "5376746",
+      "url": "https://www.aulavirtual.urjc.es/moodle/mod/resource/view.php?id=11489947"
+    },
+    {
+      "id": "11070618",
+      "name": "Etiqueta 6",
+      "module": "label",
+      "modname": "Etiqueta",
+      "sectionid": "5376746"
+    },
+    {
+      "id": "11490208",
+      "name": "Etiqueta 7",
+      "module": "label",
+      "modname": "Etiqueta",
+      "sectionid": "5376746"
+    },
+    {
+      "id": "11490269",
+      "name": "Recurso 8",
+      "module": "resource",
+      "modname": "Recurso",
+      "sectionid": "5376746",
+      "url": "https://www.aulavirtual.urjc.es/moodle/mod/resource/view.php?id=11490269"
+    },
+    {
+      "id": "11490271",
+      "name": "Recurso 9",
+      "module": "resource",
+      "modname": "Recurso",
+      "sectionid": "5376746",
+      "url": "https://www.aulavirtual.urjc.es/moodle/mod/resource/view.php?id=11490271"
+    },
+    {
+      "id": "11490273",
+      "name": "Recurso 10",
+      "module": "resource",
+      "modname": "Recurso",
+      "sectionid": "5376746",
+      "url": "https://www.aulavirtual.urjc.es/moodle/mod/resource/view.php?id=11490273"
+    },
+    {
+      "id": "11490276",
+      "name": "Recurso 11",
+      "module": "resource",
+      "modname": "Recurso",
+      "sectionid": "5376746",
+      "url": "https://www.aulavirtual.urjc.es/moodle/mod/resource/view.php?id=11490276"
+    },
+    {
+      "id": "11490098",
+      "name": "Etiqueta 12",
+      "module": "label",
+      "modname": "Etiqueta",
+      "sectionid": "5376746"
+    },
+    {
+      "id": "11490189",
+      "name": "Recurso 13",
+      "module": "resource",
+      "modname": "Recurso",
+      "sectionid": "5376746",
+      "url": "https://www.aulavirtual.urjc.es/moodle/mod/resource/view.php?id=11490189"
+    },
+    {
+      "id": "11490201",
+      "name": "Recurso 14",
+      "module": "resource",
+      "modname": "Recurso",
+      "sectionid": "5376746",
+      "url": "https://www.aulavirtual.urjc.es/moodle/mod/resource/view.php?id=11490201"
+    },
+    {
+      "id": "11070621",
+      "name": "Etiqueta 15",
+      "module": "label",
+      "modname": "Etiqueta",
+      "sectionid": "5376756"
+    },
+    {
+      "id": "11070624",
+      "name": "Etiqueta 16",
+      "module": "label",
+      "modname": "Etiqueta",
+      "sectionid": "5376757"
+    }
+  ]
+}

@@ -65,7 +65,7 @@ Una lista de tareas. Campos:
 | `hecha` | no | `true`/`false`, solo para tareas que no se repiten. Por defecto `false` |
 | `hechas` | no | lista de fechas `AAAA-MM-DD` en las que se completó una tarea repetida |
 | `icono` | no | nombre de un icono de Tabler, en inglés (por ejemplo `cube`); lista en https://tabler.io/icons |
-| `origen` | no | de dónde viene una tarea importada: `urjc-examen:…` o `moodle:<UID>`. Lo escribe la sincronización de la uni; la app lo conserva y no lo enseña |
+| `origen` | no | de dónde viene una tarea importada: `urjc-examen:…`, `moodle:<UID>` o `aula:<asignatura>:<clave>` (fechas que el programa del PC saca de los avisos y documentos del aula virtual). Lo escriben la sincronización de la uni y el programa del PC; la app lo conserva y no lo enseña |
 
 Reglas:
 - Una tarea con `repetir` aparece todos los días indicados. Si además tiene `fecha`, empieza ese día.
@@ -185,6 +185,66 @@ vistos:
     notas: 09:00 - 12:00 · Aulario II - Aula 204
 ```
 Reglas: solo se crea en `tareas.yaml` lo que no está en `vistos` (lo que Diego borra no vuelve); `fecha`, `hora` y las `notas` de un examen solo cambian si cambian en la fuente; nunca se tocan título, prioridad, icono, proyecto ni `hecha`; nada se borra. Lo pasado se quita de `vistos`. Detalle: `docs/superpowers/specs/2026-09-30-uni-calendario-design.md`.
+
+### Aula virtual (parte C)
+Lo escribe el programa local del PC (`local/aula/`), no la app, salvo `leido` en los avisos. Las tareas que crea llevan `origen: aula:<id asignatura>:<clave>` (ver `agenda/tareas.yaml`). Los materiales descargados van en `estudios/<asignatura>/aula-virtual/` y no se suben a Git (`.gitignore`).
+
+#### `estudios/avisos.yaml`
+Avisos de los profes y del programa:
+```yaml
+avisos:
+  - id: "moodle-hilo-98765"      # de Moodle: id del hilo del foro. Del programa: "programa-<fecha>-<n>" o "programa-entrar"
+    asignatura: calculo          # falta en los del programa que no son de una asignatura
+    fecha: 2026-10-03
+    titulo: Cambio de aula del parcial
+    texto: |
+      El parcial del día 13 será en el aula 204.
+    importante: true
+    leido: false
+    enlace: https://www.aulavirtual.urjc.es/moodle/mod/forum/discuss.php?d=…
+```
+El programa añade avisos y nunca cambia `leido`; la app solo cambia `leido`. Se quitan los avisos leídos de hace más de 60 días. Los avisos del programa son siempre importantes: fecha adelantada, fecha «⚠ por confirmar» y «Vuelve a entrar en el aula virtual» (`programa-entrar`, se quita solo al volver a entrar).
+
+#### `estudios/aula-sincronizacion.yaml`
+Lo escribe solo el programa local del PC. No lo toques.
+```yaml
+estado:
+  ultimaRevision: 2026-10-04T09:12   # la última completa
+  resultado: ok                      # ok | necesita-entrar | error
+  mensaje: 3 avisos nuevos, 2 materiales, 1 fecha
+vistos:
+  materiales: ["123456"]             # ids de los materiales ya vistos (solo se descargan los nuevos)
+  avisos: ["moodle-hilo-98765"]
+  guias: { calculo: "<huella del texto>" }
+  fechas:                            # como uni-sincronizacion.yaml, por origen
+    aula:calculo:primer-parcial: { fecha: 2026-11-13, hora: "10:00", titulo: "Primer parcial: Cálculo" }
+pendientes: []                       # lo que Claude no pudo leer (límite, error); se reintenta
+```
+
+#### `estudios/<asignatura>/aula-virtual.yaml`
+Lista de materiales por temas:
+```yaml
+actualizado: 2026-10-04
+secciones:
+  - nombre: Tema 1. Límites
+    materiales:
+      - id: "123456"             # id del recurso en Moodle
+        nombre: Apuntes tema 1
+        tipo: pdf                # pdf, presentacion, documento, carpeta, enlace, video, otro
+        enlace: https://www.aulavirtual.urjc.es/moodle/mod/resource/view.php?id=123456
+        archivo: tema-1/apuntes-tema-1.pdf   # relativo a aula-virtual/; falta si no se descargó
+        retirado: true           # solo si el profe lo quitó del aula virtual
+```
+No se descargan vídeos ni archivos de más de 50 MB: se apuntan con su enlace.
+
+#### `estudios/<asignatura>/guia-docente.md`
+Primero `## Evaluación` (resumen corto de Claude: qué partes hay, cuánto cuenta cada una, nota mínima, si hay evaluación continua) y luego `## Guía completa` con el texto del documento. La guía es una etiqueta «Guía docente» con un enlace a un PDF en la página del curso. Se reescribe solo si la guía cambia.
+
+#### Reglas del programa
+- **Entrar:** el programa vuelve a entrar solo (botón «Credenciales» de la URJC y la cookie persistente de Microsoft, unos 90 días). Si caduca, `resultado: necesita-entrar` y el aviso `programa-entrar`: Diego usa «Entrar al aula virtual» en Ajustes.
+- **Quién revisa:** solo el PC con el interruptor «Este ordenador revisa el aula virtual» encendido (`~/.segundo-cerebro/aula-virtual.json`). El programa no revisa si `my-context` tiene cambios sin guardar o commits sin subir.
+- **Fechas:** una fecha solo llega a la agenda si su día, mes y hora aparecen tal cual en la cita del profe. Si no, se vuelve a leer con un modelo más fuerte (haiku, sonnet, opus). Si sigue dudosa, va la más temprana como «⚠ … (por confirmar)», con todas las citas en las notas y un aviso importante.
+- Detalle: `docs/superpowers/specs/2026-10-04-uni-aula-virtual-design.md`.
 
 ### Estudio: pizarras
 - En curso (solo en el ordenador, git las ignora): `estudios/<asignatura>/.en-curso/<id-conversación>/pizarra-<n>.json` y sus capturas en `…/imagenes/`.

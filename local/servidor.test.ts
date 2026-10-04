@@ -4,7 +4,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { carpetaConversaciones } from './conversaciones.ts';
 import { crearServidor } from './servidor.ts';
 
@@ -21,6 +21,14 @@ const home = path.join(raiz, 'casa');
 const registro = path.join(raiz, 'registro.jsonl');
 let cerrar: () => void;
 let ocupado: () => boolean;
+const aulaFalsa = {
+  estado: async () => ({ activo: false, revisando: false, estado: {} }),
+  activar: vi.fn(async (_activo: boolean) => undefined),
+  revisarAhora: vi.fn(async () => undefined),
+  entrar: vi.fn(async () => true),
+  comprobar: async () => undefined,
+  ocupado: () => false,
+};
 
 const post = (ruta: string, cuerpo: unknown, headers: Record<string, string> = {}) =>
   fetch(API + ruta, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(cuerpo) });
@@ -35,7 +43,7 @@ beforeAll(async () => {
   mkdirSync(convs, { recursive: true });
   writeFileSync(path.join(convs, `${ID}.jsonl`), JSON.stringify({ type: 'user', message: { role: 'user', content: 'Primera pregunta' } }) + '\n');
   process.env.FALSO_REGISTRO = registro;
-  const creado = crearServidor({ puerto: PUERTO, estudios, dist, home, comando: FALSO, instrucciones: path.join(raiz, 'i.md') });
+  const creado = crearServidor({ puerto: PUERTO, estudios, dist, home, comando: FALSO, instrucciones: path.join(raiz, 'i.md'), aula: aulaFalsa });
   const { servidor } = creado;
   ocupado = creado.ocupado;
   await new Promise<void>((r) => servidor.listen(PUERTO, '127.0.0.1', r));
@@ -75,7 +83,7 @@ describe('app', () => {
     expect(r.status).toBe(302);
   });
   it('estado', async () => {
-    expect(VERSION_PROGRAMA).toBe(4); // la app avisa si el programa local abierto es de antes de poder cambiar el nombre y borrar chats
+    expect(VERSION_PROGRAMA).toBe(5); // la app avisa si el programa local abierto es de antes de poder cambiar el nombre y borrar chats, y desde la 5, el aula virtual
     expect(await (await fetch(`${API}estado`)).json()).toEqual({ ok: true, version: VERSION_PROGRAMA });
   });
 });
@@ -180,6 +188,29 @@ describe('capturas', () => {
     expect([...leida]).toEqual([...bytes]);
     expect((await fetch(`${API}archivo?asignatura=fisica&id=${ID}&ruta=..%2F..%2F..%2Fi.md`)).status).toBe(400);
     expect((await fetch(`${API}imagen?asignatura=fisica&id=${ID}`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: 'x' })).status).toBe(415);
+  });
+});
+
+describe('aula virtual', () => {
+  it('aula virtual: estado, interruptor, revisar y material', async () => {
+    const carpeta = path.join(estudios, 'calculo', 'aula-virtual', 'Tema 1');
+    mkdirSync(carpeta, { recursive: true });
+    writeFileSync(path.join(carpeta, 'a.pdf'), 'contenido del pdf');
+    expect(await (await fetch(`${API}aula/estado`)).json()).toEqual({ activo: false, revisando: false, estado: {} });
+    expect((await post('aula/activo', { activo: true })).status).toBe(200);
+    expect(aulaFalsa.activar).toHaveBeenCalledWith(true);
+    expect((await post('aula/revisar', {})).status).toBe(200);
+    expect(aulaFalsa.revisarAhora).toHaveBeenCalledTimes(1);
+    const m = await fetch(`${API}aula/material?asignatura=calculo&archivo=Tema%201/a.pdf`);
+    expect(m.status).toBe(200);
+    expect(m.headers.get('content-type')).toBe('application/pdf');
+    expect(await m.text()).toBe('contenido del pdf');
+    expect((await fetch(`${API}aula/material?asignatura=calculo&archivo=../../secreto`)).status).toBe(400);
+  });
+  it('entrar: si lo consigue, revisa enseguida', async () => {
+    aulaFalsa.revisarAhora.mockClear();
+    expect(await (await post('aula/entrar', {})).json()).toEqual({ ok: true });
+    expect(aulaFalsa.revisarAhora).toHaveBeenCalledTimes(1);
   });
 });
 

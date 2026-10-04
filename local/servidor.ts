@@ -6,6 +6,7 @@ import { conContexto } from '../src/estudio/contexto.ts';
 import { esZona, type FotoEnviada } from '../src/estudio/foto.ts';
 import { ErrorPizarra, validarOperacion, type Operacion } from '../src/estudio/pizarra.ts';
 import { VERSION_PROGRAMA, type EventoChat, type EventoPizarra } from '../src/estudio/tipos.ts';
+import type { Aula } from './aula/programador.ts';
 import { lanzarClaude, type Comando, type Proceso } from './claude.ts';
 import { avisoCarpetaConversaciones, borrarConversacion, carpetaConversaciones, leerConversacionDe, leerNombres, listarConversaciones, ponerNombre } from './conversaciones.ts';
 import { borrarPizarra, crearPizarra, listarPizarras, operarPizarra, pizarrasNoValidas, vigilarPizarras } from './pizarras.ts';
@@ -18,6 +19,7 @@ export interface OpcionesServidor {
   home: string;
   comando: Comando;
   instrucciones: string;
+  aula?: Aula;
 }
 
 export const PREFIJO = '/segundo-cerebro-app/';
@@ -26,7 +28,7 @@ const TIPOS: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json', '.png': 'image/png',
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.txt': 'text/plain; charset=utf-8',
+  '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.txt': 'text/plain; charset=utf-8', '.pdf': 'application/pdf',
 };
 const EXTENSION_IMAGEN: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif' };
 
@@ -284,6 +286,38 @@ export function crearServidor(o: OpcionesServidor) {
       }
     },
 
+    'GET aula/estado': async (_req, res) => {
+      if (!o.aula) throw new ErrorPeticion(404, 'No existe');
+      enviarJson(res, 200, await o.aula.estado());
+    },
+
+    'POST aula/activo': async (req, res) => {
+      if (!o.aula) throw new ErrorPeticion(404, 'No existe');
+      await o.aula.activar((await leerJson(req)).activo === true);
+      enviarJson(res, 200, { ok: true });
+    },
+
+    'POST aula/revisar': async (_req, res) => {
+      if (!o.aula) throw new ErrorPeticion(404, 'No existe');
+      await o.aula.revisarAhora();
+      enviarJson(res, 200, { ok: true });
+    },
+
+    'POST aula/entrar': async (_req, res) => {
+      if (!o.aula) throw new ErrorPeticion(404, 'No existe');
+      const ok = await o.aula.entrar();
+      // Tras volver a entrar se revisa enseguida, así el aviso de volver a entrar se quita pronto.
+      if (ok) await o.aula.revisarAhora();
+      enviarJson(res, 200, { ok });
+    },
+
+    'GET aula/material': async (_req, res, url) => {
+      const asig = asignaturaDe(url.searchParams.get('asignatura'));
+      const archivo = rutaDentro(path.join(o.estudios, asig, 'aula-virtual'), url.searchParams.get('archivo') ?? '');
+      if (!archivo) throw new ErrorPeticion(400, 'Ruta no válida');
+      await enviarArchivo(res, archivo);
+    },
+
     'GET eventos': async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
       res.write(': conectado\n\n');
@@ -338,7 +372,7 @@ export function crearServidor(o: OpcionesServidor) {
   const servidor = http.createServer((req, res) => void manejar(req, res));
   const pararVigia = vigilarPizarras(o.estudios, emitirATodos);
   servidor.on('close', pararVigia);
-  // Si Claude está contestando en alguna conversación (entonces el programa no se reinicia para actualizarse).
-  const ocupado = () => activos.size > 0;
+  // Si Claude está contestando en alguna conversación (o revisando el aula virtual; entonces el programa no se reinicia para actualizarse).
+  const ocupado = () => activos.size > 0 || (o.aula?.ocupado() ?? false);
   return { servidor, emitirATodos, rutas, carpetaDe, conversar, ocupado };
 }

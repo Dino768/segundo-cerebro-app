@@ -1,8 +1,17 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { RUTA_AULA_SINCRONIZACION } from '../src/datos/rutas.ts';
+import { parseSincronizacionAula } from '../src/uni/aula/estado.ts';
+import { preguntarClaude } from './aula/claude.ts';
+import { crearGit } from './aula/git.ts';
+import { abrirNavegador, entrar } from './aula/navegador.ts';
+import { crearAula } from './aula/programador.ts';
+import { revisarAula } from './aula/revision.ts';
+import { textoDe } from './aula/texto.ts';
 import { debeReiniciar, leerCommit, SALIDA_REINICIAR } from './reinicio.ts';
 import { crearServidor } from './servidor.ts';
 
@@ -18,13 +27,33 @@ if (!existsSync(myContext)) {
 }
 
 const estudios = path.join(myContext, 'estudios');
+const carpetaPrograma = path.join(os.homedir(), '.segundo-cerebro');
+const perfilAula = path.join(carpetaPrograma, 'navegador-aula');
+const comando = { bin: process.env.CLAUDE_BIN ?? 'claude', previos: [] };
+const instruccionesFechas = path.join(aqui, 'aula', 'instrucciones-fechas.md');
+const aula = crearAula({
+  config: path.join(carpetaPrograma, 'aula-virtual.json'),
+  ahora: () => new Date(),
+  leerEstado: async () => parseSincronizacionAula(await readFile(path.join(myContext, ...RUTA_AULA_SINCRONIZACION.split('/')), 'utf8').catch(() => null)).estado,
+  entrar: () => entrar(perfilAula),
+  revisar: async () => {
+    const r = await revisarAula({
+      carpeta: myContext, ahora: new Date(), navegador: () => abrirNavegador(perfilAula),
+      preguntar: (modelo, texto) => preguntarClaude(comando, modelo, instruccionesFechas, texto, os.tmpdir()),
+      textoDe, git: crearGit(myContext),
+    });
+    console.log(`Aula virtual: ${r.mensaje}`);
+    return r;
+  },
+});
 const { servidor, ocupado } = crearServidor({
   puerto,
   estudios,
   dist: path.join(raiz, 'dist'),
   home: os.homedir(),
-  comando: { bin: process.env.CLAUDE_BIN ?? 'claude', previos: [] },
+  comando,
   instrucciones: path.join(aqui, 'instrucciones-estudio.md'),
+  aula,
 });
 
 servidor.on('error', (e: NodeJS.ErrnoException) => {
@@ -56,3 +85,7 @@ setInterval(() => {
   if (!avisado) console.log('Hay una versión nueva de la app: cierra esta ventana (Ctrl+C) y vuelve a abrir la zona de estudio.');
   avisado = true;
 }, 30_000).unref();
+
+// Aula virtual: al arrancar (tras un minuto, para no frenar el arranque de Windows) y luego cada hora.
+setTimeout(() => void aula.comprobar(), 60_000).unref();
+setInterval(() => void aula.comprobar(), 60 * 60_000).unref();

@@ -128,3 +128,66 @@ describe('sincronizarUni', () => {
     await fallaSinEscribir(dir, opciones(dir), /area/);
   });
 });
+
+describe('sincronizarUni: horario', () => {
+  const PAGINA = readFileSync(path.join(import.meta.dirname, '../src/uni/pruebas/horario-urjc.html'), 'utf8');
+  const AJUSTES = 'grupo: "G_ROBOT_1A(F)"\ncurso: 1\ndesdoble: G2\n';
+  const ASIG = ASIGNATURAS + '  - id: algebra\n    nombre: Álgebra\n    color: "#db5629"\n    codigo: "2327002"\n';
+  const pedidas: { url: string; cuerpo: string }[] = [];
+  const conHorario = (horario: () => Response): typeof fetch => (async (url: string | URL | Request, init?: RequestInit) => {
+    pedidas.push({ url: String(url), cuerpo: String(init?.body ?? '') });
+    if (String(url) === URL_SECRETA) return new Response(ICS);
+    if (String(url).includes('/horarios/')) return horario();
+    return Response.json(EXAMENES);
+  }) as typeof fetch;
+
+  it('descarga el horario de su grupo y lo guarda', async () => {
+    const dir = carpeta({ 'estudios/asignaturas.yaml': ASIG, 'estudios/horario-ajustes.yaml': AJUSTES });
+    pedidas.length = 0;
+    const r = await sincronizarUni(opciones(dir, { descargar: conHorario(() => new Response(PAGINA)) }));
+    expect(r.clases).toBe(3);
+    expect(r.errorHorario).toBeUndefined();
+    expect(textoResumen(r)).toBe('Uni: 2 nuevas, 0 actualizadas · horario: 3 clases');
+    const pedida = pedidas.find((p) => p.url.includes('/horarios/'))!;
+    expect(pedida.url).toBe('https://servicios.urjc.es/horarios/calendario-grado');
+    expect(new URLSearchParams(pedida.cuerpo).get('grupo')).toBe('G_ROBOT_1A(F)');
+    expect(new URLSearchParams(pedida.cuerpo).get('semestre')).toBe('*');
+    expect(leer(dir, 'estudios/horario.yaml')).toContain('desdoble: G2');
+  });
+  it('sin cambios no reescribe el horario', async () => {
+    const dir = carpeta({ 'estudios/asignaturas.yaml': ASIG, 'estudios/horario-ajustes.yaml': AJUSTES });
+    const o = opciones(dir, { descargar: conHorario(() => new Response(PAGINA)) });
+    await sincronizarUni(o);
+    const r = await sincronizarUni(o);
+    expect(r.escrito).toBe(false);
+  });
+  it('sin ajustes no pide el horario', async () => {
+    const dir = carpeta();
+    pedidas.length = 0;
+    const r = await sincronizarUni(opciones(dir, { descargar: conHorario(() => new Response(PAGINA)) }));
+    expect(r.clases).toBeUndefined();
+    expect(pedidas.some((p) => p.url.includes('/horarios/'))).toBe(false);
+    expect(existsSync(path.join(dir, 'estudios/horario.yaml'))).toBe(false);
+  });
+  it('si falla el horario, guarda lo demás y deja el horario que había', async () => {
+    const dir = carpeta({ 'estudios/asignaturas.yaml': ASIG, 'estudios/horario-ajustes.yaml': AJUSTES, 'estudios/horario.yaml': 'clases: []\n' });
+    const r = await sincronizarUni(opciones(dir, { descargar: conHorario(() => new Response('<html>mantenimiento</html>')) }));
+    expect(r.errorHorario).toMatch(/horario/);
+    expect(r.creadas).toBe(2);
+    expect(r.escrito).toBe(true);
+    expect(leer(dir, 'estudios/horario.yaml')).toBe('clases: []\n');
+  });
+  it('un horario vacío no borra el que había', async () => {
+    const antes = 'clases:\n  - fecha: 2026-09-16\n    inicio: "09:00"\n    fin: "11:00"\n    asignatura: algebra\n';
+    const dir = carpeta({ 'estudios/asignaturas.yaml': ASIG, 'estudios/horario-ajustes.yaml': AJUSTES, 'estudios/horario.yaml': antes });
+    const r = await sincronizarUni(opciones(dir, { descargar: conHorario(() => new Response('<script>const infoHorario = {"GRUPOS":[]};</script>')) }));
+    expect(r.errorHorario).toMatch(/ninguna clase/);
+    expect(leer(dir, 'estudios/horario.yaml')).toBe(antes);
+  });
+  it('ajustes mal escritos: error del horario, lo demás se guarda', async () => {
+    const dir = carpeta({ 'estudios/asignaturas.yaml': ASIG, 'estudios/horario-ajustes.yaml': 'desdoble: dos\n' });
+    const r = await sincronizarUni(opciones(dir, { descargar: conHorario(() => new Response(PAGINA)) }));
+    expect(r.errorHorario).toMatch(/desdoble/);
+    expect(r.creadas).toBe(2);
+  });
+});

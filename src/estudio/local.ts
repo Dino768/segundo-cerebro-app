@@ -168,3 +168,9 @@ export async function operarPizarra(asignatura: string, id: string, n: number, o
 }
 
 export const urlMaterial = (asignatura: string, archivo: string) => `${BASE}/aula/material?${consulta({ asignatura, archivo })}`;
+
+export interface EstadoAulaLocal { activo: boolean; revisando: boolean; estado: { ultimaRevision?: string; resultado?: 'ok' | 'necesita-entrar' | 'error'; mensaje?: string } }
+export const estadoAula = () => pedir<EstadoAulaLocal>('aula/estado');
+export const activarAula = (activo: boolean) => pedir<{ ok: true }>('aula/activo', enviarJson({ activo }));
+export const revisarAula = () => pedir<{ ok: true }>('aula/revisar', { method: 'POST' });
+export const entrarAula = () => pedir<{ ok: boolean }>('aula/entrar', { method: 'POST' });

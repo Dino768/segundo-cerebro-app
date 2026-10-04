@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { comprobarProgramaLocal, leerPizarras, operarPizarra } from './local';
+import { activarAula, comprobarProgramaLocal, estadoAula, leerPizarras, operarPizarra } from './local';
 import { VERSION_PROGRAMA } from './tipos';
 
 const responder = (cuerpo: unknown) => vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(cuerpo), { status: 200 })));
@@ -24,5 +24,17 @@ describe('programa local de otra versión', () => {
     expect(e.base).toBeNull();
     responder(antigua);
     expect((await operarPizarra('general', 'c', 1, { tipo: 'borrar', id: 'x' })).trazos).toEqual([]);
+  });
+  it('el aula virtual: lee el estado y activa con un POST', async () => {
+    const estado = { activo: true, revisando: false, estado: {} };
+    responder(estado);
+    expect(await estadoAula()).toEqual(estado);
+    const f = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    vi.stubGlobal('fetch', f);
+    await activarAula(true);
+    const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toContain('aula/activo');
+    expect(init.method).toBe('POST');
+    expect(init.body).toBe('{"activo":true}');
   });
 });

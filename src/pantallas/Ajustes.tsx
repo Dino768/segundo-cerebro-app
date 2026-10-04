@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { ListaAreas } from '../componentes/ListaAreas';
+import { AjustesAula } from '../componentes/AjustesAula';
 import { URL_USO_CLAUDE } from '../componentes/navegacion';
 import { useDatos } from '../estado/datos';
 import { confirmar } from '../estado/dialogos';
@@ -44,6 +45,7 @@ export function Ajustes() {
         </form>
       </div>
       {config && <ListaAreas />}
+      {config && <AjustesAula />}
       <details className="tarjeta">
         <summary>¿Cómo creo la llave?</summary>
         <ol>

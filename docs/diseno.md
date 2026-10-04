@@ -186,8 +186,46 @@ vistos:
 ```
 Reglas: solo se crea en `tareas.yaml` lo que no está en `vistos` (lo que Diego borra no vuelve); `fecha`, `hora` y las `notas` de un examen solo cambian si cambian en la fuente; nunca se tocan título, prioridad, icono, proyecto ni `hecha`; nada se borra. Lo pasado se quita de `vistos`. Detalle: `docs/superpowers/specs/2026-09-30-uni-calendario-design.md`.
 
+### Horario de clases
+`sincronizar/uni.ts` (el mismo workflow de la uni) descarga el horario de la web pública de la URJC (`https://servicios.urjc.es/horarios/calendario-grado`) y lo guarda en `estudios/horario.yaml`. Lo escribe solo el workflow: no lo toques. Solo entran las asignaturas con `codigo`; de los desdobles (grupos G1/G2…) solo el de `desdoble`. Si la web falla o devuelve el horario vacío, se queda el que había (el script sale con código 3 y el workflow sube lo demás y avisa).
+```yaml
+clases:
+  - fecha: 2026-09-16
+    inicio: "09:00"
+    fin: "11:00"
+    asignatura: algebra
+    aula: Aula 3S2 · Aulario III
+    profesor: David González de la Aleja Gallego
+  - fecha: 2026-09-23
+    inicio: "11:00"
+    fin: "13:00"
+    asignatura: algebra
+    aula: Aula 3S2 · Aulario III
+    desdoble: G2
+```
+
+#### `estudios/horario-ajustes.yaml`
+Lo escriben Diego, la app o Claude; el workflow solo lo lee. La app solo cambia `quitadas` y `sueltas`.
+```yaml
+grupo: "G_ROBOT_1A(F)"   # qué horario descargar
+curso: 1
+desdoble: G2             # de los grupos G1/G2… solo se queda este
+quitadas:                # una clase concreta que no hay: se reconoce por fecha + inicio + asignatura
+  - fecha: 2026-09-24
+    inicio: "09:00"
+    asignatura: electronica-digital
+sueltas:                 # clases añadidas (aula y nota opcionales)
+  - fecha: 2026-10-15
+    inicio: "11:00"
+    fin: "13:00"
+    asignatura: electronica-digital
+    aula: Aula 3S2
+    nota: Recuperación
+```
+Las horas van entre comillas. Detalle: `docs/superpowers/specs/2026-10-04-horario-clases-design.md`.
+
 ### Aula virtual (parte C)
-Lo escribe el programa local del PC (`local/aula/`), no la app, salvo `leido` en los avisos. Las tareas que crea llevan `origen: aula:<id asignatura>:<clave>` (ver `agenda/tareas.yaml`). Los materiales descargados van en `estudios/<asignatura>/aula-virtual/` y no se suben a Git (`.gitignore`).
+Lo escribe el programa local del PC (`local/aula/`), no la app, salvo `leido` y `leidoEl` en los avisos. Las tareas que crea llevan `origen: aula:<id asignatura>:<clave>` (ver `agenda/tareas.yaml`). Los materiales descargados van en `estudios/<asignatura>/aula-virtual/` y no se suben a Git (`.gitignore`).
 
 #### `estudios/avisos.yaml`
 Avisos de los profes y del programa:
@@ -201,9 +239,10 @@ avisos:
       El parcial del día 13 será en el aula 204.
     importante: true
     leido: false
+    leidoEl: 2026-10-04          # el día en que se marcó como leído (solo si leido: true)
     enlace: https://www.aulavirtual.urjc.es/moodle/mod/forum/discuss.php?d=…
 ```
-El programa añade avisos y nunca cambia `leido`; la app solo cambia `leido`. Se quitan los avisos leídos de hace más de 60 días. Los avisos del programa son siempre importantes: fecha adelantada, fecha «⚠ por confirmar» y «Vuelve a entrar en el aula virtual» (`programa-entrar`, se quita solo al volver a entrar).
+El programa añade avisos, nunca cambia `leido` y solo rellena `leidoEl` si falta; la app solo cambia `leido` y `leidoEl`. Un aviso leído se ve 30 días desde `leidoEl`; después la app lo oculta y el programa del PC lo borra (a los leídos sin `leidoEl` les pone la fecha del día). Los avisos del programa son siempre importantes: fecha adelantada, fecha «⚠ por confirmar» y «Vuelve a entrar en el aula virtual» (`programa-entrar`, se quita solo al volver a entrar).
 
 #### `estudios/aula-sincronizacion.yaml`
 Lo escribe solo el programa local del PC. No lo toques.

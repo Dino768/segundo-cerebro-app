@@ -11,12 +11,12 @@ import { useDatos } from '../estado/datos';
 
 const CLAVE = 'sc-estudio-asignatura';
 
-export function Estudio({ aulaInicial = false }: { aulaInicial?: boolean }) {
+export function Estudio({ aulaInicial = false, asignaturaInicial }: { aulaInicial?: boolean; asignaturaInicial?: string }) {
   const { datos, soloLectura } = useDatos();
   const local = useLocal();
   const asignaturas = [GENERAL, ...datos.asignaturas];
-  const [elegida, setElegida] = useState(() => (aulaInicial ? GENERAL.id : (leerPreferencia(CLAVE) ?? GENERAL.id)));
-  const [vista, setVista] = useState<'chat' | 'aula'>(aulaInicial ? 'aula' : 'chat');
+  const [elegida, setElegida] = useState(() => asignaturaInicial ?? (aulaInicial ? GENERAL.id : (leerPreferencia(CLAVE) ?? GENERAL.id)));
+  const [vista, setVista] = useState<'chat' | 'aula'>(aulaInicial || asignaturaInicial ? 'aula' : 'chat');
   const [form, setForm] = useState<Asignatura | 'nueva' | null>(null);
   const asignatura = asignaturas.find((a) => a.id === elegida) ?? GENERAL;
 

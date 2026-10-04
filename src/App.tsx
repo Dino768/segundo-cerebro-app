@@ -79,7 +79,7 @@ function Contenido() {
           </div>
         ))}
         {actual === 'inicio' && <Inicio editar={editar} ir={ir} />}
-        {actual === 'calendario' && <Calendario key={visita} editar={editar} diaInicial={destino.dia} />}
+        {actual === 'calendario' && <Calendario key={visita} editar={editar} ir={ir} diaInicial={destino.dia} vistaInicial={destino.vista} />}
         {actual === 'tareas' && <Tareas editar={editar} />}
         {actual === 'proyectos' && (
           <Proyectos
@@ -93,7 +93,7 @@ function Contenido() {
             alCambiarPestana={setPestana}
           />
         )}
-        {actual === 'estudio' && <Estudio key={visita} aulaInicial={destino.aula === true} />}
+        {actual === 'estudio' && <Estudio key={visita} aulaInicial={destino.aula === true} asignaturaInicial={destino.asignatura} />}
         {actual === 'ajustes' && <Ajustes />}
       </main>
       <MenuMovil actual={actual} ir={ir} bloqueado={forzarAjustes} />

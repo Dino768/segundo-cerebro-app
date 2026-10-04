@@ -366,10 +366,11 @@ git commit -m "Aula virtual: navegador propio y páginas de ejemplo"
   export function leerHilo(html: string, hilo: HiloForo): MensajeForo;
   export function leerCarpeta(html: string): { nombre: string; url: string }[];
   export function foroDeAvisos(c: ContenidoCurso): ModuloAula | undefined;
-  export function moduloGuia(c: ContenidoCurso): ModuloAula | undefined;
+  export function moduloGuia(c: ContenidoCurso): ModuloAula | undefined;      // resource, url o label llamado «Guía docente»
+  export function enlaceGuia(htmlCurso: string, idModulo: string): string | undefined; // primer enlace pluginfile dentro de #module-<id>
   ```
 
-Los ejemplos de abajo usan el formato de Moodle 4.5 que se espera; si `NOTAS.md` (Task 1) dice otra cosa, se adaptan los selectores y los ejemplos **sin cambiar la interfaz**, y se añade una prueba con la página real anonimizada de `pruebas/`.
+**Lo que encontró la Task 1 (ver `src/uni/aula/pruebas/NOTAS.md`):** los selectores de abajo coinciden con las páginas reales. En las 10 asignaturas la guía docente es una **etiqueta** (`module: 'label'`) llamada «Guía docente» cuyo PDF está enlazado en la página del curso (`course/view.php?id=<curso>`) dentro de `#module-<id>`; por eso `moduloGuia` también acepta `label` y hay `enlaceGuia`. `modname` viene traducido («Etiqueta»): se usa `module`. Las páginas reales anonimizadas están en `src/uni/aula/pruebas/` (`cursos.json`, `estado-curso.json`, `curso-guia.html`, `foro.html`, `hilo.html`, `carpeta.html`).
 
 - [ ] **Step 1: Pruebas que fallan**
 
@@ -460,19 +461,33 @@ describe('foro', () => {
 
 describe('páginas reales anonimizadas (Tarea 1)', () => {
   const leer = (n: string) => readFileSync(new URL(`./pruebas/${n}`, import.meta.url), 'utf8');
-  it('el curso de ejemplo tiene secciones y módulos', () => {
-    const c = leerContenido(leer('estado-curso.json'));
-    expect(c.secciones.length).toBeGreaterThan(0);
-    expect(c.secciones.some((s) => s.modulos.length > 0)).toBe(true);
+  it('cursos: encuentra Cálculo por su código', () => {
+    expect(cursoDeAsignatura(leerCursos(JSON.parse(leer('cursos.json'))), '2327007')?.id).toBe(250589);
   });
-  it('el foro y el hilo de ejemplo se entienden', () => {
+  it('el curso real: 16 secciones, foro «Novedades» y guía docente como etiqueta con su PDF', () => {
+    const c = leerContenido(leer('estado-curso.json'));
+    expect(c.secciones).toHaveLength(16);
+    expect(c.secciones[0].nombre).toBe('General');
+    expect(foroDeAvisos(c)).toMatchObject({ id: '11070612', nombre: 'Novedades', tipo: 'forum' });
+    const guia = moduloGuia(c);
+    expect(guia).toMatchObject({ id: '11070615', tipo: 'label' });
+    expect(enlaceGuia(leer('curso-guia.html'), guia!.id)).toBe('https://www.aulavirtual.urjc.es/moodle/pluginfile.php/14842895/mod_label/intro/GuiaDocente_EJEMPLO.pdf');
+    expect(enlaceGuia(leer('curso-guia.html'), '999')).toBeUndefined();
+  });
+  it('el foro y el hilo reales se entienden', () => {
     const hilos = leerForo(leer('foro.html'));
-    expect(hilos.length).toBeGreaterThan(0);
-    expect(leerHilo(leer('hilo.html'), hilos[0]).texto.length).toBeGreaterThan(0);
+    expect(hilos).toEqual([{ id: '956500', titulo: 'Aviso de ejemplo 1' }, { id: '952081', titulo: 'Aviso de ejemplo 2' }]);
+    const m = leerHilo(leer('hilo.html'), hilos[0]);
+    expect(m.titulo).toBe('Aviso de ejemplo 1');
+    expect(m.texto).toBe('Buenos días:\nEl primer parcial será el jueves 12 de noviembre a las 10:00 en el aula 204.\nUn saludo.');
+    expect(m.fecha).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+  it('la carpeta real: tres archivos', () => {
+    expect(leerCarpeta(leer('carpeta.html')).map((f) => f.nombre)).toEqual(['Archivo 1.pdf', 'Archivo 2.pdf', 'Archivo 3.pdf']);
   });
 });
 ```
-(Si en la Task 1 no hubo carpeta, no se añade `carpeta.html` ni prueba real de carpeta.)
+Añadir `enlaceGuia` al `import` de la prueba.
 
 Run: `npx vitest run src/uni/aula/paginas.test.ts` → FAIL.
 
@@ -543,7 +558,12 @@ export function foroDeAvisos(c: ContenidoCurso): ModuloAula | undefined {
 
 const GUIA = /gu[ií]a\s+(docente|de\s+(la\s+)?asignatura|del\s+estudiante)|teaching\s+guide|course\s+guide/i;
 export function moduloGuia(c: ContenidoCurso): ModuloAula | undefined {
-  return c.secciones.flatMap((s) => s.modulos).find((m) => (m.tipo === 'resource' || m.tipo === 'url') && GUIA.test(m.nombre));
+  return c.secciones.flatMap((s) => s.modulos).find((m) => ['resource', 'url', 'label'].includes(m.tipo) && GUIA.test(m.nombre));
+}
+
+// La guía docente suele ser una etiqueta con el PDF enlazado: se busca en la página del curso.
+export function enlaceGuia(htmlCurso: string, idModulo: string): string | undefined {
+  return parse(htmlCurso).querySelector(`#module-${idModulo}`)?.querySelector('a[href*="pluginfile.php"]')?.getAttribute('href') ?? undefined;
 }
 
 export interface HiloForo { id: string; titulo: string }
@@ -2024,6 +2044,36 @@ describe('revisión del aula virtual', () => {
     const avisos = parseAvisos(await leer('estudios/avisos.yaml'));
     expect(avisos.some((a) => a.id.startsWith('programa-') && a.titulo.includes('se adelanta'))).toBe(true);
   });
+  it('guía docente como etiqueta: descarga su PDF, Claude la resume y se escribe guia-docente.md (una sola vez)', async () => {
+    const conGuia = JSON.stringify({
+      section: [{ id: '10', title: 'General', cmlist: ['100', '107'] }],
+      cm: [
+        { id: '100', name: 'Novedades', module: 'forum', url: 'https://aula/mod/forum/view.php?id=100' },
+        { id: '107', name: 'Guía docente', module: 'label' },
+      ],
+    });
+    const nav = navegadorFalso({ estado: conGuia });
+    const pedidas: string[] = [];
+    const navGuia: Navegador = {
+      ...nav,
+      pedirTexto: async (u) => (u.includes('/course/view.php') ? '<li id="module-107"><a href="https://aula/pluginfile.php/1/mod_label/intro/Guia.pdf">Guía</a></li>' : nav.pedirTexto(u)),
+      descargar: async (u) => (pedidas.push(u), { bytes: new TextEncoder().encode('Examen final 60 %. Parciales 40 %.'), nombre: 'Guia.pdf' }),
+    };
+    let conGuiaPedida = 0;
+    const preguntar = async (_m: Modelo, texto: string) => {
+      if (texto.includes('guía docente: escribe también')) conGuiaPedida++;
+      return respuesta({ evaluacion: '- Examen final: 60 %\n- Parciales: 40 %' });
+    };
+    await revisarAula(deps({ navegador: async () => navGuia, preguntar }));
+    expect(pedidas).toEqual(['https://aula/pluginfile.php/1/mod_label/intro/Guia.pdf']);
+    const md = await leer('estudios/calculo/guia-docente.md');
+    expect(md).toContain('## Evaluación\n\n- Examen final: 60 %');
+    expect(md).toContain('Examen final 60 %. Parciales 40 %.');
+    expect(await leer('estudios/calculo/aula-virtual/guia-docente.pdf')).toBe('Examen final 60 %. Parciales 40 %.');
+    // Mismo texto al día siguiente: no se vuelve a mandar a Claude.
+    await revisarAula(deps({ navegador: async () => navGuia, preguntar }));
+    expect(conGuiaPedida).toBe(1);
+  });
 });
 ```
 Run: `npx vitest run local/aula/revision.test.ts` → FAIL.
@@ -2091,7 +2141,7 @@ import { anadirAvisos, avisoEntrar, avisoPrograma, ID_ENTRAR, limpiarAvisos, qui
 import { parseSincronizacionAula, serializarSincronizacionAula, type Pendiente, type ResultadoRevision, type SincronizacionAula } from '../../src/uni/aula/estado.ts';
 import { decidir, leerRespuesta, MODELOS, necesitaMas, textoPregunta, type AvisoNuevo, type FuenteTexto, type Modelo, type Pregunta, type RespuestaClaude } from '../../src/uni/aula/fechas.ts';
 import { construirLista, esDocumentoDeFechas, LIMITE_BYTES, nombreSeguro, nuevosMateriales, tipoDeArchivo, type Descargado } from '../../src/uni/aula/materiales.ts';
-import { cursoDeAsignatura, foroDeAvisos, leerCarpeta, leerContenido, leerCursos, leerForo, leerHilo, leerSesskey, moduloGuia, SesionCaducada, type ContenidoCurso, type ModuloAula } from '../../src/uni/aula/paginas.ts';
+import { cursoDeAsignatura, enlaceGuia, foroDeAvisos, leerCarpeta, leerContenido, leerCursos, leerForo, leerHilo, leerSesskey, moduloGuia, SesionCaducada, type ContenidoCurso, type ModuloAula } from '../../src/uni/aula/paginas.ts';
 import { fusionar } from '../../src/uni/fusionar.ts';
 import { enMadrid, hoyEnMadrid } from '../../src/uni/hora.ts';
 import { ErrorFormato, type Propuesta } from '../../src/uni/tipos.ts';
@@ -2186,7 +2236,7 @@ async function cosechar(d: Dependencias, asignaturas: Asignatura[], sinc: Sincro
       const curso = cursoDeAsignatura(cursos, a.codigo!);
       if (!curso) continue;
       const contenido = leerContenido(await nav.ajax(sesskey, 'core_courseformat_get_state', { courseid: curso.id }));
-      const c = await cosecharAsignatura(d, nav, a, contenido, sinc, hoy, textos);
+      const c = await cosecharAsignatura(d, nav, a, curso.id, contenido, sinc, hoy, textos);
       if (c.pregunta && c.pregunta.fuentes.length) {
         if (sinClaude) c.pendiente = pendienteDe(c);
         else {
@@ -2246,7 +2296,7 @@ function pendienteDe(c: Cosecha): Pendiente {
 }
 
 async function cosecharAsignatura(
-  d: Dependencias, nav: Navegador, a: Asignatura, contenido: ContenidoCurso, sinc: SincronizacionAula, hoy: string,
+  d: Dependencias, nav: Navegador, a: Asignatura, idCurso: number, contenido: ContenidoCurso, sinc: SincronizacionAula, hoy: string,
   tareas: Awaited<ReturnType<typeof leerTareasConocidas>>,
 ): Promise<Cosecha> {
   const base = carpetaMateriales(a.id);
@@ -2295,7 +2345,12 @@ async function cosecharAsignatura(
   // Guía docente: se descarga cada vez (una por asignatura) y solo se manda a Claude si su texto cambió.
   let guia: Cosecha['guia'];
   if (guiaModulo) {
-    const url = guiaModulo.tipo === 'resource' ? `${BASE_AULA}/mod/resource/view.php?id=${guiaModulo.id}&redirect=1` : guiaModulo.url;
+    // En la URJC la guía es una etiqueta con el PDF enlazado en la página del curso (Task 1, NOTAS.md).
+    const url = guiaModulo.tipo === 'resource'
+      ? `${BASE_AULA}/mod/resource/view.php?id=${guiaModulo.id}&redirect=1`
+      : guiaModulo.tipo === 'label'
+        ? enlaceGuia(await nav.pedirTexto(`${BASE_AULA}/course/view.php?id=${idCurso}`), guiaModulo.id)
+        : guiaModulo.url;
     const desc = url ? await bajar(d, nav, url, base, undefined, 'guia-docente') : null;
     const texto = desc?.bytes ? await d.textoDe(desc.bytes, desc.nombre) : null;
     if (texto && huella(texto) !== sinc.vistos.guias[a.id]) {

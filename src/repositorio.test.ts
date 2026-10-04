@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as cliente from './github/cliente';
 import { parseProyecto } from './datos/proyectos';
 import { ErrorDatos } from './datos/yaml';
-import { borrarProyecto, cargarAgenda, cargarAulaAsignatura, cargarAvisos, leerAvisos, cargarTodo, guardarProyecto, listarIdsProyectos, migrarBandeja, modificarAreas, modificarAsignaturas, modificarIdeas, modificarTareas, moverYBorrarArea } from './repositorio';
+import { borrarProyecto, cargarAgenda, cargarAulaAsignatura, cargarAvisos, desleerAviso, leerAvisos, cargarTodo, guardarProyecto, listarIdsProyectos, migrarBandeja, modificarAreas, modificarAsignaturas, modificarIdeas, modificarTareas, moverYBorrarArea } from './repositorio';
 
 vi.mock('./github/cliente', async (importOriginal) => {
   const real = await importOriginal<typeof import('./github/cliente')>();
@@ -344,14 +344,21 @@ describe('avisos y aula virtual', () => {
     expect((await cargarAvisos(cfg)).map((a) => a.id)).toEqual(['a', 'b']);
   });
 
-  it('leerAvisos marca leído y respeta un aviso nuevo del programa', async () => {
+  it('leerAvisos marca leído con el día y respeta un aviso nuevo del programa', async () => {
     const nuevo = `${AVISOS}  - id: c\n    fecha: 2026-10-04\n    titulo: C\n    texto: t\n    importante: true\n`;
     const escrito = simularRemoto(nuevo);
-    const r = await leerAvisos(cfg, ['a']);
+    const r = await leerAvisos(cfg, ['a'], '2026-10-05');
     expect(r.map((a) => [a.id, a.leido])).toEqual([['a', true], ['b', false], ['c', false]]);
-    expect(escrito()).toContain('leido: true');
+    expect(escrito()).toContain('leidoEl: 2026-10-05');
     expect(escrito()).toContain('id: c');
     expect(actualizar.mock.calls[0][1]).toBe('estudios/avisos.yaml');
+  });
+
+  it('desleerAviso lo vuelve a dejar sin leer', async () => {
+    const escrito = simularRemoto(AVISOS.replace('importante: true\n  - id: b', 'importante: true\n    leido: true\n    leidoEl: 2026-10-04\n  - id: b'));
+    const r = await desleerAviso(cfg, 'a');
+    expect(r.find((x) => x.id === 'a')?.leido).toBe(false);
+    expect(escrito()).not.toContain('leidoEl');
   });
 
   it('cargarAulaAsignatura sin archivos', async () => {

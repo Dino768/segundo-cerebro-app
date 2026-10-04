@@ -1,8 +1,7 @@
-import type { Aviso } from '../../datos/avisos.ts';
-import { addDays, type ISODate } from '../../fechas.ts';
+import { caducado, type Aviso } from '../../datos/avisos.ts';
+import type { ISODate } from '../../fechas.ts';
 
 export const ID_ENTRAR = 'programa-entrar';
-export const DIAS_LEIDOS = 60;
 
 export function anadirAvisos(actuales: Aviso[], nuevos: Aviso[]): Aviso[] {
   const ids = new Set(actuales.map((a) => a.id));
@@ -10,9 +9,11 @@ export function anadirAvisos(actuales: Aviso[], nuevos: Aviso[]): Aviso[] {
   return [...deVerdad, ...actuales];
 }
 
+// Los leídos sin fecha de lectura (de antes o de una versión antigua de la app) empiezan a contar hoy.
 export function limpiarAvisos(avisos: Aviso[], hoy: ISODate): Aviso[] {
-  const limite = addDays(hoy, -DIAS_LEIDOS);
-  return avisos.filter((a) => !(a.leido && a.fecha < limite));
+  return avisos
+    .map((a) => (a.leido && !a.leidoEl ? { ...a, leidoEl: hoy } : a))
+    .filter((a) => !caducado(a, hoy));
 }
 
 export function quitarAviso(avisos: Aviso[], id: string): Aviso[] {

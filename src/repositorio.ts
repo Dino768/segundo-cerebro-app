@@ -4,13 +4,14 @@ import { parseAreas, serializarAreas, type Area } from './datos/areas';
 import { parseAsignaturas, serializarAsignaturas, type Asignatura } from './datos/asignaturas';
 import { parseProyecto, serializarProyecto, type Proyecto } from './datos/proyectos';
 import { parseAulaVirtual, type AulaVirtual } from './datos/aulaVirtual';
-import { marcarLeidos, parseAvisos, serializarAvisos, type Aviso } from './datos/avisos';
+import { marcarLeidos, marcarNoLeido, parseAvisos, serializarAvisos, type Aviso } from './datos/avisos';
 import { seccionEvaluacion } from './datos/guia';
 import { parseBandeja } from './datos/bandeja';
 import { fusionarBandeja, parseIdeas, serializarIdeas, type Idea } from './datos/ideas';
 import { CARPETA_PROYECTOS, RUTA_AREAS, RUTA_ASIGNATURAS, RUTA_AVISOS, RUTA_BANDEJA, RUTA_IDEAS, RUTA_TAREAS, rutaAulaVirtual, rutaGuiaDocente } from './datos/rutas';
 import { parseTareas, serializarTareas, type Tarea } from './datos/tareas';
 import { ErrorDatos } from './datos/yaml';
+import type { ISODate } from './fechas';
 import { actualizarArchivo, borrarArchivo, ErrorGitHub, leerArchivo, listarCarpeta, type Config } from './github/cliente';
 
 export interface Datos {
@@ -238,13 +239,22 @@ export async function cargarAvisos(cfg: Config): Promise<Aviso[]> {
   return parseAvisos(await leerOpcional(cfg, RUTA_AVISOS));
 }
 
-// Solo cambia `leido`: lo demás lo escribe el programa del PC y se respeta lo que haya añadido mientras tanto.
-export async function leerAvisos(cfg: Config, ids: string[]): Promise<Aviso[]> {
+// Solo cambia `leido`/`leidoEl`: lo demás lo escribe el programa del PC y se respeta lo que haya añadido mientras tanto.
+export async function leerAvisos(cfg: Config, ids: string[], hoy: ISODate): Promise<Aviso[]> {
   let r: Aviso[] = [];
   await actualizarArchivo(cfg, RUTA_AVISOS, (texto) => {
-    r = marcarLeidos(parseAvisos(texto), ids);
+    r = marcarLeidos(parseAvisos(texto), ids, hoy);
     return serializarAvisos(r);
   }, ids.length === 1 ? 'Aviso leído' : `${ids.length} avisos leídos`);
+  return r;
+}
+
+export async function desleerAviso(cfg: Config, id: string): Promise<Aviso[]> {
+  let r: Aviso[] = [];
+  await actualizarArchivo(cfg, RUTA_AVISOS, (texto) => {
+    r = marcarNoLeido(parseAvisos(texto), id);
+    return serializarAvisos(r);
+  }, 'Aviso sin leer');
   return r;
 }
 

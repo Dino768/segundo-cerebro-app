@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Aviso } from '../datos/avisos';
-import { cargarAvisos, leerAvisos } from '../repositorio';
+import { avisosVisibles, marcarNoLeido as quitarLeido, type Aviso } from '../datos/avisos';
+import { toISO } from '../fechas';
+import { cargarAvisos, desleerAviso, leerAvisos } from '../repositorio';
 import { useDatos } from './datos';
+import { useHoy } from './hoy';
 
 // Avisos de la uni: se leen al abrir la pantalla y al volver a la app. Si fallan, no molestan (la línea no sale).
-export function useAvisos(): { avisos: Aviso[]; cargando: boolean; marcarLeidos(ids: string[]): Promise<void> } {
+// Los leídos hace más de 30 días no se enseñan (spec horario §7).
+export function useAvisos(): {
+  avisos: Aviso[]; cargando: boolean; marcarLeidos(ids: string[]): Promise<void>; marcarNoLeido(id: string): Promise<void>;
+} {
   const { config, estado } = useDatos();
+  const hoy = useHoy();
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [cargando, setCargando] = useState(true);
 
@@ -29,13 +35,24 @@ export function useAvisos(): { avisos: Aviso[]; cargando: boolean; marcarLeidos(
 
   const marcarLeidos = useCallback(async (ids: string[]) => {
     if (!config || !ids.length) return;
-    setAvisos((as) => as.map((a) => (ids.includes(a.id) ? { ...a, leido: true } : a)));
+    const dia = toISO(new Date());
+    setAvisos((as) => as.map((a) => (ids.includes(a.id) && !a.leido ? { ...a, leido: true, leidoEl: dia } : a)));
     try {
-      setAvisos(await leerAvisos(config, ids));
+      setAvisos(await leerAvisos(config, ids, dia));
     } catch {
       await traer();
     }
   }, [config, traer]);
 
-  return { avisos, cargando, marcarLeidos };
+  const marcarNoLeido = useCallback(async (id: string) => {
+    if (!config) return;
+    setAvisos((as) => quitarLeido(as, id));
+    try {
+      setAvisos(await desleerAviso(config, id));
+    } catch {
+      await traer();
+    }
+  }, [config, traer]);
+
+  return { avisos: avisosVisibles(avisos, hoy), cargando, marcarLeidos, marcarNoLeido };
 }

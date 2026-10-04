@@ -8,7 +8,7 @@ const av = (id: string, x: Partial<Aviso> = {}): Aviso => ({ id, asignatura: 'ca
 
 describe('avisos', () => {
   it('más nuevos arriba, importantes destacados, con su asignatura y enlace', () => {
-    const html = renderToString(<ListaAvisos avisos={[av('a', { fecha: '2026-10-01' }), av('b', { importante: true, enlace: 'https://x/b' })]} asignaturas={asignaturas} marcar={() => undefined} />);
+    const html = renderToString(<ListaAvisos avisos={[av('a', { fecha: '2026-10-01' }), av('b', { importante: true, enlace: 'https://x/b' })]} asignaturas={asignaturas} marcar={() => undefined} desmarcar={() => undefined} />);
     expect(html.indexOf('Título b')).toBeLessThan(html.indexOf('Título a'));
     expect(html).toContain('aviso importante');
     expect(html).toContain('Cálculo');
@@ -16,7 +16,12 @@ describe('avisos', () => {
     expect(html).toContain('Marcar todos como leídos');
   });
   it('sin avisos', () => {
-    expect(renderToString(<ListaAvisos avisos={[]} asignaturas={asignaturas} marcar={() => undefined} />)).toContain('No hay avisos');
+    expect(renderToString(<ListaAvisos avisos={[]} asignaturas={asignaturas} marcar={() => undefined} desmarcar={() => undefined} />)).toContain('No hay avisos');
+  });
+  it('los leídos se pueden desleer', () => {
+    const html = renderToString(<ListaAvisos avisos={[av('a', { leido: true })]} asignaturas={asignaturas} marcar={() => undefined} desmarcar={() => undefined} />);
+    expect(html).toContain('Marcar como no leído');
+    expect(html).not.toContain('Marcar todos como leídos');
   });
 });
 

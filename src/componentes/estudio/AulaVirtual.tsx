@@ -12,7 +12,7 @@ import { Markdown } from '../Markdown';
 type Pestana = 'avisos' | 'materiales' | 'evaluacion';
 const ICONO: Record<string, string> = { pdf: '📄', presentacion: '📊', documento: '📝', carpeta: '📁', enlace: '🔗', video: '🎬', otro: '📎' };
 
-export function ListaAvisos({ avisos, asignaturas, marcar }: { avisos: Aviso[]; asignaturas: Asignatura[]; marcar(ids: string[]): void }) {
+export function ListaAvisos({ avisos, asignaturas, marcar, desmarcar }: { avisos: Aviso[]; asignaturas: Asignatura[]; marcar(ids: string[]): void; desmarcar(id: string): void }) {
   if (avisos.length === 0) return <p className="vacio">No hay avisos.</p>;
   const ordenados = [...avisos].sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
   const sinLeer = ordenados.filter((a) => !a.leido).map((a) => a.id);
@@ -33,6 +33,7 @@ export function ListaAvisos({ avisos, asignaturas, marcar }: { avisos: Aviso[]; 
               <div className="aviso-acciones">
                 {a.enlace && <a href={a.enlace} target="_blank" rel="noreferrer">Abrir en el aula virtual</a>}
                 {!a.leido && <button className="enlace" onClick={() => marcar([a.id])}>Marcar como leído</button>}
+                {a.leido && <button className="enlace" onClick={() => desmarcar(a.id)}>Marcar como no leído</button>}
               </div>
             </li>
           );
@@ -70,7 +71,7 @@ export function ListaMateriales({ aula, asignatura, enPc }: { aula: Lista | null
 // Sección «Aula virtual» de Estudio. En «General» se ven los avisos de todas las asignaturas.
 export function AulaVirtual({ asignatura, enPc }: { asignatura: Asignatura; enPc: boolean }) {
   const { config, datos } = useDatos();
-  const { avisos, marcarLeidos } = useAvisos();
+  const { avisos, marcarLeidos, marcarNoLeido } = useAvisos();
   const [pestana, setPestana] = useState<Pestana>('avisos');
   const [datosAula, setDatosAula] = useState<{ aula: Lista | null; evaluacion: string | null } | null>(null);
   const todas = asignatura.id === GENERAL.id;
@@ -92,7 +93,7 @@ export function AulaVirtual({ asignatura, enPc }: { asignatura: Asignatura; enPc
         {!todas && <button role="tab" aria-selected={pestana === 'materiales'} className={pestana === 'materiales' ? 'activa' : ''} onClick={() => setPestana('materiales')}>📚 Materiales</button>}
         {!todas && <button role="tab" aria-selected={pestana === 'evaluacion'} className={pestana === 'evaluacion' ? 'activa' : ''} onClick={() => setPestana('evaluacion')}>🎯 Evaluación</button>}
       </div>
-      {pestana === 'avisos' && <ListaAvisos avisos={deEsta} asignaturas={datos.asignaturas} marcar={(ids) => void marcarLeidos(ids)} />}
+      {pestana === 'avisos' && <ListaAvisos avisos={deEsta} asignaturas={datos.asignaturas} marcar={(ids) => void marcarLeidos(ids)} desmarcar={(id) => void marcarNoLeido(id)} />}
       {pestana === 'materiales' && !todas && (datosAula ? <ListaMateriales aula={datosAula.aula} asignatura={asignatura.id} enPc={enPc} /> : <p className="cargando">Cargando…</p>)}
       {pestana === 'evaluacion' && !todas && (datosAula?.evaluacion ? <Markdown texto={datosAula.evaluacion} /> : <p className="vacio">Todavía no hay resumen de la guía docente.</p>)}
     </div>

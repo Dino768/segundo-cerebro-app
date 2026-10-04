@@ -9,12 +9,14 @@ import { EtiquetaTarea } from '../componentes/EtiquetaTarea';
 import { FilaTarea } from '../componentes/FilaTarea';
 import type { Edicion } from '../componentes/FormTarea';
 import { LineaAvisos } from '../componentes/LineaAvisos';
+import { LineaClases } from '../componentes/horario/LineaClases';
 import { Icono } from '../componentes/Icono';
 import { ProximosExamenes } from '../componentes/ProximosExamenes';
 import type { Destino } from '../componentes/navegacion';
 import { dondeLoDejamos } from '../datos/proyectos';
 import type { Tarea } from '../datos/tareas';
 import { useDatos } from '../estado/datos';
+import { useHorario } from '../estado/horario';
 import { useAhora, useHoy } from '../estado/hoy';
 import {
   cuadriculaMes, DIAS, horaCorta, diaDeSemana, diasSemana, formatoLargo, fromISO, nombreMes, saludo, type ISODate,
@@ -27,6 +29,7 @@ interface Props {
 
 export function Inicio({ editar, ir }: Props) {
   const { avisos } = useAvisos();
+  const { horario } = useHorario();
   const { datos } = useDatos();
   const hoy = useHoy();
   const ahora = useAhora();
@@ -68,6 +71,7 @@ export function Inicio({ editar, ir }: Props) {
       </header>
       <Captura />
       <LineaAvisos avisos={avisos} ir={ir} />
+      <LineaClases horario={horario} asignaturas={datos.asignaturas} ahora={ahora} ir={ir} />
       <div className="rejilla-inicio">
         <section className="tarjeta">
           <h2 className="titulo-seccion">

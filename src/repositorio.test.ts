@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as cliente from './github/cliente';
 import { parseProyecto } from './datos/proyectos';
 import { ErrorDatos } from './datos/yaml';
-import { borrarProyecto, cargarAgenda, cargarAulaAsignatura, cargarAvisos, desleerAviso, leerAvisos, cargarTodo, guardarProyecto, listarIdsProyectos, migrarBandeja, modificarAreas, modificarAsignaturas, modificarIdeas, modificarTareas, moverYBorrarArea } from './repositorio';
+import { borrarProyecto, cargarAgenda, cargarAulaAsignatura, cargarAvisos, cargarHorario, desleerAviso, modificarAjustesHorario, leerAvisos, cargarTodo, guardarProyecto, listarIdsProyectos, migrarBandeja, modificarAreas, modificarAsignaturas, modificarIdeas, modificarTareas, moverYBorrarArea } from './repositorio';
 
 vi.mock('./github/cliente', async (importOriginal) => {
   const real = await importOriginal<typeof import('./github/cliente')>();
@@ -364,5 +364,29 @@ describe('avisos y aula virtual', () => {
   it('cargarAulaAsignatura sin archivos', async () => {
     leer.mockRejectedValue(new cliente.ErrorGitHub('no-existe', 'no', 404));
     expect(await cargarAulaAsignatura(cfg, 'fisica')).toEqual({ aula: null, evaluacion: null });
+  });
+});
+
+describe('horario', () => {
+  it('cargarHorario: sin archivos, vacío; con archivos, clases y ajustes', async () => {
+    leer.mockRejectedValue(new cliente.ErrorGitHub('no-existe', 'no', 404));
+    expect(await cargarHorario(cfg)).toEqual({ clases: [], ajustes: { quitadas: [], sueltas: [] } });
+    leer.mockImplementation(async (_cfg, ruta) => {
+      if (ruta === 'estudios/horario.yaml') return { texto: 'clases:\n  - fecha: 2026-10-05\n    inicio: "09:00"\n    fin: "11:00"\n    asignatura: algebra\n', sha: 'h' };
+      if (ruta === 'estudios/horario-ajustes.yaml') return { texto: 'grupo: "G"\ndesdoble: G2\n', sha: 'a' };
+      throw new Error(`ruta inesperada ${ruta}`);
+    });
+    const h = await cargarHorario(cfg);
+    expect(h.clases).toHaveLength(1);
+    expect(h.ajustes.desdoble).toBe('G2');
+  });
+
+  it('modificarAjustesHorario respeta lo que haya cambiado otro', async () => {
+    const escrito = simularRemoto('grupo: "G"\ndesdoble: G2\nsueltas:\n  - fecha: 2026-10-15\n    inicio: "11:00"\n    fin: "13:00"\n    asignatura: e\n');
+    const r = await modificarAjustesHorario(cfg, (a) => ({ ...a, quitadas: [{ fecha: '2026-09-24', inicio: '09:00', asignatura: 'e' }] }), 'Quitar clase');
+    expect(r.sueltas).toHaveLength(1);
+    expect(escrito()).toContain('grupo: G');
+    expect(escrito()).toContain('2026-09-24');
+    expect(actualizar.mock.calls[0][1]).toBe('estudios/horario-ajustes.yaml');
   });
 });

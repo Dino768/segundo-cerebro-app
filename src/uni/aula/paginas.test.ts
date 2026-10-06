@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { cursoDeAsignatura, enlaceGuia, esPaginaDeEntrada, foroDeAvisos, leerCarpeta, leerContenido, leerCursos, leerForo, leerHilo, leerSesskey, moduloGuia } from './paginas.ts';
+import { cursoDeAsignatura, enlaceGuia, esPaginaDeEntrada, foroDeAvisos, leerCarpeta, leerContenido, leerCursos, leerForo, leerHilo, leerPagina, leerSesskey, leerTextosSeccion, moduloGuia } from './paginas.ts';
 
 describe('entrada', () => {
   it('reconoce la página de entrada de la URJC y la de Moodle', () => {
@@ -129,5 +129,27 @@ describe('páginas reales anonimizadas (Tarea 1)', () => {
   });
   it('la carpeta real: tres archivos', () => {
     expect(leerCarpeta(leer('carpeta.html')).map((f) => f.nombre)).toEqual(['Archivo 1.pdf', 'Archivo 2.pdf', 'Archivo 3.pdf']);
+  });
+});
+
+describe('textos de la página del curso (etiquetas y páginas)', () => {
+  const leer = (n: string) => readFileSync(new URL(`./pruebas/${n}`, import.meta.url), 'utf8');
+  const seccion = { id: '20', nombre: 'Evaluación', modulos: [
+    { id: '200', nombre: 'Convocatoria Ordinaria En primer lugar se realizar...', tipo: 'label', seccion: 'Evaluación' },
+    { id: '201', nombre: 'Test 1', tipo: 'label', seccion: 'Evaluación' },
+    { id: '202', nombre: '', tipo: 'label', seccion: 'Evaluación' },
+    { id: '203', nombre: 'No está en la página', tipo: 'label', seccion: 'Evaluación' },
+  ] };
+  it('lee el resumen de la sección y el texto de cada etiqueta (sin la etiqueta oculta ni las vacías)', () => {
+    expect(leerTextosSeccion(leer('seccion.html'), seccion)).toEqual([
+      { id: 'seccion-20', titulo: 'Evaluación', texto: 'En esta sección está la evaluación.' },
+      { id: 'etiqueta-200', titulo: 'Evaluación: Convocatoria Ordinaria',
+        texto: 'Convocatoria Ordinaria\nEn primer lugar se realizará un examen sobre el Bloque I. Este será el 9 de noviembre de 9.00 a 11.00 en el Aula ???.\nCopia pegada de otro curso' },
+      { id: 'etiqueta-201', titulo: 'Evaluación: Test 1: 21 de octubre de 11.00 a 12.00.', texto: 'Test 1: 21 de octubre de 11.00 a 12.00.' },
+    ]);
+  });
+  it('lee el texto de una página (mod/page)', () => {
+    expect(leerPagina(leer('pagina.html'))).toBe('Enero 11-01-2027 09:00 - 12:00');
+    expect(leerPagina('<html></html>')).toBe('');
   });
 });

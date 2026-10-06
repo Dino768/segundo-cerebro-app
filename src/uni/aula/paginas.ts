@@ -132,3 +132,32 @@ export function leerCarpeta(html: string): { nombre: string; url: string }[] {
   }
   return [...r].map(([url, nombre]) => ({ nombre, url }));
 }
+
+// Lo que el profe escribe en la propia página de la asignatura (no en un aviso ni en un archivo).
+export interface TextoCurso { id: string; titulo: string; texto: string }
+
+// Página de una sección (course/section.php): su resumen y el texto de cada etiqueta.
+// En la URJC (formato «onetopic») la página del curso solo trae la primera pestaña: hay que pedir cada sección.
+export function leerTextosSeccion(html: string, seccion: SeccionAula): TextoCurso[] {
+  const raiz = parse(html);
+  const r: TextoCurso[] = [];
+  const resumen = raiz.querySelector('.summarytext');
+  const textoResumen = resumen ? textoDeElemento(resumen) : '';
+  if (textoResumen) r.push({ id: `seccion-${seccion.id}`, titulo: seccion.nombre, texto: textoResumen });
+  for (const m of seccion.modulos.filter((x) => x.tipo === 'label')) {
+    const caja = raiz.querySelector(`#module-${m.id} .activity-altcontent`);
+    const texto = caja ? textoDeElemento(caja) : '';
+    if (!texto) continue;
+    const titulo = texto.split('\n')[0].slice(0, 80);
+    r.push({ id: `etiqueta-${m.id}`, titulo: seccion.nombre ? `${seccion.nombre}: ${titulo}` : titulo, texto });
+  }
+  return r;
+}
+
+// Texto de una página de Moodle (mod/page/view.php). Las celdas de una tabla van separadas por espacios.
+export function leerPagina(html: string): string {
+  const caja = parse(html).querySelector('[role="main"] .generalbox');
+  if (!caja) return '';
+  for (const c of caja.querySelectorAll('td, th')) c.insertAdjacentHTML('afterend', ' ');
+  return textoDeElemento(caja);
+}

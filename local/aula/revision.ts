@@ -6,13 +6,14 @@ import { parseAsignaturas, type Asignatura } from '../../src/datos/asignaturas.t
 import { parseAulaVirtual, serializarAulaVirtual, type AulaVirtual, type TipoMaterial } from '../../src/datos/aulaVirtual.ts';
 import { parseAvisos, serializarAvisos, type Aviso } from '../../src/datos/avisos.ts';
 import { escribirGuia } from '../../src/datos/guia.ts';
-import { carpetaMateriales, RUTA_ASIGNATURAS, RUTA_AULA_SINCRONIZACION, RUTA_AVISOS, RUTA_TAREAS, rutaAulaVirtual, rutaGuiaDocente } from '../../src/datos/rutas.ts';
+import { parseAjustesHorario } from '../../src/datos/horario.ts';
+import { carpetaMateriales, RUTA_ASIGNATURAS, RUTA_AULA_SINCRONIZACION, RUTA_AVISOS, RUTA_HORARIO_AJUSTES, RUTA_TAREAS, rutaAulaVirtual, rutaGuiaDocente } from '../../src/datos/rutas.ts';
 import { parseTareas, serializarTareas } from '../../src/datos/tareas.ts';
 import { anadirAvisos, avisoEntrar, avisoPrograma, ID_ENTRAR, limpiarAvisos, quitarAviso } from '../../src/uni/aula/avisos.ts';
 import { parseSincronizacionAula, serializarSincronizacionAula, type Pendiente, type ResultadoRevision, type SincronizacionAula } from '../../src/uni/aula/estado.ts';
 import { decidir, leerRespuesta, MODELOS, necesitaMas, textoPregunta, type AvisoNuevo, type FuenteTexto, type Modelo, type Pregunta, type RespuestaClaude } from '../../src/uni/aula/fechas.ts';
 import { construirLista, esDocumentoDeFechas, LIMITE_BYTES, nombreSeguro, nuevosMateriales, tipoDeArchivo, type Descargado } from '../../src/uni/aula/materiales.ts';
-import { cursoDeAsignatura, enlaceGuia, foroDeAvisos, leerCarpeta, leerContenido, leerCursos, leerForo, leerHilo, leerSesskey, moduloGuia, SesionCaducada, type ContenidoCurso, type ModuloAula } from '../../src/uni/aula/paginas.ts';
+import { cursoDeAsignatura, enlaceGuia, foroDeAvisos, leerCarpeta, leerContenido, leerCursos, leerForo, leerHilo, leerPagina, leerSesskey, leerTextosSeccion, moduloGuia, SesionCaducada, type ContenidoCurso, type ModuloAula, type TextoCurso } from '../../src/uni/aula/paginas.ts';
 import { fusionar } from '../../src/uni/fusionar.ts';
 import { enMadrid, hoyEnMadrid } from '../../src/uni/hora.ts';
 import { ErrorFormato, type Propuesta } from '../../src/uni/tipos.ts';
@@ -38,6 +39,7 @@ interface Cosecha {
   avisos: Aviso[];               // nuevos, ya con `importante` de Claude si lo leyó
   avisosVistos: string[];
   guia?: { huella: string; texto: string; evaluacion?: string };
+  textos: Record<string, string>; // huellas de los textos de la página que han ido a Claude (se guardan si contesta)
   respuesta?: RespuestaClaude;
   pregunta?: Pregunta;
   pendiente?: Pendiente;
@@ -133,6 +135,7 @@ async function cosechar(d: Dependencias, asignaturas: Asignatura[], sinc: Sincro
     const sesskey = leerSesskey(await nav.pedirTexto(`${BASE_AULA}/my/`));
     const cursos = leerCursos(await nav.ajax(sesskey, 'core_course_get_enrolled_courses_by_timeline_classification', { offset: 0, limit: 0, classification: 'all', sort: 'fullname' }));
     const textos = await leerTareasConocidas(d);
+    const grupo = await leerGrupo(d);
     const r: Cosecha[] = [];
     const conProblemas: string[] = [];
     let primerProblema: string | undefined;
@@ -143,7 +146,7 @@ async function cosechar(d: Dependencias, asignaturas: Asignatura[], sinc: Sincro
       let c: Cosecha;
       try {
         const contenido = leerContenido(await nav.ajax(sesskey, 'core_courseformat_get_state', { courseid: curso.id }));
-        c = await cosecharAsignatura(d, nav, a, curso.id, contenido, sinc, hoy, textos);
+        c = await cosecharAsignatura(d, nav, a, curso.id, contenido, sinc, hoy, textos, grupo);
       } catch (e) {
         // Una asignatura cuya página no se entiende se salta entera: no se borra ni se marca nada suyo.
         if (!(e instanceof ErrorFormato)) throw e;
@@ -181,6 +184,15 @@ async function leerTareasConocidas(d: Dependencias) {
   return parseTareas((await leer(d, RUTA_TAREAS)) ?? '[]\n');
 }
 
+// El desdoble de Diego (G2…), para que Claude elija su horario cuando el profe da uno por grupo.
+async function leerGrupo(d: Dependencias): Promise<string | undefined> {
+  try {
+    return parseAjustesHorario(await leer(d, RUTA_HORARIO_AJUSTES)).desdoble;
+  } catch {
+    return undefined; // un horario-ajustes.yaml roto no para la revisión
+  }
+}
+
 // Haiku → Sonnet → Opus mientras haya dudas o la respuesta no se entienda. undefined: ninguno contestó bien.
 async function preguntarConEscalado(d: Dependencias, p: Pregunta): Promise<RespuestaClaude | undefined> {
   const texto = textoPregunta(p);
@@ -211,7 +223,7 @@ function pendienteDe(c: Cosecha): Pendiente {
 
 async function cosecharAsignatura(
   d: Dependencias, nav: Navegador, a: Asignatura, idCurso: number, contenido: ContenidoCurso, sinc: SincronizacionAula, hoy: string,
-  tareas: Awaited<ReturnType<typeof leerTareasConocidas>>,
+  tareas: Awaited<ReturnType<typeof leerTareasConocidas>>, grupo?: string,
 ): Promise<Cosecha> {
   const base = carpetaMateriales(a.id);
   const fuentes: FuenteTexto[] = [];
@@ -273,6 +285,16 @@ async function cosecharAsignatura(
     }
   }
 
+  // Lo que el profe escribe en la propia página de la asignatura (etiquetas y páginas): ahí suelen estar
+  // las fechas de exámenes y tests. Se lee cada vez y solo va a Claude lo nuevo o lo que ha cambiado.
+  const textos: Record<string, string> = {};
+  for (const t of await textosDelCurso(nav, contenido)) {
+    const h = huella(t.texto);
+    if (sinc.vistos.textos[t.id] === h) continue;
+    textos[t.id] = h;
+    fuentes.push({ id: t.id, tipo: 'curso', titulo: t.titulo, enlace: t.enlace, texto: t.texto });
+  }
+
   // Guía docente: se descarga cada vez (una por asignatura) y solo se manda a Claude si su texto cambió.
   let guia: Cosecha['guia'];
   if (guiaModulo) {
@@ -323,8 +345,34 @@ async function cosecharAsignatura(
   const conocidas = tareas
     .filter((t) => t.area === a.id && t.fecha && t.origen && t.fecha >= hoy)
     .map((t) => ({ origen: t.origen!, titulo: t.titulo, tipo: t.tipo, fecha: t.fecha!, ...(t.hora ? { hora: t.hora } : {}) }));
-  const pregunta: Pregunta = { asignatura: a, hoy, conocidas, fuentes, conGuia: fuentes.some((f) => f.tipo === 'guia') };
-  return { asignatura: a, lista, materialesVistos, avisos, avisosVistos, guia, pregunta, sinTexto };
+  const pregunta: Pregunta = { asignatura: a, hoy, conocidas, fuentes, conGuia: fuentes.some((f) => f.tipo === 'guia'), ...(grupo ? { grupo } : {}) };
+  return { asignatura: a, lista, materialesVistos, avisos, avisosVistos, guia, textos, pregunta, sinTexto };
+}
+
+// Cada sección se pide aparte (en la URJC la página del curso solo trae la primera pestaña) y cada página (mod/page) también.
+// Una sección o página que no se puede leer hoy se salta: se vuelve a intentar en la siguiente revisión.
+async function textosDelCurso(nav: Navegador, contenido: ContenidoCurso): Promise<(TextoCurso & { enlace: string })[]> {
+  const r: (TextoCurso & { enlace: string })[] = [];
+  const saltar = (e: unknown) => {
+    if (!(e instanceof ErrorFormato)) throw e;
+  };
+  for (const s of contenido.secciones) {
+    const enlace = `${BASE_AULA}/course/section.php?id=${s.id}`;
+    try {
+      r.push(...leerTextosSeccion(await nav.pedirTexto(enlace), s).map((t) => ({ ...t, enlace })));
+    } catch (e) {
+      saltar(e);
+    }
+    for (const m of s.modulos.filter((x) => x.tipo === 'page' && x.url)) {
+      try {
+        const texto = leerPagina(await nav.pedirTexto(m.url!));
+        if (texto) r.push({ id: `pagina-${m.id}`, titulo: m.nombre, texto, enlace: m.url! });
+      } catch (e) {
+        saltar(e);
+      }
+    }
+  }
+  return r;
 }
 
 // Descarga a `estudios/<id>/aula-virtual/...`. Los vídeos y lo de más de 50 MB no se bajan (quedan en la lista con su enlace).
@@ -366,6 +414,7 @@ async function aplicarYSubir(
       if (c.pendiente) pendientes.push(c.pendiente);
       if (c.respuesta && c.pregunta) {
         const dec = decidir(c.respuesta, c.pregunta);
+        sinc.vistos.textos = { ...sinc.vistos.textos, ...c.textos };
         propuestas.push(...dec.propuestas);
         delPrograma.push(...dec.avisos.map((aviso) => ({ asignatura: c.asignatura.id, aviso })));
         if (c.guia?.evaluacion) {

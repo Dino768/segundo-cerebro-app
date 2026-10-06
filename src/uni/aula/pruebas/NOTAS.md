@@ -9,3 +9,4 @@ Sacadas del aula virtual real (Moodle 4.5 de la URJC) y anonimizadas: títulos, 
 - **Carpetas:** `a[href*="pluginfile.php"]` con `span.fp-filename`.
 - **Tipos de módulo vistos:** forum, label, resource, folder, url, page, assign, feedback, urjcteams.
 - **Sesión:** con la re-entrada automática, la sesión dura lo que la galleta de Microsoft (~90 días).
+- **Textos del profe en la página (2026-10-06):** los cursos usan el formato «onetopic» (pestañas): `course/view.php` solo trae la primera sección. Cada sección se pide con `course/section.php?id=<id de la sección>`; el texto de una etiqueta está en `#module-<id> .activity-altcontent` (dentro puede haber copias pegadas de otros cursos con su propio `module-<id>`), y el `label.sr-only` «Seleccionar actividad…» queda fuera. Las páginas (`mod/page/view.php`) tienen el texto en `[role="main"] .generalbox`. Ejemplos inventados: `seccion.html` y `pagina.html`.

@@ -336,3 +336,75 @@ describe('un fallo suelto no tira la revisión entera', () => {
     expect(pregunta).not.toContain('Planificación.pdf');
   });
 });
+
+describe('textos de la página de la asignatura (etiquetas y páginas)', () => {
+  // Como en Álgebra: la fecha del primer examen solo está escrita en una etiqueta de la sección «Evaluación».
+  const conEtiqueta = JSON.stringify({
+    section: [{ id: '10', title: 'General', cmlist: ['100'] }, { id: '20', title: 'Evaluación', cmlist: ['200', '300'] }],
+    cm: [
+      { id: '100', name: 'Novedades', module: 'forum', url: 'https://aula/mod/forum/view.php?id=100' },
+      { id: '200', name: 'Convocatoria Ordinaria En primer lugar...', module: 'label' },
+      { id: '300', name: 'Fecha examen', module: 'page', url: 'https://aula/mod/page/view.php?id=300' },
+    ],
+  });
+  const etiqueta = (t: string) => `<li id="module-200"><div class="activity-altcontent"><p>${t}</p></div></li>`;
+  const EXAMEN = 'El examen del Bloque I será el 9 de noviembre de 9.00 a 11.00.';
+  const PAGINA = '<div role="main"><div class="generalbox"><p>Sin fechas todavía.</p></div></div>';
+  const navCon = (texto: () => string, pedidas: string[] = []): Navegador => {
+    const nav = navegadorFalso({ estado: conEtiqueta });
+    return {
+      ...nav,
+      pedirTexto: async (u) => (pedidas.push(u), u.includes('/course/section.php?id=20') ? etiqueta(texto())
+        : u.includes('/course/section.php') ? '<html></html>' : u.includes('/mod/page/') ? PAGINA : nav.pedirTexto(u)),
+    };
+  };
+  const delExamen = (cita = 'el examen del bloque i será el 9 de noviembre de 9.00 a 11.00') => respuesta({
+    fechas: [{ clave: 'examen-bloque-1', que: 'Examen Bloque I', tipo: 'examen', fecha: '2026-11-09', hora: '09:00', exacta: true, cita, fuente: 'etiqueta-200', duda: null }],
+    avisos: [],
+  });
+
+  it('pide cada sección, manda a Claude el texto de las etiquetas y de las páginas, y la fecha llega a la agenda', async () => {
+    const pedidas: string[] = [];
+    const preguntas: string[] = [];
+    await revisarAula(deps({ navegador: async () => navCon(() => EXAMEN, pedidas), preguntar: async (_m, t) => (preguntas.push(t), delExamen()) }));
+    expect(pedidas).toEqual(expect.arrayContaining(['https://www.aulavirtual.urjc.es/moodle/course/section.php?id=10', 'https://www.aulavirtual.urjc.es/moodle/course/section.php?id=20', 'https://aula/mod/page/view.php?id=300']));
+    expect(preguntas[0]).toContain(`### etiqueta-200 (página de la asignatura): Evaluación: ${EXAMEN.slice(0, 80)}\n${EXAMEN}`);
+    expect(preguntas[0]).toContain('### pagina-300 (página de la asignatura): Fecha examen\nSin fechas todavía.');
+    const tareas = parseTareas((await leer('agenda/tareas.yaml'))!);
+    expect(tareas).toEqual([expect.objectContaining({ titulo: 'Examen Bloque I: Cálculo', tipo: 'examen', fecha: '2026-11-09', hora: '09:00', origen: 'aula:calculo:examen-bloque-1' })]);
+  });
+  it('si el texto no cambia no se vuelve a preguntar; si el profe lo cambia, sí (y la fecha se mueve)', async () => {
+    let texto = EXAMEN;
+    const preguntas: string[] = [];
+    const preguntar = async (_m: Modelo, t: string) => (preguntas.push(t), t.includes('16 de noviembre') ? delExamen('el examen del bloque i será el 16 de noviembre de 9.00 a 11.00').replace('2026-11-09', '2026-11-16') : delExamen());
+    await revisarAula(deps({ navegador: async () => navCon(() => texto), preguntar }));
+    await revisarAula(deps({ navegador: async () => navCon(() => texto), preguntar }));
+    expect(preguntas).toHaveLength(1);
+    texto = EXAMEN.replace('9 de noviembre', '16 de noviembre');
+    await revisarAula(deps({ navegador: async () => navCon(() => texto), preguntar }));
+    // Mover una fecha que ya está en la agenda lo confirma un modelo más fuerte: puede haber varias preguntas.
+    expect(preguntas.length).toBeGreaterThan(1);
+    expect(preguntas[1]).toContain('etiqueta-200');
+    expect(preguntas[1]).not.toContain('pagina-300'); // la página no ha cambiado
+    expect(parseTareas((await leer('agenda/tareas.yaml'))!).map((t) => t.fecha)).toEqual(['2026-11-16']);
+  });
+  it('si Claude no contesta, el texto no se da por leído y se vuelve a mandar al día siguiente', async () => {
+    await revisarAula(deps({ navegador: async () => navCon(() => EXAMEN), preguntar: async () => { throw new LimiteClaude('límite'); } }));
+    expect(parseTareas((await leer('agenda/tareas.yaml'))!)).toEqual([]);
+    const preguntas: string[] = [];
+    await revisarAula(deps({ navegador: async () => navCon(() => EXAMEN), preguntar: async (_m, t) => (preguntas.push(t), delExamen()) }));
+    expect(preguntas[0]).toContain('etiqueta-200');
+    expect(parseTareas((await leer('agenda/tareas.yaml'))!)).toHaveLength(1);
+  });
+  it('una sección que no se puede leer hoy se salta sin tirar la revisión', async () => {
+    const nav = navCon(() => EXAMEN);
+    const r = await revisarAula(deps({ navegador: async () => ({ ...nav, pedirTexto: async (u) => { if (u.includes('section.php')) throw new ErrorFormato('el aula virtual contestó 500'); return nav.pedirTexto(u); } }) }));
+    expect(r.resultado).toBe('ok');
+  });
+  it('Claude sabe de qué grupo es Diego (horario-ajustes.yaml)', async () => {
+    await writeFile(path.join(carpeta, 'estudios/horario-ajustes.yaml'), 'grupo: "G_ROBOT_1A(F)"\ncurso: 1\ndesdoble: G2\n');
+    const preguntas: string[] = [];
+    await revisarAula(deps({ navegador: async () => navCon(() => EXAMEN), preguntar: async (_m, t) => (preguntas.push(t), delExamen()) }));
+    expect(preguntas[0]).toContain('Diego es del grupo G2');
+  });
+});

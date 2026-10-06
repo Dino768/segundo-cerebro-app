@@ -9,7 +9,8 @@ export interface EstadoAula { ultimaRevision?: string; resultado?: ResultadoRevi
 export interface Pendiente { asignatura: string; avisos: string[]; documentos: string[]; guia: boolean }
 export interface SincronizacionAula {
   estado: EstadoAula;
-  vistos: { materiales: string[]; avisos: string[]; guias: Record<string, string>; fechas: Vistos };
+  // textos: huella de cada texto de la página de la asignatura ya leído por Claude (etiqueta-<id>, seccion-<id>, pagina-<id>).
+  vistos: { materiales: string[]; avisos: string[]; guias: Record<string, string>; textos: Record<string, string>; fechas: Vistos };
   pendientes: Pendiente[];
 }
 
@@ -28,6 +29,8 @@ export function parseSincronizacionAula(texto: string | null): SincronizacionAul
   for (const [origen, bruto] of Object.entries((v.fechas ?? {}) as Record<string, unknown>)) fechas[origen] = leerVisto(origen, bruto, R);
   const guias: Record<string, string> = {};
   for (const [k, h] of Object.entries((v.guias ?? {}) as Record<string, unknown>)) if (typeof h === 'string') guias[k] = h;
+  const textosVistos: Record<string, string> = {};
+  for (const [k, h] of Object.entries((v.textos ?? {}) as Record<string, unknown>)) if (typeof h === 'string') textosVistos[k] = h;
   const pend = d?.pendientes ?? [];
   if (!Array.isArray(pend)) throw new ErrorDatos(R, 'pendientes debe ser una lista');
   return {
@@ -36,7 +39,7 @@ export function parseSincronizacionAula(texto: string | null): SincronizacionAul
       ...(e.resultado === 'ok' || e.resultado === 'necesita-entrar' || e.resultado === 'error' ? { resultado: e.resultado } : {}),
       ...(typeof e.mensaje === 'string' ? { mensaje: e.mensaje } : {}),
     },
-    vistos: { materiales: textos(v.materiales, 'vistos.materiales'), avisos: textos(v.avisos, 'vistos.avisos'), guias, fechas },
+    vistos: { materiales: textos(v.materiales, 'vistos.materiales'), avisos: textos(v.avisos, 'vistos.avisos'), guias, textos: textosVistos, fechas },
     pendientes: pend.map((p: Record<string, unknown>) => ({
       asignatura: String(p?.asignatura ?? ''), avisos: textos(p?.avisos, 'pendientes.avisos'),
       documentos: textos(p?.documentos, 'pendientes.documentos'), guia: p?.guia === true,

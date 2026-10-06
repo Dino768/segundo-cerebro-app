@@ -7,9 +7,10 @@ import { ErrorFormato, type Propuesta } from '../tipos.ts';
 export type Modelo = 'haiku' | 'sonnet' | 'opus';
 export const MODELOS: Modelo[] = ['haiku', 'sonnet', 'opus'];
 
-export interface FuenteTexto { id: string; tipo: 'aviso' | 'guia' | 'documento'; titulo: string; fecha?: ISODate; enlace?: string; texto: string }
+// «curso»: texto que el profe escribe en la propia página de la asignatura (etiquetas, resúmenes, páginas).
+export interface FuenteTexto { id: string; tipo: 'aviso' | 'guia' | 'documento' | 'curso'; titulo: string; fecha?: ISODate; enlace?: string; texto: string }
 export interface FechaConocida { origen: string; titulo: string; tipo?: TipoTarea; fecha: ISODate; hora?: string }
-export interface Pregunta { asignatura: Asignatura; hoy: ISODate; conocidas: FechaConocida[]; fuentes: FuenteTexto[]; conGuia: boolean }
+export interface Pregunta { asignatura: Asignatura; hoy: ISODate; conocidas: FechaConocida[]; fuentes: FuenteTexto[]; conGuia: boolean; grupo?: string }
 export interface FechaClaude {
   clave: string; que: string; tipo: 'examen' | 'entrega' | 'evento'; fecha: ISODate | null; hora: string | null;
   exacta: boolean; cita: string; fuente: string; duda: string | null;
@@ -30,13 +31,14 @@ export function textoPregunta(p: Pregunta): string {
     ? p.conocidas.map((c) => `- ${c.fecha}${c.hora ? ` ${c.hora}` : ''} · ${c.tipo ?? 'tarea'} · ${c.titulo} [${c.origen}]`).join('\n')
     : '- (ninguna)';
   const fuentes = p.fuentes.map((f) => {
-    const cabecera = `### ${f.id} (${f.tipo}${f.fecha ? `, publicado el ${f.fecha}` : ''}): ${f.titulo}`;
+    const cabecera = `### ${f.id} (${f.tipo === 'curso' ? 'página de la asignatura' : f.tipo}${f.fecha ? `, publicado el ${f.fecha}` : ''}): ${f.titulo}`;
     return `${cabecera}\n${f.texto}`;
   }).join('\n\n');
   return [
     `Asignatura: ${p.asignatura.nombre}`,
     `Hoy: ${p.hoy} (${NOMBRE_DIA[diaDeSemana(p.hoy)]})`,
     `Curso: ${curso.inicio} a ${curso.fin}`,
+    ...(p.grupo ? [`Diego es del grupo ${p.grupo}: si hay fechas u horas distintas por grupo, da solo las de su grupo.`] : []),
     // Sin guía no se pide resumen (y la pregunta no menciona el campo entre comillas).
     p.conGuia ? 'Entre los textos está la guía docente: escribe también "evaluacion".' : 'No hay guía docente nueva: la evaluación va a null.',
     '',

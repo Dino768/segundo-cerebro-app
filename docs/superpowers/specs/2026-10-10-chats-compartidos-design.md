@@ -41,9 +41,9 @@ Que exista `chats/<id>/` en GitHub es lo que significa «este chat está compart
 
 ### 3.2 En cada ordenador (no se sube): `estudios/<asignatura>/.en-curso/compartidos.json`
 
-`{ "<id>": { "version": "<sha de chat.json en GitHub tras la última subida o bajada>", "pendiente": boolean } }`
+`{ "<id>": { "version": "<sha de la carpeta chats/<id>/ en GitHub tras la última subida o bajada; '' si aún no se ha subido>", "pendiente": boolean, "compartidoEl": "AAAA-MM-DD" } }`
 
-- `version` permite saber si otro dispositivo ha subido algo desde la última vez.
+- `version` permite saber si otro dispositivo ha subido algo desde la última vez. Se usa el sha de la carpeta, y no el de `chat.json`, porque cambia con cualquier archivo de dentro y sale en una sola petición al listar `chats/`.
 - `pendiente: true` indica que hay mensajes nuevos aquí que aún no se han subido (por ejemplo, si se cerró el navegador justo después de una respuesta).
 
 ### 3.3 Rutas portables
@@ -71,10 +71,11 @@ Que exista `chats/<id>/` en GitHub es lo que significa «este chat está compart
 ### 5.1 Compartir
 1. En un chat del PC o del portátil, Diego toca **«☁ Compartir»**.
 2. La app pide el paquete al programa local, lo sube en un commit (`Chat compartido: <asignatura> · <nombre>`) y guarda `version` en `compartidos.json`.
-3. Desde ahí el chat lleva un ☁ en la lista y el botón pasa a un menú con «Dejar de compartir».
+3. Desde ahí el chat lleva un ☁ en la lista y el botón pasa a ser «☁ Compartido». Al tocarlo, una ventana ofrece «Dejar de compartir».
 
-### 5.2 Cada respuesta
+### 5.2 Cada respuesta (y cada cambio en la pizarra)
 - Cuando Claude termina de contestar en un chat compartido, la app marca `pendiente: true`, sube el paquete y, si sale bien, guarda la nueva `version` y `pendiente: false`.
+- Si Diego cambia la pizarra del chat sin mandar mensaje, se sube igual, 5 segundos después del último cambio. Así lo dibujado llega al otro ordenador.
 - Si la subida falla por falta de conexión, se queda pendiente y se reintenta al abrir la lista de chats o al terminar la siguiente respuesta.
 - Mientras se sube se ve un «☁ Subiendo…» discreto. Si queda pendiente se ve un «☁ Sin subir».
 

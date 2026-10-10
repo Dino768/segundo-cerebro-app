@@ -16,6 +16,28 @@ export interface ResumenConversacion {
   fecha: string; // ISO con hora (última vez que cambió)
 }
 
+// Un archivo de un chat compartido: ruta relativa con / (p. ej. "imagenes/captura-1.png") y su contenido en base64.
+export interface ArchivoPaquete {
+  ruta: string;
+  base64: string;
+}
+
+// chat.json de un chat compartido.
+export interface InfoChat {
+  nombre?: string;
+  compartidoEl: string;
+  actualizado: string;
+  dispositivo: string;
+}
+
+// compartidos.json de cada ordenador. version: sha de la carpeta del chat en GitHub tras la última subida o bajada ('' = aún no subido).
+export interface EntradaCompartido {
+  version: string;
+  pendiente: boolean;
+  compartidoEl: string;
+}
+export type Compartidos = Record<string, EntradaCompartido>;
+
 // Lo que el programa local va mandando mientras Claude contesta.
 export type EventoChat =
   | { tipo: 'texto'; texto: string }

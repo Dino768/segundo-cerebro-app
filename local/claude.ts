@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
-import path from 'node:path';
 import { createInterface } from 'node:readline';
+import { describirHerramienta } from '../src/estudio/conversacion.ts';
 import type { EventoChat } from '../src/estudio/tipos.ts';
 
 export interface OpcionesClaude {
@@ -41,18 +41,7 @@ export function argumentosClaude(o: OpcionesClaude): string[] {
   ];
 }
 
-export function describirHerramienta(nombre: string, entrada: unknown): string {
-  const e = (typeof entrada === 'object' && entrada !== null ? entrada : {}) as Record<string, unknown>;
-  const archivo = typeof e.file_path === 'string' ? path.posix.basename(e.file_path.replace(/\\/g, '/')) : '';
-  const pizarra = /^pizarra-(\d+)\.json$/.exec(archivo);
-  if ((nombre === 'Write' || nombre === 'Edit') && pizarra) return `✏️ Ha dibujado en la pizarra ${pizarra[1]}`;
-  if (nombre === 'Write' || nombre === 'Edit') return `✏️ Ha escrito ${archivo}`;
-  if (nombre === 'Read' && pizarra) return `👀 Ha mirado la pizarra ${pizarra[1]}`;
-  if (nombre === 'Read' && /\.(png|jpe?g|webp|gif)$/i.test(archivo)) return `👀 Ha mirado ${archivo}`;
-  if (nombre === 'Read') return `📖 Ha leído ${archivo}`;
-  if (nombre === 'Glob' || nombre === 'Grep') return '🔎 Ha buscado en tus apuntes';
-  return `🔧 ${nombre}`;
-}
+export { describirHerramienta };
 
 export function explicarError(texto: string, estado?: number): { mensaje: string; uso?: boolean } {
   if (estado === 429 || /usage limit|rate limit|limit reached|límite/i.test(texto))

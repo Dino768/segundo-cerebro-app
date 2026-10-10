@@ -9,7 +9,7 @@ import { ErrorPizarra, validarOperacion, type Operacion } from '../src/estudio/p
 import { VERSION_PROGRAMA, type EventoChat, type EventoPizarra } from '../src/estudio/tipos.ts';
 import type { Aula } from './aula/programador.ts';
 import { lanzarClaude, type Comando, type Proceso } from './claude.ts';
-import { copiarChat, instalarPaquete, leerCompartidos, ponerCompartido, prepararPaquete, tamanoPaquete, type LugarChat } from './compartir.ts';
+import { copiarChat, instalarPaquete, leerCompartidos, marcarPendiente, ponerCompartido, prepararPaquete, tamanoPaquete, type LugarChat } from './compartir.ts';
 import { avisoCarpetaConversaciones, borrarConversacion, carpetaConversaciones, leerConversacionDe, leerNombres, listarConversaciones, ponerNombre } from './conversaciones.ts';
 import { borrarPizarra, crearPizarra, listarPizarras, operarPizarra, pizarrasNoValidas, vigilarPizarras } from './pizarras.ts';
 import { esIdAsignatura, esIdConversacion, esNombreImagen, hostPermitido, origenPermitido, rutaDentro } from './seguridad.ts';
@@ -139,6 +139,9 @@ export function crearServidor(o: OpcionesServidor) {
     return { version: e.version, pendiente: e.pendiente, compartidoEl: e.compartidoEl };
   }
 
+  // Si el chat está compartido, queda por subir desde ya (aunque Diego cierre la app antes de que se suba).
+  const cambiado = (asig: string, id: string) => marcarPendiente(cwdDe(asig), id).catch((e) => console.warn('compartidos.json', e));
+
   function emitirATodos(e: EventoPizarra): void {
     for (const res of oyentes) res.write(`data: ${JSON.stringify(e)}\n\n`);
   }
@@ -159,6 +162,7 @@ export function crearServidor(o: OpcionesServidor) {
     await proceso.terminado;
     res.off('close', alCerrar);
     activos.delete(id);
+    await cambiado(asig, id);
     return ok;
   }
 
@@ -179,6 +183,7 @@ export function crearServidor(o: OpcionesServidor) {
     'POST conversacion/nombre': async (req, res) => {
       const b = await leerJson(req);
       await ponerNombre(cwdDe(asignaturaDe(b.asignatura)), conversacionDe(b.id), nombreChatDe(b.nombre));
+      await cambiado(asignaturaDe(b.asignatura), conversacionDe(b.id));
       enviarJson(res, 200, { ok: true });
     },
 
@@ -318,7 +323,11 @@ export function crearServidor(o: OpcionesServidor) {
 
     'POST pizarra/nueva': async (req, res) => {
       const b = await leerJson(req);
-      enviarJson(res, 200, { n: await crearPizarra(carpetaDe(asignaturaDe(b.asignatura), conversacionDe(b.id))) });
+      const asig = asignaturaDe(b.asignatura);
+      const id = conversacionDe(b.id);
+      const n = await crearPizarra(carpetaDe(asig, id));
+      await cambiado(asig, id);
+      enviarJson(res, 200, { n });
     },
 
     'POST pizarra/borrar': async (req, res) => {
@@ -328,13 +337,16 @@ export function crearServidor(o: OpcionesServidor) {
       // Mientras Claude contesta podría estar escribiendo esa pizarra.
       if (activos.has(id)) throw new ErrorPeticion(409, 'Espera a que Claude termine de contestar');
       await borrarPizarra(carpetaDe(asignaturaDe(b.asignatura), id), n);
+      await cambiado(asignaturaDe(b.asignatura), id);
       enviarJson(res, 200, { ok: true });
     },
 
     'POST pizarra/operacion': async (req, res) => {
       // Una fusión lleva dos pizarras enteras: se deja más sitio que en el resto de peticiones.
       const b = await leerJson(req, 8_000_000);
-      const carpeta = carpetaDe(asignaturaDe(b.asignatura), conversacionDe(b.id));
+      const asig = asignaturaDe(b.asignatura);
+      const id = conversacionDe(b.id);
+      const carpeta = carpetaDe(asig, id);
       const n = numeroPizarra(b.n);
       let op: Operacion;
       try {
@@ -343,7 +355,9 @@ export function crearServidor(o: OpcionesServidor) {
         throw new ErrorPeticion(400, e instanceof Error ? e.message : String(e));
       }
       try {
-        enviarJson(res, 200, await operarPizarra(carpeta, n, op));
+        const p = await operarPizarra(carpeta, n, op);
+        await cambiado(asig, id);
+        enviarJson(res, 200, p);
       } catch (e) {
         if (e instanceof ErrorPizarra) throw new ErrorPeticion(409, e.message);
         throw e;

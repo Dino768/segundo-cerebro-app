@@ -1,8 +1,9 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { rename } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { copiarChat, esRutaPaquete, instalarPaquete, leerCompartidos, ponerCompartido, prepararPaquete, tamanoPaquete, type LugarChat } from './compartir.ts';
+import { copiarChat, esRutaPaquete, instalarPaquete, leerCompartidos, marcarPendiente, ponerCompartido, prepararPaquete, tamanoPaquete, type LugarChat } from './compartir.ts';
 import { leerNombres, ponerNombre } from './conversaciones.ts';
 
 const ID = 'be5aa0c6-9c71-4e9d-8d54-4930d67f1ff3';
@@ -77,6 +78,20 @@ describe('instalarPaquete', () => {
     expect(existsSync(path.join(l.carpetaClaude, `${ID}.jsonl`))).toBe(true);
     expect(existsSync(path.join(l.cwd, '.en-curso', ID, 'pizarra-1.json'))).toBe(true);
   });
+  it('si falla al cambiar las carpetas (Windows con un archivo bloqueado), lo de antes se queda como estaba', async () => {
+    const l = ordenador('fallo');
+    conChat(l);
+    let veces = 0;
+    const renombrar = async (a: string, b: string) => {
+      if (++veces === 5) throw new Error('EPERM');
+      await rename(a, b);
+    };
+    const paquete = [{ ruta: 'conversacion.jsonl', base64: b64('{"nuevo":1}\n') }, { ruta: 'pizarra-1.json', base64: b64('{"nueva":1}') }];
+    await expect(instalarPaquete(l, paquete, renombrar)).rejects.toThrow('EPERM');
+    expect(readFileSync(path.join(l.carpetaClaude, `${ID}.jsonl`), 'utf8')).toContain(ID);
+    expect(existsSync(path.join(l.carpetaClaude, ID, 'subagents', 'a.jsonl'))).toBe(true);
+    expect(readFileSync(path.join(l.cwd, '.en-curso', ID, 'pizarra-1.json'), 'utf8')).toBe('{"version":1}');
+  });
   it('esRutaPaquete', () => {
     expect(esRutaPaquete('imagenes/captura-1.png')).toBe(true);
     for (const mala of ['../x', '/x', 'a//b', '.git/x', 'a\\b', '']) expect(esRutaPaquete(mala)).toBe(false);
@@ -103,6 +118,19 @@ describe('compartidos.json', () => {
     expect((await leerCompartidos(l.cwd))[ID].version).toBe('v1');
     await ponerCompartido(l.cwd, ID, null);
     expect(await leerCompartidos(l.cwd)).toEqual({});
+  });
+  it('cambios a la vez no se pisan', async () => {
+    const l = ordenador('vez');
+    const ids = Array.from({ length: 8 }, (_, i) => `${i}1111111-2222-4333-8444-555555555555`);
+    await Promise.all(ids.map((id) => ponerCompartido(l.cwd, id, { version: 'v', pendiente: false, compartidoEl: '2026-10-10' })));
+    expect(Object.keys(await leerCompartidos(l.cwd)).sort()).toEqual([...ids].sort());
+  });
+  it('marcarPendiente: solo cambia los chats compartidos', async () => {
+    const l = ordenador('marca');
+    await ponerCompartido(l.cwd, ID, { version: 'v1', pendiente: false, compartidoEl: '2026-10-10' });
+    await marcarPendiente(l.cwd, ID);
+    await marcarPendiente(l.cwd, NUEVO);
+    expect(await leerCompartidos(l.cwd)).toEqual({ [ID]: { version: 'v1', pendiente: true, compartidoEl: '2026-10-10' } });
   });
   it('un archivo roto se lee como vacío', async () => {
     const l = ordenador('roto');

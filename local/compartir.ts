@@ -69,8 +69,10 @@ function leerInfo(base64: string | undefined): InfoChat | null {
   }
 }
 
-// Se escribe todo en carpetas temporales y solo al final se cambia por lo que había (si algo falla antes, lo de antes se queda).
-export async function instalarPaquete(l: LugarChat, archivos: ArchivoPaquete[]): Promise<InfoChat | null> {
+// Se escribe todo en carpetas temporales y solo al final se cambia por lo que había. Lo de antes se aparta (.viejo)
+// y, si algo falla a mitad (en Windows, un archivo bloqueado), se vuelve a poner: el chat de aquí no se pierde.
+// `renombrar` solo se cambia en las pruebas.
+export async function instalarPaquete(l: LugarChat, archivos: ArchivoPaquete[], renombrar = rename): Promise<InfoChat | null> {
   if (!archivos.some((a) => a.ruta === CONVERSACION)) throw new Error('El chat compartido no tiene conversación');
   for (const a of archivos) if (!esRutaPaquete(a.ruta)) throw new Error(`Ruta no válida en el chat compartido: ${a.ruta}`);
   const tmpClaude = path.join(l.carpetaClaude, `${l.id}.instalando`);
@@ -87,12 +89,32 @@ export async function instalarPaquete(l: LugarChat, archivos: ArchivoPaquete[]):
       await writeFile(destino, esTextoPortable(a.ruta) ? dePortable(datos.toString('utf8'), l.raiz) : datos);
     }
     await mkdir(tmpCurso, { recursive: true });
-    await rm(path.join(l.carpetaClaude, `${l.id}.jsonl`), { force: true });
-    await rm(path.join(l.carpetaClaude, l.id), { recursive: true, force: true });
-    await rm(path.join(l.cwd, '.en-curso', l.id), { recursive: true, force: true });
-    await rename(path.join(tmpClaude, CONVERSACION), path.join(l.carpetaClaude, `${l.id}.jsonl`));
-    if (existsSync(path.join(tmpClaude, SESION))) await rename(path.join(tmpClaude, SESION), path.join(l.carpetaClaude, l.id));
-    await rename(tmpCurso, path.join(l.cwd, '.en-curso', l.id));
+    // [lo que hay ahora, lo nuevo]
+    const cambios: [string, string][] = [
+      [path.join(l.carpetaClaude, `${l.id}.jsonl`), path.join(tmpClaude, CONVERSACION)],
+      [path.join(l.carpetaClaude, l.id), path.join(tmpClaude, SESION)],
+      [path.join(l.cwd, '.en-curso', l.id), tmpCurso],
+    ];
+    for (const [actual] of cambios) await rm(`${actual}.viejo`, { recursive: true, force: true });
+    const apartados: string[] = [];
+    const puestos: string[] = [];
+    try {
+      for (const [actual] of cambios)
+        if (existsSync(actual)) {
+          await renombrar(actual, `${actual}.viejo`);
+          apartados.push(actual);
+        }
+      for (const [actual, nuevo] of cambios)
+        if (existsSync(nuevo)) {
+          await renombrar(nuevo, actual);
+          puestos.push(actual);
+        }
+    } catch (e) {
+      for (const p of puestos) await rm(p, { recursive: true, force: true });
+      for (const a of apartados) await rename(`${a}.viejo`, a);
+      throw e;
+    }
+    for (const a of apartados) await rm(`${a}.viejo`, { recursive: true, force: true });
   } finally {
     await rm(tmpClaude, { recursive: true, force: true });
     await rm(tmpCurso, { recursive: true, force: true });
@@ -123,6 +145,22 @@ export async function copiarChat(l: LugarChat, nuevoId: string, nombre: string):
 
 const archivoCompartidos = (cwd: string) => path.join(cwd, '.en-curso', 'compartidos.json');
 
+// Los cambios de compartidos.json van de uno en uno (si no, dos a la vez leen lo mismo y uno pisa al otro).
+const colas = new Map<string, Promise<unknown>>();
+function enCola<T>(cwd: string, hacer: () => Promise<T>): Promise<T> {
+  const antes = colas.get(cwd) ?? Promise.resolve();
+  const ahora = antes.catch(() => undefined).then(hacer);
+  colas.set(cwd, ahora);
+  return ahora;
+}
+
+async function cambiarCompartidos(cwd: string, cambiar: (c: Compartidos) => boolean): Promise<void> {
+  const c = await leerCompartidos(cwd);
+  if (!cambiar(c)) return;
+  await mkdir(path.dirname(archivoCompartidos(cwd)), { recursive: true });
+  await escribirAtomico(archivoCompartidos(cwd), JSON.stringify(c, null, 2) + '\n');
+}
+
 export async function leerCompartidos(cwd: string): Promise<Compartidos> {
   try {
     const j: unknown = JSON.parse(await readFile(archivoCompartidos(cwd), 'utf8'));
@@ -137,10 +175,23 @@ export async function leerCompartidos(cwd: string): Promise<Compartidos> {
   }
 }
 
-export async function ponerCompartido(cwd: string, id: string, e: EntradaCompartido | null): Promise<void> {
-  const c = await leerCompartidos(cwd);
-  if (e) c[id] = e;
-  else delete c[id];
-  await mkdir(path.dirname(archivoCompartidos(cwd)), { recursive: true });
-  await escribirAtomico(archivoCompartidos(cwd), JSON.stringify(c, null, 2) + '\n');
+export function ponerCompartido(cwd: string, id: string, e: EntradaCompartido | null): Promise<void> {
+  return enCola(cwd, () =>
+    cambiarCompartidos(cwd, (c) => {
+      if (e) c[id] = e;
+      else delete c[id];
+      return true;
+    }),
+  );
+}
+
+// Algo ha cambiado en este chat (una respuesta de Claude, la pizarra, el nombre): queda por subir aunque se cierre la app.
+export function marcarPendiente(cwd: string, id: string): Promise<void> {
+  return enCola(cwd, () =>
+    cambiarCompartidos(cwd, (c) => {
+      if (!c[id] || c[id].pendiente) return false;
+      c[id] = { ...c[id], pendiente: true };
+      return true;
+    }),
+  );
 }

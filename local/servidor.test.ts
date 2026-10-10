@@ -300,6 +300,28 @@ describe('chats compartidos', () => {
     await post('compartidos', { asignatura: 'fisica', id: ID, entrada: null });
     expect(await (await fetch(`${API}compartidos?asignatura=fisica`)).json()).toEqual({});
   });
+  it('una respuesta de Claude o un cambio en la pizarra dejan el chat compartido por subir al momento', async () => {
+    const pz = '77777777-7777-4777-8777-777777777777';
+    const limpio = { version: 'v1', pendiente: false, compartidoEl: '2026-10-10' };
+    const pendiente = async () => ((await (await fetch(`${API}compartidos?asignatura=fisica`)).json()) as Record<string, { pendiente: boolean }>)[pz]?.pendiente;
+    await post('compartidos', { asignatura: 'fisica', id: pz, entrada: limpio });
+    const { n } = (await (await post('pizarra/nueva', { asignatura: 'fisica', id: pz })).json()) as { n: number };
+    expect(await pendiente()).toBe(true);
+    await post('compartidos', { asignatura: 'fisica', id: pz, entrada: limpio });
+    expect((await post('pizarra/operacion', { asignatura: 'fisica', id: pz, n, op: { tipo: 'nota', id: null, x: 1, y: 2, contenido: 'Hola' } })).status).toBe(200);
+    expect(await pendiente()).toBe(true);
+    await post('compartidos', { asignatura: 'fisica', id: pz, entrada: limpio });
+    await eventos(await post('mensaje', { asignatura: 'fisica', id: pz, nueva: true, texto: 'Hola', imagenes: [], pizarraAbierta: null }));
+    expect(await pendiente()).toBe(true);
+    await post('compartidos', { asignatura: 'fisica', id: pz, entrada: limpio });
+    await post('conversacion/nombre', { asignatura: 'fisica', id: pz, nombre: 'Otro nombre' });
+    expect(await pendiente()).toBe(true);
+    // Un chat que no está compartido no aparece en compartidos.json.
+    const suelto = '66666666-6666-4666-8666-666666666666';
+    await post('pizarra/nueva', { asignatura: 'fisica', id: suelto });
+    expect(((await (await fetch(`${API}compartidos?asignatura=fisica`)).json()) as Record<string, unknown>)[suelto]).toBeUndefined();
+    await post('compartidos', { asignatura: 'fisica', id: pz, entrada: null });
+  });
   it('rechaza una entrada mal formada', async () => {
     expect((await post('compartidos', { asignatura: 'fisica', id: ID, entrada: { version: 1 } })).status).toBe(400);
   });

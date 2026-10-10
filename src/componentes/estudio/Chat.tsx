@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent } from 'react';
 import { subirImagen, urlArchivo } from '../../estudio/local';
 import type { Mensaje } from '../../estudio/tipos';
+import type { EstadoCompartir } from './useCompartir';
 import { Markdown } from '../Markdown';
 import { URL_USO_CLAUDE } from '../navegacion';
 
@@ -22,6 +23,27 @@ interface Props {
   alVerLista(): void;
   alNueva(): void;
   alEnsenarPizarra?(): void; // manda solo la foto de la pizarra abierta
+  compartir?: { estado: EstadoCompartir; alCompartir(): void; alDejar(): void }; // el botón ☁ (zona de estudio del PC)
+  avisoCompartir?: { texto: string; alCerrar(): void };
+}
+
+function BotonCompartir({ c, enviando }: { c: NonNullable<Props['compartir']>; enviando: boolean }) {
+  if (c.estado === 'subiendo') return <span className="detalle estado-compartir">☁ Subiendo…</span>;
+  if (c.estado === 'hecho')
+    return <button className="enlace estado-compartir" disabled={enviando} title="Dejar de compartir" onClick={c.alDejar}>☁ Compartido</button>;
+  if (c.estado === 'pendiente')
+    return <button className="enlace estado-compartir" disabled={enviando} title="No se ha podido subir: tócalo para reintentar" onClick={c.alCompartir}>☁ Sin subir</button>;
+  const sinToken = c.estado === 'sin-token';
+  return (
+    <button
+      className="estado-compartir"
+      disabled={enviando || sinToken}
+      title={sinToken ? 'Para compartir chats, pon tu llave de GitHub en Ajustes' : 'Compartir con tus otros dispositivos'}
+      onClick={c.alCompartir}
+    >
+      ☁ Compartir
+    </button>
+  );
 }
 
 export function Chat(p: Props) {
@@ -87,6 +109,7 @@ export function Chat(p: Props) {
         {/* Mientras Claude contesta no se cambia de conversación: la respuesta acabaría en la otra. */}
         <button className="enlace" onClick={p.alVerLista} disabled={p.enviando}>◂ Conversaciones</button>
         <span className="titulo-chat">{p.titulo || 'Conversación nueva'}</span>
+        {p.compartir && p.mensajes.length > 0 && <BotonCompartir c={p.compartir} enviando={p.enviando} />}
         <button onClick={p.alNueva} disabled={p.enviando} aria-label="Conversación nueva">+</button>
       </div>
       <div className="chat-mensajes" ref={lista}>
@@ -119,6 +142,9 @@ export function Chat(p: Props) {
         </div>
       )}
       {aviso && <div className="banner aviso chat-aviso">{aviso} <button onClick={() => setAviso(null)}>Cerrar</button></div>}
+      {p.avisoCompartir && (
+        <div className="banner error chat-aviso">☁ {p.avisoCompartir.texto} <button onClick={p.avisoCompartir.alCerrar}>Cerrar</button></div>
+      )}
       {(adjuntos.length > 0 || subiendo > 0) && (
         <div className="miniaturas chat-adjuntos">
           {adjuntos.map((n) => (

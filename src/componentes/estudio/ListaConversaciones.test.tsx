@@ -23,4 +23,10 @@ describe('FilasChats', () => {
     expect(renderToString(<FilasChats lista={lista} busqueda="newton" alBuscar={nada} alAbrir={nada} alRenombrar={nada} alBorrar={nada} />)).not.toContain('Derivadas');
     expect(renderToString(<FilasChats lista={lista} busqueda="química" alBuscar={nada} alAbrir={nada} alRenombrar={nada} alBorrar={nada} />)).toContain('Ningún chat se llama así.');
   });
+  it('los chats compartidos llevan ☁', () => {
+    const conNube = [{ id: 'a', titulo: 'Newton', fecha: '2026-10-10T10:00:00Z', compartido: true }, { id: 'b', titulo: 'Derivadas', fecha: '2026-10-10T10:00:00Z' }];
+    const html = renderToString(<FilasChats lista={conNube} busqueda="" alBuscar={nada} alAbrir={nada} alRenombrar={nada} alBorrar={nada} />);
+    expect(html).toContain('title="Compartido con tus otros dispositivos"');
+    expect(html.match(/☁/g)).toHaveLength(1);
+  });
 });

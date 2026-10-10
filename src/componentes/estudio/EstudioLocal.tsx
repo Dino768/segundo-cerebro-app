@@ -22,6 +22,7 @@ import type { HacerFoto } from './fotoPizarra';
 import { VisorHistorial } from './Historial';
 import { ListaConversaciones } from './ListaConversaciones';
 import { Pizarra } from './Pizarra';
+import { useCompartir } from './useCompartir';
 
 interface Props {
   asignatura: Asignatura;
@@ -62,6 +63,8 @@ export function EstudioLocal({ asignatura, local }: Props) {
   const { config } = useDatos();
   const hoy = useHoy();
   const pantalla = usePantallaCompleta();
+  // ☁ Chats compartidos con el otro ordenador (y para leer en el móvil).
+  const compartir = useCompartir(asignatura.id, conv?.id ?? null, nombreChat ?? mensajes.find((m) => m.rol === 'diego')?.texto.slice(0, 60) ?? '');
   const [chatFlotante, setChatFlotante] = useState(false);
   const [historialAbierto, setHistorialAbierto] = useState<EntradaHistorial | null>(null);
   const [guardado, setGuardado] = useState<Record<number, 'subiendo' | 'pendiente' | 'hecho'>>({});
@@ -139,6 +142,12 @@ export function EstudioLocal({ asignatura, local }: Props) {
     if (!conv || enviando) return;
     setError(null);
     setEnviando(true);
+    // En un chat compartido, primero se trae lo que se haya escrito en el otro ordenador.
+    const antes = await compartir.antesDeEnviar().catch(() => 'igual' as const);
+    if (antes !== 'igual') {
+      setMensajes(await leerConversacion(asignatura.id, conv.id).catch(() => [] as Mensaje[]));
+      await recargarPizarras(conv.id);
+    }
     // Si Diego ha cambiado la pizarra abierta (o pulsa 👁), el mensaje lleva una foto de lo que ve.
     let foto = fotoPrevia;
     const n = abiertaAhora?.n ?? null;
@@ -179,6 +188,7 @@ export function EstudioLocal({ asignatura, local }: Props) {
       guardarPreferencia(claveUltima(asignatura.id), conv.id);
     }
     await recargarPizarras(conv.id);
+    compartir.tras(true);
   }
 
   // Devuelve la pizarra ya cambiada, o null si no se pudo (para que el guardado sepa si quedó marcado).
@@ -187,6 +197,8 @@ export function EstudioLocal({ asignatura, local }: Props) {
     try {
       if (esOperacionDeDiego(op)) cambiadas.current.add(n);
       const p = await operarPizarra(asignatura.id, conv.id, n, op);
+      // Lo que Diego dibuja en un chat compartido también se sube (5 s después del último cambio).
+      if (esOperacionDeDiego(op) || op.tipo === 'guardada') compartir.tras(false);
       setPizarras((ps) => ps.map((e) => (e.n === n ? { ...e, pizarra: p, error: null } : e)));
       // Guardar y juntar cambian también la copia base: se vuelve a leer.
       if (op.tipo === 'guardada' || op.tipo === 'fusionar') await recargarPizarras(conv.id);
@@ -339,6 +351,7 @@ export function EstudioLocal({ asignatura, local }: Props) {
           alNueva={nueva}
           alVolver={() => setVista('chat')}
           alAbrirHistorial={setHistorialAbierto}
+          contestando={enviando ? conv.id : null}
           alRenombrada={(id, titulo) => {
             if (id === conv.id) setNombreChat(titulo);
           }}
@@ -363,6 +376,13 @@ export function EstudioLocal({ asignatura, local }: Props) {
           alVerLista={() => setVista('lista')}
           alNueva={nueva}
           alEnsenarPizarra={abiertaAhora?.pizarra ? () => void enviar('Mira lo que he hecho en la pizarra', [], true) : undefined}
+          compartir={{
+            estado: compartir.estado,
+            // «☁ Sin subir» vuelve a intentar la subida; «☁ Compartir» lo comparte.
+            alCompartir: () => (compartir.estado === 'pendiente' ? compartir.tras(true) : void compartir.compartir()),
+            alDejar: () => void compartir.dejar(),
+          }}
+          avisoCompartir={compartir.error ? { texto: compartir.error, alCerrar: compartir.quitarError } : undefined}
         />
       )}
       {conPizarra && (

@@ -454,3 +454,8 @@ body.con-pantalla-completa { overflow: hidden; }
   .clase-bloque { padding: 2px 3px; font-size: 10px; }
   .clase-aula, .clase-marca { display: none; }
 }
+
+.estado-compartir {
+  white-space: nowrap;
+  font-size: 0.85em;
+}

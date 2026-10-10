@@ -14,6 +14,7 @@ export interface ResumenConversacion {
   id: string;
   titulo: string;
   fecha: string; // ISO con hora (última vez que cambió)
+  compartido?: boolean; // lo pone la app con compartidos.json
 }
 
 // Un archivo de un chat compartido: ruta relativa con / (p. ej. "imagenes/captura-1.png") y su contenido en base64.

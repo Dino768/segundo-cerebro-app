@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Asignatura } from '../../datos/asignaturas';
+import { useDatos } from '../../estado/datos';
 import { confirmar, pedirTexto } from '../../estado/dialogos';
 import { buscarChats } from '../../estudio/buscarChats';
 import type { EntradaHistorial } from '../../estudio/historial';
-import { borrarConversacion, listarConversaciones, renombrarConversacion } from '../../estudio/local';
-import type { ResumenConversacion } from '../../estudio/tipos';
+import { borrarConversacion, leerCompartidosLocal, listarConversaciones, renombrarConversacion } from '../../estudio/local';
+import type { Compartidos, ResumenConversacion } from '../../estudio/tipos';
 import { ListaHistorial } from './Historial';
+import { sincronizadorDe } from './useCompartir';
 
 interface Props {
   asignatura: Asignatura;
@@ -15,6 +17,7 @@ interface Props {
   alAbrirHistorial(e: EntradaHistorial): void;
   alRenombrada(id: string, titulo: string): void; // para cambiar el título del chat abierto
   alBorrada(id: string): void; // si era el chat abierto, se empieza uno nuevo
+  contestando: string | null; // el chat en el que Claude está contestando (no se toca al sincronizar)
 }
 
 interface PropsFilas {
@@ -36,6 +39,7 @@ export function FilasChats({ lista, busqueda, alBuscar, alAbrir, alRenombrar, al
       <ul className="lista">
         {vistos.map((c) => (
           <li key={c.id} className="fila-proyecto">
+            {c.compartido && <span className="detalle" title="Compartido con tus otros dispositivos">☁</span>}
             <button className="titulo-tarea" onClick={() => alAbrir(c)}>{c.titulo}</button>
             <span className="detalle">{new Date(c.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
             <button className="enlace" aria-label="Cambiar el nombre" title="Cambiar el nombre" onClick={() => alRenombrar(c)}>✏️</button>
@@ -47,14 +51,38 @@ export function FilasChats({ lista, busqueda, alBuscar, alAbrir, alRenombrar, al
   );
 }
 
-export function ListaConversaciones({ asignatura, alAbrir, alNueva, alVolver, alAbrirHistorial, alRenombrada, alBorrada }: Props) {
+export function ListaConversaciones({ asignatura, alAbrir, alNueva, alVolver, alAbrirHistorial, alRenombrada, alBorrada, contestando }: Props) {
   const [lista, setLista] = useState<ResumenConversacion[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
+  const { config } = useDatos();
+  const contestandoRef = useRef(contestando);
+  contestandoRef.current = contestando;
 
-  useEffect(() => {
-    listarConversaciones(asignatura.id).then(setLista, (e: Error) => setError(e.message));
+  // Lo de este ordenador, con ☁ en los compartidos.
+  const cargar = useCallback(async () => {
+    const [l, c] = await Promise.all([listarConversaciones(asignatura.id), leerCompartidosLocal(asignatura.id).catch(() => ({}) as Compartidos)]);
+    setLista(l.map((x) => (c[x.id] ? { ...x, compartido: true } : x)));
+    return l;
   }, [asignatura.id]);
+
+  // Primero se enseña lo de aquí; luego se trae lo compartido desde otro ordenador y se vuelve a enseñar.
+  useEffect(() => {
+    let vivo = true;
+    void (async () => {
+      try {
+        const l = await cargar();
+        if (!config || !vivo) return;
+        const titulos = Object.fromEntries(l.map((x) => [x.id, x.titulo]));
+        if (await sincronizadorDe(config).sincronizar(asignatura.id, titulos, (id) => id === contestandoRef.current)) if (vivo) await cargar();
+      } catch (e) {
+        if (vivo) setError(e instanceof Error ? e.message : String(e));
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [asignatura.id, config, cargar]);
 
   const renombrar = async (c: ResumenConversacion) => {
     const nombre = await pedirTexto('Nombre del chat (vacío: el de su primera pregunta)', { inicial: c.titulo, permitirVacio: true });
@@ -62,22 +90,31 @@ export function ListaConversaciones({ asignatura, alAbrir, alNueva, alVolver, al
     try {
       await renombrarConversacion(asignatura.id, c.id, nombre);
       setError(null);
-      const nueva = await listarConversaciones(asignatura.id);
-      setLista(nueva);
-      alRenombrada(c.id, nueva.find((x) => x.id === c.id)?.titulo ?? nombre);
+      const nueva = await cargar();
+      const titulo = nueva.find((x) => x.id === c.id)?.titulo ?? nombre;
+      alRenombrada(c.id, titulo);
+      // Un chat compartido se sube con su nombre nuevo.
+      if (c.compartido && config) void sincronizadorDe(config).subir(asignatura.id, c.id, titulo).catch(() => undefined);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
   };
 
   const borrar = async (c: ResumenConversacion) => {
+    if (c.compartido && !config) {
+      setError('Para borrar un chat compartido hace falta la llave de GitHub (Ajustes).');
+      return;
+    }
     const ok = await confirmar(
-      `¿Borrar el chat «${c.titulo}»? Se borra la conversación y sus pizarras a medias. Las pizarras que guardaste en el historial se quedan. No se puede deshacer.`,
+      c.compartido
+        ? `¿Borrar el chat «${c.titulo}»? Está compartido: se borrará en todos tus dispositivos. Las pizarras que guardaste en el historial se quedan. No se puede deshacer.`
+        : `¿Borrar el chat «${c.titulo}»? Se borra la conversación y sus pizarras a medias. Las pizarras que guardaste en el historial se quedan. No se puede deshacer.`,
       { aceptar: 'Borrar', peligro: true },
     );
     if (!ok) return;
     try {
-      await borrarConversacion(asignatura.id, c.id);
+      if (c.compartido && config) await sincronizadorDe(config).borrarEnTodos(asignatura.id, c.id, c.titulo);
+      else await borrarConversacion(asignatura.id, c.id);
       setError(null);
       setLista((l) => l?.filter((x) => x.id !== c.id) ?? l);
       alBorrada(c.id);

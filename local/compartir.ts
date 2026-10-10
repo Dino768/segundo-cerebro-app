@@ -72,7 +72,8 @@ function leerInfo(base64: string | undefined): InfoChat | null {
 // Se escribe todo en carpetas temporales y solo al final se cambia por lo que había. Lo de antes se aparta (.viejo)
 // y, si algo falla a mitad (en Windows, un archivo bloqueado), se vuelve a poner: el chat de aquí no se pierde.
 // `renombrar` solo se cambia en las pruebas.
-export async function instalarPaquete(l: LugarChat, archivos: ArchivoPaquete[], renombrar = rename): Promise<InfoChat | null> {
+export async function instalarPaquete(l: LugarChat, archivos: ArchivoPaquete[], renombrar: (de: string, a: string) => Promise<void> = rename,
+): Promise<InfoChat | null> {
   if (!archivos.some((a) => a.ruta === CONVERSACION)) throw new Error('El chat compartido no tiene conversación');
   for (const a of archivos) if (!esRutaPaquete(a.ruta)) throw new Error(`Ruta no válida en el chat compartido: ${a.ruta}`);
   const tmpClaude = path.join(l.carpetaClaude, `${l.id}.instalando`);

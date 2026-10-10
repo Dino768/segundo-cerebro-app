@@ -25,7 +25,7 @@ export function sincronizadorDe(cfg: Config) {
     },
     remoto: {
       listar: (a) => listarRemotos(cfg, a),
-      subir: (a, id, archivos, titulo) => subirPaquete(cfg, a, id, archivos, titulo),
+      subir: (a, id, archivos, titulo, esperada) => subirPaquete(cfg, a, id, archivos, titulo, esperada),
       bajar: (a, id) => bajarPaquete(cfg, a, id),
       quitar: (a, id, titulo) => quitarRemoto(cfg, a, id, titulo),
     },
@@ -40,7 +40,8 @@ const DE_RESULTADO: Record<ResultadoSubida, EstadoCompartir> = {
 
 const mensajeDe = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-export function useCompartir(asig: string, id: string | null, titulo: string) {
+// `alCambiar(id)`: lo que se ve de ese chat ha cambiado por debajo (se ha traído lo del otro ordenador): hay que volver a leerlo.
+export function useCompartir(asig: string, id: string | null, titulo: string, alCambiar?: (id: string) => void) {
   const { config } = useDatos();
   const sinc = useMemo(() => (config ? sincronizadorDe(config) : null), [config]);
   const [estado, setEstado] = useState<EstadoCompartir>('no');
@@ -49,28 +50,34 @@ export function useCompartir(asig: string, id: string | null, titulo: string) {
   estadoRef.current = estado;
   const tituloRef = useRef(titulo);
   tituloRef.current = titulo || 'Chat';
+  const alCambiarRef = useRef(alCambiar);
+  alCambiarRef.current = alCambiar;
 
-  // Al abrir un chat: ¿está compartido? ¿quedó algo sin subir?
+  // Al abrir un chat: ¿está compartido? ¿quedó algo sin subir? Si está compartido, se trae lo del otro ordenador.
   useEffect(() => {
     if (!id) return;
     let vivo = true;
     setEstado(config ? 'no' : 'sin-token');
-    leerCompartidosLocal(asig).then(
-      (c) => {
-        if (vivo && config) setEstado(!c[id] ? 'no' : c[id].pendiente ? 'pendiente' : 'hecho');
-      },
-      () => undefined,
-    );
+    void (async () => {
+      const c = await leerCompartidosLocal(asig).catch(() => null);
+      if (!vivo || !config || !c) return;
+      setEstado(!c[id] ? 'no' : c[id].pendiente ? 'pendiente' : 'hecho');
+      if (!c[id] || !sinc) return;
+      const r = await sinc.antesDeEnviar(asig, id, tituloRef.current).catch(() => 'igual' as const);
+      if (r !== 'igual' && vivo) alCambiarRef.current?.(id);
+    })();
     return () => {
       vivo = false;
     };
-  }, [asig, id, config]);
+  }, [asig, id, config, sinc]);
 
   const subirAhora = useCallback(async () => {
     if (!sinc || !id) return;
     setEstado('subiendo');
     try {
-      setEstado(DE_RESULTADO[await sinc.subir(asig, id, tituloRef.current)]);
+      const r = await sinc.subir(asig, id, tituloRef.current);
+      setEstado(DE_RESULTADO[r]);
+      if (r === 'conflicto') alCambiarRef.current?.(id);
     } catch (e) {
       setError(mensajeDe(e));
       setEstado('pendiente');

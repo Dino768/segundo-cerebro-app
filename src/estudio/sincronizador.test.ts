@@ -103,6 +103,38 @@ describe('sincronizador', () => {
     expect(d.local.borrar).not.toHaveBeenCalled();
     expect(compartidos.a).toBeDefined();
   });
+  it('al subir dice de qué versión de GitHub parte (para no pisar la de otro dispositivo)', async () => {
+    const { s, d } = falso({ a: e('v1', true) }, [{ id: 'a', version: 'v1' }]);
+    expect(await s.subir('calculo', 'a', 'Derivadas')).toBe('hecho');
+    expect(d.remoto.subir).toHaveBeenCalledWith('calculo', 'a', expect.any(Array), 'Derivadas', 'v1');
+  });
+  it('subir y sincronizar el mismo chat a la vez (desde dos pantallas) van de uno en uno: sin copias falsas ni dos subidas', async () => {
+    const remotos = [{ id: 'a', version: 'v1' }];
+    const { d, compartidos } = falso({ a: e('v1', true) }, remotos);
+    d.remoto.subir.mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+      remotos[0] = { id: 'a', version: 'v2' };
+      return 'v2';
+    });
+    const chat = crearSincronizador(d);
+    const lista = crearSincronizador(d);
+    await Promise.all([chat.subir('calculo', 'a', 'Derivadas'), lista.sincronizar('calculo', { a: 'Derivadas' })]);
+    expect(d.remoto.subir).toHaveBeenCalledTimes(1);
+    expect(d.local.copiar).not.toHaveBeenCalled();
+    expect(compartidos.a).toMatchObject({ version: 'v2', pendiente: false });
+  });
+  it('dos sincronizar a la vez de la misma asignatura se hacen una sola vez', async () => {
+    const { s, d } = falso({}, [{ id: 'nuevo', version: 'v5' }]);
+    await Promise.all([s.sincronizar('calculo', {}), crearSincronizador(d).sincronizar('calculo', {})]);
+    expect(d.remoto.listar).toHaveBeenCalledTimes(1);
+    expect(d.local.instalar).toHaveBeenCalledTimes(1);
+  });
+  it('el aviso de conflicto no hace esperar a lo demás mientras Diego no lo cierra', async () => {
+    const { s, d } = falso({ a: e('v1', true) }, [{ id: 'a', version: 'v2' }]);
+    d.avisar.mockImplementation(() => new Promise(() => undefined)); // Diego aún no ha tocado «Entendido»
+    expect(await s.subir('calculo', 'a', 'Derivadas')).toBe('conflicto');
+    expect(await s.antesDeEnviar('calculo', 'a', 'Derivadas')).toBe('igual');
+  });
   it('borrarEnTodos con red borra allí y aquí', async () => {
     const { s, d, compartidos } = falso({ a: e('v1') });
     await s.borrarEnTodos('calculo', 'a', 'x');

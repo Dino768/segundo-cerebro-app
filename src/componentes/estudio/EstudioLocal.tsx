@@ -64,7 +64,14 @@ export function EstudioLocal({ asignatura, local }: Props) {
   const hoy = useHoy();
   const pantalla = usePantallaCompleta();
   // ☁ Chats compartidos con el otro ordenador (y para leer en el móvil).
-  const compartir = useCompartir(asignatura.id, conv?.id ?? null, nombreChat ?? mensajes.find((m) => m.rol === 'diego')?.texto.slice(0, 60) ?? '');
+  // Si se ha traído lo del otro ordenador mientras este chat está abierto, se vuelve a leer.
+  const convAbierta = useRef<string | null>(null);
+  convAbierta.current = conv?.id ?? null;
+  const compartir = useCompartir(asignatura.id, conv?.id ?? null, nombreChat ?? mensajes.find((m) => m.rol === 'diego')?.texto.slice(0, 60) ?? '', (id) => {
+    if (convAbierta.current !== id) return;
+    void leerConversacion(asignatura.id, id).then((ms) => convAbierta.current === id && setMensajes(ms), () => undefined);
+    void recargarPizarras(id);
+  });
   const [chatFlotante, setChatFlotante] = useState(false);
   const [historialAbierto, setHistorialAbierto] = useState<EntradaHistorial | null>(null);
   const [guardado, setGuardado] = useState<Record<number, 'subiendo' | 'pendiente' | 'hecho'>>({});

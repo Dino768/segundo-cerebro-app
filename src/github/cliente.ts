@@ -40,8 +40,10 @@ function textoABase64(texto: string): string {
 
 const API_REPO = (cfg: Config) => `https://api.github.com/repos/${cfg.owner}/${cfg.repo}`;
 
-async function peticion(cfg: Config, ruta: string, init: RequestInit = {}): Promise<Response> {
-  return pedirUrl(cfg, `${API_REPO(cfg)}/contents/${ruta.split('/').map(encodeURIComponent).join('/')}`, ruta, init);
+// `ref`: leerlo tal como estaba en ese commit (si no, en la rama principal).
+async function peticion(cfg: Config, ruta: string, init: RequestInit = {}, ref?: string): Promise<Response> {
+  const url = `${API_REPO(cfg)}/contents/${ruta.split('/').map(encodeURIComponent).join('/')}`;
+  return pedirUrl(cfg, ref ? `${url}?ref=${encodeURIComponent(ref)}` : url, ruta, init);
 }
 
 // Peticiones a la API de Git del repositorio (git/blobs, git/trees…). `ruta` vacía = el propio repositorio.
@@ -97,6 +99,22 @@ export async function listarCarpeta(cfg: Config, ruta: string): Promise<string[]
   }
 }
 
+// Falla si esta llave no puede ver el repositorio (en uno privado GitHub da 404, igual que una carpeta que no existe).
+export async function comprobarAcceso(cfg: Config): Promise<void> {
+  await peticionRepo(cfg, '');
+}
+
+// El sha que Git da a un archivo: si coincide con el de GitHub, no hace falta volver a subirlo.
+export async function shaDeBlob(base64: string): Promise<string> {
+  const binario = atob(base64);
+  const cabecera = new TextEncoder().encode(`blob ${binario.length}\0`);
+  const datos = new Uint8Array(cabecera.length + binario.length);
+  datos.set(cabecera);
+  for (let i = 0; i < binario.length; i++) datos[cabecera.length + i] = binario.charCodeAt(i);
+  const hash = new Uint8Array(await crypto.subtle.digest('SHA-1', datos));
+  return Array.from(hash, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 export interface EntradaCarpeta {
   nombre: string;
   tipo: 'file' | 'dir';
@@ -104,9 +122,9 @@ export interface EntradaCarpeta {
 }
 
 // Archivos y carpetas de una carpeta, con su sha (el de una carpeta cambia con cualquier archivo de dentro). [] si no existe.
-export async function listarEntradas(cfg: Config, ruta: string): Promise<EntradaCarpeta[]> {
+export async function listarEntradas(cfg: Config, ruta: string, ref?: string): Promise<EntradaCarpeta[]> {
   try {
-    const j = (await (await peticion(cfg, ruta)).json()) as { name: string; type: string; sha: string }[];
+    const j = (await (await peticion(cfg, ruta, {}, ref)).json()) as { name: string; type: string; sha: string }[];
     if (!Array.isArray(j)) return [];
     return j.filter((e) => e.type === 'file' || e.type === 'dir').map((e) => ({ nombre: e.name, tipo: e.type as 'file' | 'dir', sha: e.sha }));
   } catch (e) {
@@ -138,7 +156,11 @@ export interface CambioArbol {
 }
 
 // Todos los cambios en un solo commit (API de árboles). Si la rama avanzó mientras tanto, se rehace encima (hasta 3 veces).
-export async function subirCambios(cfg: Config, cambios: CambioArbol[], mensaje: string): Promise<void> {
+// `comprobar` mira la rama antes de cada intento (recibe el commit de encima) y lanza un error si ya no se debe subir.
+// Devuelve el commit nuevo.
+export async function subirCambios(
+  cfg: Config, cambios: CambioArbol[], mensaje: string, comprobar?: (padre: string) => Promise<void>,
+): Promise<string> {
   const post = async (ruta: string, cuerpo: unknown) => (await peticionRepo(cfg, ruta, { method: 'POST', body: JSON.stringify(cuerpo) })).json();
   const rama = ((await (await peticionRepo(cfg, '')).json()) as { default_branch: string }).default_branch;
   const shas = new Map<string, string>();
@@ -146,12 +168,13 @@ export async function subirCambios(cfg: Config, cambios: CambioArbol[], mensaje:
   const arbol = cambios.map((c) => ({ path: c.ruta, mode: '100644', type: 'blob', sha: c.base64 === null ? null : shas.get(c.ruta)! }));
   for (let intento = 0; ; intento++) {
     const padre = ((await (await peticionRepo(cfg, `git/ref/heads/${rama}`)).json()) as { object: { sha: string } }).object.sha;
+    await comprobar?.(padre);
     const base = ((await (await peticionRepo(cfg, `git/commits/${padre}`)).json()) as { tree: { sha: string } }).tree.sha;
     const nuevoArbol = ((await post('git/trees', { base_tree: base, tree: arbol })) as { sha: string }).sha;
     const commit = ((await post('git/commits', { message: mensaje, tree: nuevoArbol, parents: [padre] })) as { sha: string }).sha;
     try {
       await peticionRepo(cfg, `git/refs/heads/${rama}`, { method: 'PATCH', body: JSON.stringify({ sha: commit, force: false }) });
-      return;
+      return commit;
     } catch (e) {
       if (e instanceof ErrorGitHub && e.tipo === 'conflicto' && intento < 2) continue;
       throw e;

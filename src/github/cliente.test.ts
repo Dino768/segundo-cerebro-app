@@ -1,7 +1,8 @@
+import { createHash } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  actualizarArchivo, borrarArchivo, ErrorGitHub, escribirArchivo, escribirBase64, leerArchivo, leerBinario, leerBlob, listarArchivosDe, listarCarpeta,
-  listarEntradas, subirCambios,
+  actualizarArchivo, borrarArchivo, comprobarAcceso, ErrorGitHub, escribirArchivo, escribirBase64, leerArchivo, leerBinario, leerBlob, listarArchivosDe,
+  listarCarpeta, listarEntradas, shaDeBlob, subirCambios,
 } from './cliente';
 
 const cfg = { owner: 'diego', repo: 'my-context', token: 'secreto' };
@@ -151,6 +152,20 @@ describe('carpetas y blobs', () => {
     fetchMock.mockResolvedValueOnce(json(404, { message: 'Not Found' }));
     expect(await listarEntradas(cfg, 'no')).toEqual([]);
   });
+  it('listarEntradas tal como estaba en un commit', async () => {
+    fetchMock.mockResolvedValueOnce(json(200, []));
+    await listarEntradas(cfg, 'estudios/x/chats', 'c1');
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.github.com/repos/diego/my-context/contents/estudios/x/chats?ref=c1');
+  });
+  it('comprobarAcceso falla si la llave no ve el repositorio (GitHub da 404 en los privados)', async () => {
+    fetchMock.mockResolvedValueOnce(json(200, { default_branch: 'main' }));
+    await comprobarAcceso(cfg);
+    fetchMock.mockResolvedValueOnce(json(404, { message: 'Not Found' }));
+    await expect(comprobarAcceso(cfg)).rejects.toMatchObject({ tipo: 'no-existe' });
+  });
+  it('shaDeBlob calcula el sha que Git da a un archivo (para no volver a subir lo que no ha cambiado)', async () => {
+    expect(await shaDeBlob(b64('{}'))).toBe(createHash('sha1').update('blob 2\0{}').digest('hex'));
+  });
   it('listarArchivosDe entra en las subcarpetas', async () => {
     fetchMock.mockResolvedValueOnce(json(200, [{ name: 'chat.json', type: 'file', sha: 's1' }, { name: 'imagenes', type: 'dir', sha: 't' }]));
     fetchMock.mockResolvedValueOnce(json(200, [{ name: 'a.png', type: 'file', sha: 's2' }]));
@@ -176,7 +191,7 @@ describe('subirCambios', () => {
   it('hace un solo commit con archivos nuevos y borrados', async () => {
     pasosHastaArbol();
     fetchMock.mockResolvedValueOnce(json(200, { object: { sha: 'c1' } }));
-    await subirCambios(cfg, [{ ruta: 'a/b.json', base64: 'e30=' }, { ruta: 'a/viejo.png', base64: null }], 'Chat compartido: x');
+    expect(await subirCambios(cfg, [{ ruta: 'a/b.json', base64: 'e30=' }, { ruta: 'a/viejo.png', base64: null }], 'Chat compartido: x')).toBe('c1');
     const urls = fetchMock.mock.calls.map((c) => `${c[1]?.method ?? 'GET'} ${String(c[0]).replace('https://api.github.com/repos/diego/my-context', '')}`);
     expect(urls).toEqual(['GET ', 'POST /git/blobs', 'GET /git/ref/heads/main', 'GET /git/commits/c0', 'POST /git/trees', 'POST /git/commits', 'PATCH /git/refs/heads/main']);
     expect(cuerpoDe(4)).toEqual({ base_tree: 'arbol0', tree: [{ path: 'a/b.json', mode: '100644', type: 'blob', sha: 'blob1' }, { path: 'a/viejo.png', mode: '100644', type: 'blob', sha: null }] });
@@ -193,6 +208,20 @@ describe('subirCambios', () => {
     fetchMock.mockResolvedValueOnce(json(200, { object: { sha: 'c10' } }));
     await subirCambios(cfg, [{ ruta: 'a/b.json', base64: 'e30=' }], 'm');
     expect(cuerpoDe(10)).toEqual({ message: 'm', tree: 'arbol10', parents: ['c9'] });
+  });
+  it('antes de cada commit comprueba lo que hay en la rama; si no vale, no se sube nada', async () => {
+    const comprobar = vi.fn(async (_padre: string) => undefined);
+    pasosHastaArbol();
+    fetchMock.mockResolvedValueOnce(json(422, { message: 'Update is not a fast forward' }));
+    fetchMock.mockResolvedValueOnce(json(200, { object: { sha: 'c9' } }));
+    await expect(
+      subirCambios(cfg, [{ ruta: 'a/b.json', base64: 'e30=' }], 'm', async (padre) => {
+        await comprobar(padre);
+        if (padre === 'c9') throw new ErrorGitHub('conflicto', 'Ha cambiado en otro dispositivo');
+      }),
+    ).rejects.toMatchObject({ tipo: 'conflicto' });
+    expect(comprobar.mock.calls).toEqual([['c0'], ['c9']]);
+    expect(fetchMock).toHaveBeenCalledTimes(8); // el segundo intento no llega a hacer árbol ni commit
   });
   it('sin red: ErrorGitHub de tipo red', async () => {
     fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));

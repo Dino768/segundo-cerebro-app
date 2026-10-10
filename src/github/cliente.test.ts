@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { actualizarArchivo, borrarArchivo, ErrorGitHub, escribirArchivo, escribirBase64, leerArchivo, leerBinario, listarCarpeta } from './cliente';
+import {
+  actualizarArchivo, borrarArchivo, ErrorGitHub, escribirArchivo, escribirBase64, leerArchivo, leerBinario, leerBlob, listarArchivosDe, listarCarpeta,
+  listarEntradas, subirCambios,
+} from './cliente';
 
 const cfg = { owner: 'diego', repo: 'my-context', token: 'secreto' };
 const fetchMock = vi.fn();
@@ -138,5 +141,61 @@ describe('binarios', () => {
     const blob = await leerBinario(cfg, 'estudios/fisica/pizarras/imagenes/a.png');
     expect([...new Uint8Array(await blob.arrayBuffer())]).toEqual([1, 2, 3]);
     expect(fetchMock.mock.calls[0][1].headers.Accept).toBe('application/vnd.github.raw+json');
+  });
+});
+
+describe('carpetas y blobs', () => {
+  it('listarEntradas da archivos y carpetas con su sha; si no existe, []', async () => {
+    fetchMock.mockResolvedValueOnce(json(200, [{ name: 'a', type: 'dir', sha: 't1' }, { name: 'b.json', type: 'file', sha: 'b1' }]));
+    expect(await listarEntradas(cfg, 'estudios/x/chats')).toEqual([{ nombre: 'a', tipo: 'dir', sha: 't1' }, { nombre: 'b.json', tipo: 'file', sha: 'b1' }]);
+    fetchMock.mockResolvedValueOnce(json(404, { message: 'Not Found' }));
+    expect(await listarEntradas(cfg, 'no')).toEqual([]);
+  });
+  it('listarArchivosDe entra en las subcarpetas', async () => {
+    fetchMock.mockResolvedValueOnce(json(200, [{ name: 'chat.json', type: 'file', sha: 's1' }, { name: 'imagenes', type: 'dir', sha: 't' }]));
+    fetchMock.mockResolvedValueOnce(json(200, [{ name: 'a.png', type: 'file', sha: 's2' }]));
+    expect(await listarArchivosDe(cfg, 'c')).toEqual([{ ruta: 'chat.json', sha: 's1' }, { ruta: 'imagenes/a.png', sha: 's2' }]);
+    expect(fetchMock.mock.calls[1][0]).toContain('/contents/c/imagenes');
+  });
+  it('leerBlob devuelve el base64 sin saltos de línea', async () => {
+    fetchMock.mockResolvedValueOnce(json(200, { content: 'QUJD\nREVG\n', encoding: 'base64' }));
+    expect(await leerBlob(cfg, 'abc')).toBe('QUJDREVG');
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.github.com/repos/diego/my-context/git/blobs/abc');
+  });
+});
+
+describe('subirCambios', () => {
+  const pasosHastaArbol = () => {
+    fetchMock.mockResolvedValueOnce(json(200, { default_branch: 'main' }));
+    fetchMock.mockResolvedValueOnce(json(201, { sha: 'blob1' }));
+    fetchMock.mockResolvedValueOnce(json(200, { object: { sha: 'c0' } }));
+    fetchMock.mockResolvedValueOnce(json(200, { tree: { sha: 'arbol0' } }));
+    fetchMock.mockResolvedValueOnce(json(201, { sha: 'arbol1' }));
+    fetchMock.mockResolvedValueOnce(json(201, { sha: 'c1' }));
+  };
+  it('hace un solo commit con archivos nuevos y borrados', async () => {
+    pasosHastaArbol();
+    fetchMock.mockResolvedValueOnce(json(200, { object: { sha: 'c1' } }));
+    await subirCambios(cfg, [{ ruta: 'a/b.json', base64: 'e30=' }, { ruta: 'a/viejo.png', base64: null }], 'Chat compartido: x');
+    const urls = fetchMock.mock.calls.map((c) => `${c[1]?.method ?? 'GET'} ${String(c[0]).replace('https://api.github.com/repos/diego/my-context', '')}`);
+    expect(urls).toEqual(['GET ', 'POST /git/blobs', 'GET /git/ref/heads/main', 'GET /git/commits/c0', 'POST /git/trees', 'POST /git/commits', 'PATCH /git/refs/heads/main']);
+    expect(cuerpoDe(4)).toEqual({ base_tree: 'arbol0', tree: [{ path: 'a/b.json', mode: '100644', type: 'blob', sha: 'blob1' }, { path: 'a/viejo.png', mode: '100644', type: 'blob', sha: null }] });
+    expect(cuerpoDe(5)).toEqual({ message: 'Chat compartido: x', tree: 'arbol1', parents: ['c0'] });
+    expect(cuerpoDe(6)).toEqual({ sha: 'c1', force: false });
+  });
+  it('si la rama avanzó entre medias, vuelve a hacer el commit encima', async () => {
+    pasosHastaArbol();
+    fetchMock.mockResolvedValueOnce(json(422, { message: 'Update is not a fast forward' }));
+    fetchMock.mockResolvedValueOnce(json(200, { object: { sha: 'c9' } }));
+    fetchMock.mockResolvedValueOnce(json(200, { tree: { sha: 'arbol9' } }));
+    fetchMock.mockResolvedValueOnce(json(201, { sha: 'arbol10' }));
+    fetchMock.mockResolvedValueOnce(json(201, { sha: 'c10' }));
+    fetchMock.mockResolvedValueOnce(json(200, { object: { sha: 'c10' } }));
+    await subirCambios(cfg, [{ ruta: 'a/b.json', base64: 'e30=' }], 'm');
+    expect(cuerpoDe(10)).toEqual({ message: 'm', tree: 'arbol10', parents: ['c9'] });
+  });
+  it('sin red: ErrorGitHub de tipo red', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await expect(subirCambios(cfg, [{ ruta: 'a', base64: 'e30=' }], 'm')).rejects.toMatchObject({ tipo: 'red' });
   });
 });

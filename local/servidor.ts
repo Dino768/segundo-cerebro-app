@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
+import os from 'node:os';
 import path from 'node:path';
 import { conContexto } from '../src/estudio/contexto.ts';
 import { esZona, type FotoEnviada } from '../src/estudio/foto.ts';
@@ -8,6 +9,7 @@ import { ErrorPizarra, validarOperacion, type Operacion } from '../src/estudio/p
 import { VERSION_PROGRAMA, type EventoChat, type EventoPizarra } from '../src/estudio/tipos.ts';
 import type { Aula } from './aula/programador.ts';
 import { lanzarClaude, type Comando, type Proceso } from './claude.ts';
+import { copiarChat, instalarPaquete, leerCompartidos, ponerCompartido, prepararPaquete, tamanoPaquete, type LugarChat } from './compartir.ts';
 import { avisoCarpetaConversaciones, borrarConversacion, carpetaConversaciones, leerConversacionDe, leerNombres, listarConversaciones, ponerNombre } from './conversaciones.ts';
 import { borrarPizarra, crearPizarra, listarPizarras, operarPizarra, pizarrasNoValidas, vigilarPizarras } from './pizarras.ts';
 import { esIdAsignatura, esIdConversacion, esNombreImagen, hostPermitido, origenPermitido, rutaDentro } from './seguridad.ts';
@@ -20,6 +22,7 @@ export interface OpcionesServidor {
   comando: Comando;
   instrucciones: string;
   aula?: Aula;
+  dispositivo?: string; // nombre de este ordenador en los chats compartidos (por defecto, el de Windows)
 }
 
 export const PREFIJO = '/segundo-cerebro-app/';
@@ -123,6 +126,18 @@ export function crearServidor(o: OpcionesServidor) {
   const oyentes = new Set<ServerResponse>();
   const cwdDe = (asig: string) => path.join(o.estudios, asig);
   const carpetaDe = (asig: string, id: string) => path.join(o.estudios, asig, '.en-curso', id);
+  // Chats compartidos (spec chats compartidos §4).
+  const dispositivo = o.dispositivo ?? os.hostname();
+  const raiz = path.dirname(o.estudios);
+  const lugar = (asig: string, id: string): LugarChat => ({ carpetaClaude: carpetaConversaciones(cwdDe(asig), o.home), cwd: cwdDe(asig), raiz, id });
+  const LIMITE_COMPARTIR = 50_000_000;
+  const esFecha = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  function entradaDe(v: unknown) {
+    if (v === null) return null;
+    const e = v as Record<string, unknown> | undefined;
+    if (typeof e?.version !== 'string' || typeof e.pendiente !== 'boolean' || !esFecha(e.compartidoEl)) throw new ErrorPeticion(400, 'Entrada no válida');
+    return { version: e.version, pendiente: e.pendiente, compartidoEl: e.compartidoEl };
+  }
 
   function emitirATodos(e: EventoPizarra): void {
     for (const res of oyentes) res.write(`data: ${JSON.stringify(e)}\n\n`);
@@ -174,6 +189,55 @@ export function crearServidor(o: OpcionesServidor) {
       // Mientras Claude contesta está escribiendo en ese chat.
       if (activos.has(id)) throw new ErrorPeticion(409, 'Espera a que Claude termine de contestar');
       await borrarConversacion(carpetaConversaciones(cwdDe(asig), o.home), cwdDe(asig), id);
+      enviarJson(res, 200, { ok: true });
+    },
+
+    'POST chat/paquete': async (req, res) => {
+      const b = await leerJson(req);
+      const asig = asignaturaDe(b.asignatura);
+      const id = conversacionDe(b.id);
+      if (!esFecha(b.compartidoEl)) throw new ErrorPeticion(400, 'Fecha no válida');
+      if (activos.has(id)) throw new ErrorPeticion(409, 'Espera a que Claude termine de contestar');
+      let archivos;
+      try {
+        archivos = await prepararPaquete(lugar(asig, id), { compartidoEl: b.compartidoEl, actualizado: new Date().toISOString(), dispositivo });
+      } catch (e) {
+        throw new ErrorPeticion(400, e instanceof Error ? e.message : String(e));
+      }
+      if (tamanoPaquete(archivos) > LIMITE_COMPARTIR) throw new ErrorPeticion(413, 'Este chat ocupa más de 50 MB y no se puede compartir');
+      enviarJson(res, 200, { archivos });
+    },
+
+    'POST chat/instalar': async (req, res) => {
+      const b = await leerJson(req, 80_000_000);
+      const asig = asignaturaDe(b.asignatura);
+      const id = conversacionDe(b.id);
+      if (activos.has(id)) throw new ErrorPeticion(409, 'Espera a que Claude termine de contestar');
+      const archivos = Array.isArray(b.archivos)
+        ? b.archivos.filter((a): a is { ruta: string; base64: string } => typeof a?.ruta === 'string' && typeof a?.base64 === 'string')
+        : [];
+      try {
+        enviarJson(res, 200, { info: await instalarPaquete(lugar(asig, id), archivos) });
+      } catch (e) {
+        throw new ErrorPeticion(400, e instanceof Error ? e.message : String(e));
+      }
+    },
+
+    'POST chat/copia': async (req, res) => {
+      const b = await leerJson(req);
+      const asig = asignaturaDe(b.asignatura);
+      const id = conversacionDe(b.id);
+      const nombre = nombreChatDe(typeof b.nombre === 'string' ? b.nombre.slice(0, 50) : '') || 'Chat';
+      const nuevo = crypto.randomUUID();
+      await copiarChat(lugar(asig, id), nuevo, `${nombre} (copia de ${dispositivo})`.slice(0, LIMITE_NOMBRE_CHAT));
+      enviarJson(res, 200, { id: nuevo });
+    },
+
+    'GET compartidos': async (_req, res, url) => enviarJson(res, 200, await leerCompartidos(cwdDe(asignaturaDe(url.searchParams.get('asignatura'))))),
+
+    'POST compartidos': async (req, res) => {
+      const b = await leerJson(req);
+      await ponerCompartido(cwdDe(asignaturaDe(b.asignatura)), conversacionDe(b.id), entradaDe(b.entrada));
       enviarJson(res, 200, { ok: true });
     },
 

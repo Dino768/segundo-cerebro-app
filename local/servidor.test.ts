@@ -43,7 +43,7 @@ beforeAll(async () => {
   mkdirSync(convs, { recursive: true });
   writeFileSync(path.join(convs, `${ID}.jsonl`), JSON.stringify({ type: 'user', message: { role: 'user', content: 'Primera pregunta' } }) + '\n');
   process.env.FALSO_REGISTRO = registro;
-  const creado = crearServidor({ puerto: PUERTO, estudios, dist, home, comando: FALSO, instrucciones: path.join(raiz, 'i.md'), aula: aulaFalsa });
+  const creado = crearServidor({ puerto: PUERTO, estudios, dist, home, comando: FALSO, instrucciones: path.join(raiz, 'i.md'), aula: aulaFalsa, dispositivo: 'PC-PRUEBA' });
   const { servidor } = creado;
   ocupado = creado.ocupado;
   await new Promise<void>((r) => servidor.listen(PUERTO, '127.0.0.1', r));
@@ -83,7 +83,7 @@ describe('app', () => {
     expect(r.status).toBe(302);
   });
   it('estado', async () => {
-    expect(VERSION_PROGRAMA).toBe(5); // la app avisa si el programa local abierto es de antes de poder cambiar el nombre y borrar chats, y desde la 5, el aula virtual
+    expect(VERSION_PROGRAMA).toBe(6); // la app avisa si el programa local abierto es de antes de poder cambiar el nombre y borrar chats, y desde la 5, el aula virtual, y desde la 6, los chats compartidos
     expect(await (await fetch(`${API}estado`)).json()).toEqual({ ok: true, version: VERSION_PROGRAMA });
   });
 });
@@ -263,5 +263,44 @@ describe('pizarras', () => {
     expect(llamadas).toHaveLength(2);
     expect(llamadas[1].args).toContain('--resume');
     expect(llamadas[1].entrada).toContain('no es válida');
+  });
+});
+
+describe('chats compartidos', () => {
+  const OTRO = '22222222-3333-4444-8555-666666666666';
+  it('prepara el paquete con chat.json del dispositivo', async () => {
+    const r = await post('chat/paquete', { asignatura: 'fisica', id: ID, compartidoEl: '2026-10-10' });
+    expect(r.status).toBe(200);
+    const { archivos } = (await r.json()) as { archivos: { ruta: string; base64: string }[] };
+    const info = JSON.parse(Buffer.from(archivos.find((a) => a.ruta === 'chat.json')!.base64, 'base64').toString('utf8'));
+    expect(info).toMatchObject({ compartidoEl: '2026-10-10', dispositivo: 'PC-PRUEBA' });
+  });
+  it('un chat sin mensajes da un error claro', async () => {
+    const r = await post('chat/paquete', { asignatura: 'fisica', id: OTRO, compartidoEl: '2026-10-10' });
+    expect(r.status).toBe(400);
+    expect(((await r.json()) as { error: string }).error).toBe('Este chat aún no tiene mensajes');
+  });
+  it('instala un paquete y luego se lee como conversación', async () => {
+    const conv = Buffer.from(JSON.stringify({ type: 'user', message: { content: 'Desde el portátil' } }) + '\n').toString('base64');
+    const r = await post('chat/instalar', { asignatura: 'fisica', id: OTRO, archivos: [{ ruta: 'conversacion.jsonl', base64: conv }] });
+    expect(r.status).toBe(200);
+    const ms = await (await fetch(`${API}conversacion?asignatura=fisica&id=${OTRO}`)).json();
+    expect(ms[0].texto).toBe('Desde el portátil');
+  });
+  it('copia un chat con un id nuevo y el nombre del dispositivo', async () => {
+    const r = await post('chat/copia', { asignatura: 'fisica', id: ID, nombre: 'Newton' });
+    const { id } = (await r.json()) as { id: string };
+    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+    const lista = (await (await fetch(`${API}conversaciones?asignatura=fisica`)).json()) as { id: string; titulo: string }[];
+    expect(lista.find((c) => c.id === id)?.titulo).toBe('Newton (copia de PC-PRUEBA)');
+  });
+  it('guarda y lee compartidos.json', async () => {
+    await post('compartidos', { asignatura: 'fisica', id: ID, entrada: { version: 'v1', pendiente: true, compartidoEl: '2026-10-10' } });
+    expect((await (await fetch(`${API}compartidos?asignatura=fisica`)).json())[ID]).toEqual({ version: 'v1', pendiente: true, compartidoEl: '2026-10-10' });
+    await post('compartidos', { asignatura: 'fisica', id: ID, entrada: null });
+    expect(await (await fetch(`${API}compartidos?asignatura=fisica`)).json()).toEqual({});
+  });
+  it('rechaza una entrada mal formada', async () => {
+    expect((await post('compartidos', { asignatura: 'fisica', id: ID, entrada: { version: 1 } })).status).toBe(400);
   });
 });

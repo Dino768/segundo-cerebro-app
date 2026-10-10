@@ -2,7 +2,7 @@
 import type { Pizarra } from './pizarra.ts';
 
 // Sube cuando el programa local cambia de forma que la app necesita el nuevo (si no, hay que reiniciarlo).
-export const VERSION_PROGRAMA = 5;
+export const VERSION_PROGRAMA = 6;
 
 export interface Mensaje {
   rol: 'diego' | 'claude' | 'herramienta';

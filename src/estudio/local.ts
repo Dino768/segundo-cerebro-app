@@ -1,6 +1,9 @@
 import type { FotoEnviada } from './foto';
 import { validarPizarra, type Operacion, type Pizarra } from './pizarra';
-import { VERSION_PROGRAMA, type EstadoPizarra, type EventoChat, type Mensaje, type ResumenConversacion } from './tipos';
+import {
+  VERSION_PROGRAMA, type ArchivoPaquete, type Compartidos, type EntradaCompartido, type EstadoPizarra, type EventoChat, type InfoChat, type Mensaje,
+  type ResumenConversacion,
+} from './tipos';
 
 // Habla con el programa local (npm run local). En la web publicada no existe y todo falla en silencio.
 const BASE = `${import.meta.env.BASE_URL}api/local`;
@@ -67,6 +70,17 @@ export const borrarConversacion = (asignatura: string, id: string) =>
 
 export const leerConversacion = (asignatura: string, id: string) =>
   pedir<Mensaje[]>(`conversacion?${consulta({ asignatura, id })}`);
+
+// Chats compartidos (spec chats compartidos §4): el programa local prepara e instala; GitHub lo hace la app.
+export const prepararPaqueteLocal = async (asignatura: string, id: string, compartidoEl: string) =>
+  (await pedir<{ archivos: ArchivoPaquete[] }>('chat/paquete', enviarJson({ asignatura, id, compartidoEl }))).archivos;
+export const instalarPaqueteLocal = async (asignatura: string, id: string, archivos: ArchivoPaquete[]) =>
+  (await pedir<{ info: InfoChat | null }>('chat/instalar', enviarJson({ asignatura, id, archivos }))).info;
+export const copiarChatLocal = async (asignatura: string, id: string, nombre: string) =>
+  (await pedir<{ id: string }>('chat/copia', enviarJson({ asignatura, id, nombre }))).id;
+export const leerCompartidosLocal = (asignatura: string) => pedir<Compartidos>(`compartidos?${consulta({ asignatura })}`);
+export const ponerCompartidoLocal = async (asignatura: string, id: string, entrada: EntradaCompartido | null) =>
+  void (await pedir<{ ok: true }>('compartidos', enviarJson({ asignatura, id, entrada })));
 
 export interface Envio {
   asignatura: string;

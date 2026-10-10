@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AulaVirtual } from '../componentes/estudio/AulaVirtual';
+import { ChatsCompartidos } from '../componentes/estudio/ChatsCompartidos';
 import { EstudioLocal } from '../componentes/estudio/EstudioLocal';
 import { FormAsignatura } from '../componentes/estudio/FormAsignatura';
 import { Historial } from '../componentes/estudio/Historial';
@@ -60,6 +61,7 @@ export function Estudio({ aulaInicial = false, asignaturaInicial }: { aulaInicia
                 : 'El chat solo está disponible en tu PC.'}
           </div>
           <Historial key={asignatura.id} asignatura={asignatura} />
+          <ChatsCompartidos key={`chats-${asignatura.id}`} asignatura={asignatura} />
         </>
       )}
       {form && (

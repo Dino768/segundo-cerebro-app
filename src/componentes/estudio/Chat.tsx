@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent } from 'react';
 import { subirImagen, urlArchivo } from '../../estudio/local';
 import type { Mensaje } from '../../estudio/tipos';
+import { MensajesChat } from './MensajesChat';
 import type { EstadoCompartir } from './useCompartir';
-import { Markdown } from '../Markdown';
 import { URL_USO_CLAUDE } from '../navegacion';
 
 export interface ErrorChat {
@@ -116,22 +116,7 @@ export function Chat(p: Props) {
         {p.mensajes.length === 0 && (
           <p className="vacio">Pregúntame lo que quieras de esta asignatura: ejercicios, cómo se hace algo, resúmenes… También puedes pegar una captura.</p>
         )}
-        {p.mensajes.map((m, i) =>
-          m.rol === 'diego' ? (
-            <div key={i} className="burbuja-diego">
-              {m.texto}
-              {m.imagenes?.length ? (
-                <div className="miniaturas">
-                  {m.imagenes.map((n) => <img key={n} src={urlArchivo(p.asignatura, p.conversacion, `imagenes/${n}`)} alt="Captura" />)}
-                </div>
-              ) : null}
-            </div>
-          ) : m.rol === 'claude' ? (
-            <Markdown key={i} texto={m.texto} formulas className="markdown burbuja-claude" />
-          ) : (
-            <p key={i} className="linea-herramienta">{m.texto}</p>
-          ),
-        )}
+        <MensajesChat mensajes={p.mensajes} imagen={(n) => urlArchivo(p.asignatura, p.conversacion, `imagenes/${n}`)} />
         {esperando && <p className="linea-herramienta">Claude está pensando…</p>}
       </div>
       {p.error && (

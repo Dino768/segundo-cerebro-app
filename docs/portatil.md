@@ -9,9 +9,10 @@ Para tener el chat y la pizarra en el portátil, se necesitan los mismos program
    irm https://claude.ai/install.ps1 | iex
    ```
    Después escribe `claude`, inicia sesión con tu cuenta de Claude y sal con `/exit`.
-4. **Los dos repositorios**, en el Escritorio y uno al lado del otro:
+4. **Los dos repositorios**, en la carpeta `segundo-cerebro` del Escritorio y uno al lado del otro:
    ```powershell
-   cd $HOME\Desktop
+   mkdir $HOME\Desktop\segundo-cerebro
+   cd $HOME\Desktop\segundo-cerebro
    git clone https://github.com/Dino768/my-context.git
    git clone https://github.com/Dino768/segundo-cerebro-app.git
    cd segundo-cerebro-app
@@ -19,7 +20,7 @@ Para tener el chat y la pizarra en el portátil, se necesitan los mismos program
    ```
 5. **Arrancarlo** (cada vez que quieras estudiar):
    ```powershell
-   cd $HOME\Desktop\segundo-cerebro-app
+   cd $HOME\Desktop\segundo-cerebro\segundo-cerebro-app
    npm run local
    ```
    Abre http://127.0.0.1:5174/segundo-cerebro-app/.

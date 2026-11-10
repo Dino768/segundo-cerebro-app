@@ -4,7 +4,7 @@
 Es la app web del "segundo cerebro" de Diego: tareas, calendario y proyectos, desde el PC, el portátil y el móvil.
 
 El segundo cerebro son dos repositorios que trabajan juntos:
-- **`my-context`** (privado, `Desktop/my-context`, GitHub `Dino768/my-context`): los datos y el contexto de Diego. Quién es, sus proyectos, sus ideas y la agenda (`agenda/tareas.yaml`, `agenda/areas.yaml`, `proyectos/*.md`).
+- **`my-context`** (privado, `Desktop/segundo-cerebro/my-context`, GitHub `Dino768/my-context`): los datos y el contexto de Diego. Quién es, sus proyectos, sus ideas y la agenda (`agenda/tareas.yaml`, `agenda/areas.yaml`, `proyectos/*.md`).
 - **`segundo-cerebro-app`** (este repositorio, público, GitHub `Dino768/segundo-cerebro-app`): el código de la app. Aquí no hay datos personales.
 
 La app no tiene servidor. Lee y escribe los archivos de `my-context` con la API de GitHub y un token que Diego pega en cada dispositivo. Claude (con la suscripción de Diego) es el "cerebro": edita los mismos archivos desde la terminal. Coste extra: 0 €.
